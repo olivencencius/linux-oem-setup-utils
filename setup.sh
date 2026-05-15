@@ -172,8 +172,9 @@ case $kb_choice in
 esac
 
 echo "--> Applying $KB_LAYOUT physical keyboard layout..."
-localectl set-x11-keymap $KB_LAYOUT
+# FIX: Removed localectl and replaced with Debian-native system updates
 sed -i "s/XKBLAYOUT=.*/XKBLAYOUT=\"$KB_LAYOUT\"/g" /etc/default/keyboard
+setupcon # Force the system to read the new layout immediately
 
 echo "========================================="
 echo "              SETUP COMPLETE!            "
