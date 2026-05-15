@@ -134,10 +134,42 @@ Categories=Network;WebBrowser;
 EOF
 done
 
-# 10. Enforce Polish Localization 
-echo "--> Adjusting regional localization for local market deployment..."
-apt install -y language-pack-pl language-pack-gnome-pl
+# 10. Regional Localization, Timezone & Physical Keyboard
+echo "--> Configuring Regional Settings..."
+
+# Download both Polish and English languages
+apt install -y language-pack-pl language-pack-gnome-pl language-pack-en language-pack-gnome-en
+
+# Set the system default language to Polish
 localectl set-locale LANG=pl_PL.UTF-8
+
+# Lock the Timezone to Warsaw, Poland
+timedatectl set-timezone Europe/Warsaw
+
+# Interactive Keyboard Selection (Reads from TTY to survive curl pipe)
+echo ""
+echo "========================================="
+echo " What is the PHYSICAL keyboard layout? "
+echo " 1) US English (Standard)"
+echo " 2) UK English (GB)"
+echo " 3) German (DE)"
+echo " 4) Swedish (SE)"
+echo " 5) Polish (PL)"
+echo "========================================="
+read -p "Enter number [1-5]: " kb_choice < /dev/tty
+
+case $kb_choice in
+    1) KB_LAYOUT="us" ;;
+    2) KB_LAYOUT="gb" ;;
+    3) KB_LAYOUT="de" ;;
+    4) KB_LAYOUT="se" ;;
+    5) KB_LAYOUT="pl" ;;
+    *) echo "Invalid input. Defaulting to US layout."; KB_LAYOUT="us" ;;
+esac
+
+echo "--> Applying $KB_LAYOUT physical keyboard layout..."
+localectl set-x11-keymap $KB_LAYOUT
+sed -i "s/XKBLAYOUT=.*/XKBLAYOUT=\"$KB_LAYOUT\"/g" /etc/default/keyboard
 
 # 11. Disable Bracketed Paste Mode (Fixes extra characters on paste)
 echo "--> Disabling bracketed paste mode in terminal..."
