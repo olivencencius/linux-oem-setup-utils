@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==============================================================================
 #   Module:    themes.sh
-#   Purpose:   ChromeOS-like visual polish using fully Mint-shipped components:
+#   Purpose:   ChromeOS-like visual polish:
 #              Mint-Y-Aqua GTK theme (ships with mint-themes, always present),
-#              Papirus icon theme (apt), and an XFCE bottom panel created as
-#              a dock-style launcher bar by oem-first-run.sh.
+#              Papirus icon theme (apt), and a Plank dock seeded per-user by
+#              oem-first-run.sh as a bottom-centred launcher bar.
 #              Also handles: Malta wallpaper, per-user first-run script, and
 #              the full /etc/skel staging.
 #   Reads:     REPO_DIR/assets/wallpapers/malta.jpg
@@ -12,7 +12,7 @@
 #              REPO_DIR/skel/...
 #              SUDO_USER (optional, for live-session apply)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: papirus-icon-theme, gtk2-engines-murrine
+#   Writes:    apt: papirus-icon-theme, gtk2-engines-murrine, plank
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
 #              /etc/skel/...                         (full skel tree copy)
@@ -21,12 +21,22 @@
 #                                                     gets the theme and
 #                                                     wallpaper without a
 #                                                     re-login)
+#              ~SUDO_USER/.config/plank/dock1/...    (written by inline
+#                                                     oem-first-run.sh call)
 #   Step fn:   step_themes
 #   Helpers:   oem_user_xrun (file-scope)
 #   Docs:      docs/modules/themes.md
-#   Uninstall: step_uninstall purges papirus-icon-theme (sub-step 2), removes
-#              wallpaper + first-run script (sub-step 8), scrubs /etc/skel
-#              (sub-step 12), and cleans per-user panel-2 + marker (sub-step 13).
+#   Uninstall: step_uninstall purges papirus-icon-theme + plank (sub-step 2),
+#              removes wallpaper + first-run script (sub-step 8), scrubs
+#              /etc/skel (sub-step 12), and cleans per-user plank config +
+#              marker (sub-step 13).
+#
+#   NOTE — why Plank (not a 2nd XFCE panel). Mint XFCE already ships panel-1
+#   along the bottom edge (mint-menu + window list + tray). Trying to add a
+#   second centred XFCE panel at the same edge collides with panel-1 and
+#   does not render reliably. Plank is a separate floating window so it
+#   sits above the screen and co-exists with Mint's panel-1 cleanly. It is
+#   a single apt package in Mint's main repo.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -86,10 +96,13 @@ step_themes() {
     # We install the GTK2 engine that makes Mint-Y-Aqua render correctly on
     # GTK2 widgets (XFCE panel, older apps). Without it the theme is selected
     # but visually inert on those widgets.
+    # plank is the ChromeOS-style dock seeded per-user by oem-first-run.sh
+    # (see module header for rationale). One apt package, ~3 MB, in main.
     ensure_apt_fresh
-    apt-get install -y papirus-icon-theme gtk2-engines-murrine
+    apt-get install -y papirus-icon-theme gtk2-engines-murrine plank
     echo "    [+] papirus-icon-theme installed."
     echo "    [+] gtk2-engines-murrine installed."
+    echo "    [+] plank installed."
 
     # -------------------------------------------------------------------------
     # Wallpaper file deploy
@@ -102,8 +115,9 @@ step_themes() {
 
     # -------------------------------------------------------------------------
     # First-run applier script — runs once per user account on first login.
-    # Sets wallpaper, sets theme/icons, creates the bottom panel-2 dock, then
-    # self-deletes its autostart entry so the user keeps full control.
+    # Sets wallpaper, sets theme/icons, seeds the per-user Plank dock and
+    # starts plank, then self-deletes its autostart entry so the user keeps
+    # full control.
     # -------------------------------------------------------------------------
     install -m 755 "$REPO_DIR/assets/scripts/oem-first-run.sh" \
                    /usr/local/bin/oem-first-run.sh
@@ -174,12 +188,12 @@ step_themes() {
         disown 2>/dev/null || true
 
         # Run the per-user first-run script inline so the live session sees the
-        # wallpaper and the bottom panel-2 dock immediately, without a re-login.
+        # wallpaper, theme, and the Plank dock immediately, without a re-login.
         # The marker file created at the end makes the autostart entry silently
         # no-op on all subsequent logins.
         oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true
 
-        echo "    [+] Theme, wallpaper, and dock panel applied to live session for user: $SUDO_USER"
+        echo "    [+] Theme, wallpaper, and Plank dock applied to live session for user: $SUDO_USER"
     else
         echo "    [i] \$SUDO_USER not set — theme will apply on next login via skel."
     fi

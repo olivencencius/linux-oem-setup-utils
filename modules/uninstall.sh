@@ -82,7 +82,8 @@ step_uninstall() {
         # Legacy: imwheel was removed from the toolkit; kill it on old installs.
         sudo -u "$SUDO_USER" pkill -x imwheel              2>/dev/null || true
         sudo -u "$SUDO_USER" pkill -f 'touchegg --client'  2>/dev/null || true
-        # Legacy: Plank was replaced by the panel-2 dock; kill it on old installs.
+        # Plank is the active ChromeOS-style dock — stop it before purging so
+        # the running process does not hold open dbus / file handles.
         sudo -u "$SUDO_USER" pkill -x plank                2>/dev/null || true
         sudo -u "$SUDO_USER" pkill -x xfdashboard          2>/dev/null || true
     fi
@@ -319,23 +320,23 @@ step_uninstall() {
         local home="$1"
         [ -d "$home" ] || return 0
 
-        # Marker + autostart entries (current + legacy)
+        # Marker + autostart entries
         rm -f  "$home/.config/.oem-first-run-done"
         rm -f  "$home/.config/autostart/oem-first-run.desktop"
         rm -f  "$home/.config/autostart/touchegg-client.desktop"
+        rm -f  "$home/.config/autostart/plank.desktop"
         rm -f  "$home/.config/autostart/imwheel.desktop"      # legacy
-        rm -f  "$home/.config/autostart/plank.desktop"        # legacy
         rm -f  "$home/.imwheelrc"                             # legacy
-        rm -rf "$home/.config/plank"                          # legacy
         rm -f  "$home/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}  # legacy
 
-        # Panel-2 dock: remove every launcher-NNN directory that contains a
-        # .desktop file also present in /usr/share/applications (a reasonable
-        # proxy for "created by oem-first-run.sh"). We identify our launchers
-        # by the fact that they live in IDs >= 100 AND their directory was
-        # written under ~/.config/xfce4/panel/launcher-NNN/.
-        # Strategy: remove all launcher-NNN dirs whose NNN >= 100, then remove
-        # the matching xfconf keys. The panel will self-heal on next restart.
+        # Plank dock config (current): dockitems + settings written by
+        # oem-first-run.sh into ~/.config/plank/dock1/.
+        rm -rf "$home/.config/plank"
+
+        # LEGACY — XFCE panel-2 dock used by an earlier toolkit revision.
+        # Keep this cleanup in place so users upgrading from the panel-2
+        # build do not end up with orphaned launcher-NNN directories or
+        # an empty panel-2 in their config. Safe no-op on fresh installs.
         local panel_dir="$home/.config/xfce4/panel"
         if [ -d "$panel_dir" ]; then
             for ldir in "$panel_dir"/launcher-[0-9]*; do
@@ -361,9 +362,12 @@ step_uninstall() {
         _clean_user_home "$(getent passwd "$SUDO_USER" | cut -d: -f6)"
     fi
 
-    # Remove panel-2 xfconf keys for the live oem user so XFCE doesn't show
-    # an empty panel on next login. We do this via xfconf-query as root+sudo
-    # (the same env trick used in step_themes).
+    # LEGACY — Remove panel-2 xfconf keys left behind by the older XFCE
+    # panel-based dock revision so XFCE does not show an empty panel on
+    # next login. Kept here for users upgrading from that build; on fresh
+    # installs the keys do not exist and the calls are silent no-ops.
+    # We do this via xfconf-query as root+sudo (the same env trick used
+    # in step_themes).
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null \
        && command -v xfconf-query &>/dev/null; then
         local SUDO_HOME oem_dbus_addr=""
