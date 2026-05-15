@@ -84,12 +84,18 @@ step_apps() {
 step_themes() {
     echo "--> Downloading and caching modern ChromeOS visual themes..."
     cd /tmp
-    git clone https://github.com/vinceliuice/ChromeOS-themes.git
-    ./ChromeOS-themes/install.sh -p /usr/share/themes
+    # Prevent collision by clearing old clones
+    rm -rf ChromeOS-theme Tela-icon-theme
+    
+    # 1. Clone the core GTK theme (Singular 'theme')
+    git clone https://github.com/vinceliuice/ChromeOS-theme.git
+    # No flags needed; running under sudo forces it system-wide automatically
+    ./ChromeOS-theme/install.sh
 
-    cd /tmp
+    # 2. Clone the Tela Icon theme
     git clone https://github.com/vinceliuice/Tela-icon-theme.git
-    ./Tela-icon-theme/install.sh -a -d /usr/share/icons
+    # -a installs all color variants system-wide automatically
+    ./Tela-icon-theme/install.sh -a
 }
 
 step_touchpad() {
