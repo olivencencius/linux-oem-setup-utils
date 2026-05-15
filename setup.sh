@@ -74,7 +74,6 @@ echo "--> Installing default applications..."
 apt install -y vlc
 # FIX: Added --noninteractive so it automatically accepts permissions without breaking the loop
 flatpak install flathub com.spotify.Client -y --noninteractive
-flatpak install flathub org.supertuxkart.SuperTuxKart -y --noninteractive
 flatpak install flathub org.gnome.Quadrapassel -y --noninteractive
 flatpak install flathub org.gnome.Aisleriot -y --noninteractive
 
@@ -85,8 +84,10 @@ git clone https://github.com/vinceliuice/ChromeOS-theme.git
 ./ChromeOS-theme/install.sh -p /usr/share/themes
 
 cd /tmp
-git clone https://github.com/vinceliuice/ChromeOS-icon-theme.git
-./ChromeOS-icon-theme/src/install.sh -p /usr/share/icons
+# Use Tela Icon Theme (Vince's official recommendation for ChromeOS setups)
+git clone https://github.com/vinceliuice/Tela-icon-theme.git
+# The '-a' flag installs all variants, including the specific ChromeOS style
+./Tela-icon-theme/install.sh -a -d /usr/share/icons
 
 # 8. Hardware Tweaks: Touchpad Scrolling & Acceleration
 echo "--> Configuring Touchpad properties (Natural Scrolling & Smooth Speed)..."
