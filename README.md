@@ -44,4 +44,4 @@ Injects native-looking desktop shortcuts for premium web services using official
 5. **Execute Script:** Open the terminal window and run the following command (replace with your actual GitHub repo details):
 
    ```bash
-   curl -sL [https://raw.githubusercontent.com/](https://raw.githubusercontent.com/)olivencencius/linux-oem-setup-utils/main/setup.sh | sudo bash
+   curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/setup.sh | sudo bash
