@@ -28,6 +28,7 @@ tlp start
 # 2. Initialize and Enable Flathub Explicitly
 echo "--> Setting up Flathub repository for third party apps..."
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak update -y  # FIX: Forces the metadata cache to sync, resolving the "Nothing matches" error
 
 # 3. Chromebook Hardware Fixes (Audio & Keyboard Mapping)
 echo "--> Chromebook audio and keyboard optimizations..."
@@ -71,10 +72,11 @@ rm google-chrome-stable_current_amd64.deb
 # 6. Standard Applications Installation
 echo "--> Installing default applications..."
 apt install -y vlc
-flatpak install flathub com.spotify.Client -y
-flatpak install flathub org.supertuxkart.SuperTuxKart -y
-flatpak install flathub org.gnome.Quadrapassel -y
-flatpak install flathub org.gnome.Aisleriot -y
+# FIX: Added --noninteractive so it automatically accepts permissions without breaking the loop
+flatpak install flathub com.spotify.Client -y --noninteractive
+flatpak install flathub org.supertuxkart.SuperTuxKart -y --noninteractive
+flatpak install flathub org.gnome.Quadrapassel -y --noninteractive
+flatpak install flathub org.gnome.Aisleriot -y --noninteractive
 
 # 7. Apply System-Wide ChromeOS Aesthetics (For OEM Deployment)
 echo "--> Downloading and caching modern ChromeOS visual themes..."
