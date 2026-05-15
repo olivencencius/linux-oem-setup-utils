@@ -313,10 +313,18 @@ step_uninstall() {
     rm -f  /etc/skel/.config/autostart/touchegg-client.desktop
     rm -rf /etc/skel/.config/plank
     rm -f  /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+    # Libadwaita symlinks staged by step_themes for new users.
+    rm -f  /etc/skel/.config/gtk-4.0/{assets,gtk.css,gtk-dark.css}
     rmdir --ignore-fail-on-non-empty -p \
         /etc/skel/.config/autostart \
+        /etc/skel/.config/gtk-4.0 \
         /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml \
         2>/dev/null || true
+
+    # /root/.config/gtk-4.0 — created so upstream's install.sh wouldn't crash.
+    # Drop the symlinks it deposited, then prune the dir if empty.
+    rm -f /root/.config/gtk-4.0/{assets,gtk.css,gtk-dark.css}
+    rmdir --ignore-fail-on-non-empty /root/.config/gtk-4.0 2>/dev/null || true
 
     # -------------------------------------------------------------------------
     # 13. Per-user cleanup (every uid >= 1000 plus $SUDO_USER, deduped)
@@ -336,6 +344,7 @@ step_uninstall() {
         rm -f  "$home/.config/autostart/plank.desktop"
         rm -f  "$home/.config/autostart/imwheel.desktop"
         rm -rf "$home/.config/plank"
+        rm -f  "$home/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}
     done < /etc/passwd
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null \
@@ -348,6 +357,7 @@ step_uninstall() {
         rm -f  "$SUDO_HOME/.config/autostart/plank.desktop"
         rm -f  "$SUDO_HOME/.config/autostart/imwheel.desktop"
         rm -rf "$SUDO_HOME/.config/plank"
+        rm -f  "$SUDO_HOME/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}
     fi
 
     # -------------------------------------------------------------------------

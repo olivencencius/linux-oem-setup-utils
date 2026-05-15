@@ -67,9 +67,46 @@ step_themes() {
     cd /tmp
     rm -rf ChromeOS-theme Tela-icon-theme
 
-    # ChromeOS GTK theme (system-wide install when running as root)
+    # ChromeOS GTK theme (system-wide install when running as root).
+    #
+    # Upstream's install.sh ends each variant with:
+    #     ln -sf "$THEME_DIR/gtk-4.0/assets" "$HOME/.config/gtk-4.0/assets"
+    # with no `mkdir -p` before it. Under sudo, $HOME is /root, and /root has
+    # no .config/gtk-4.0 on a fresh Mint install, so `ln` aborts with
+    # "no such file or directory" and the whole step fails. Pre-create it.
+    #
+    # We also pin to `--color standard --size standard` (the 'ChromeOS' variant,
+    # no suffix) because that's the only variant our xsettings.xml and
+    # oem-first-run.sh ever select. The default would install 6 variants
+    # (~50 MB) and, worse, the libadwaita link would end up pointing to
+    # whichever variant is iterated last (ChromeOS-Light-Compact) instead of
+    # our ChromeOS target.
+    mkdir -p /root/.config/gtk-4.0
     git clone --depth 1 https://github.com/vinceliuice/ChromeOS-theme.git
-    ./ChromeOS-theme/install.sh
+    ./ChromeOS-theme/install.sh --color standard --size standard
+
+    # Make every new user inherit GTK4 / libadwaita theming. Upstream only
+    # links into the *invoking* user's $HOME (here: root), so without this
+    # block buyers' GNOME apps would render with the default purple Adwaita
+    # instead of the ChromeOS theme.
+    mkdir -p /etc/skel/.config/gtk-4.0
+    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/assets   /etc/skel/.config/gtk-4.0/assets
+    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk.css  /etc/skel/.config/gtk-4.0/gtk.css
+    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk-dark.css \
+                                                       /etc/skel/.config/gtk-4.0/gtk-dark.css
+
+    # Same link inside the live oem session so libadwaita apps look right
+    # without waiting for the buyer's first login.
+    if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
+        SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/.config/gtk-4.0"
+        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/assets \
+                                    "$SUDO_HOME/.config/gtk-4.0/assets"
+        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk.css \
+                                    "$SUDO_HOME/.config/gtk-4.0/gtk.css"
+        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk-dark.css \
+                                    "$SUDO_HOME/.config/gtk-4.0/gtk-dark.css"
+    fi
 
     # Tela icon theme — ONLY install the 'blue' variant (matches xsettings.xml
     # default below). Installing -a pulls ~100 MB of unused colour variants.
