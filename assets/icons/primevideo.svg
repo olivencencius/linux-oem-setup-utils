@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="60" fill="#00A8E0"/>
+  <!-- Play triangle -->
+  <polygon points="180,150 180,362 370,256" fill="#FFFFFF"/>
+  <!-- Underline arc (Prime Video brand mark) -->
+  <path d="M130 390 Q256 450 382 390" stroke="#F5A623" stroke-width="14" fill="none" stroke-linecap="round"/>
+</svg>

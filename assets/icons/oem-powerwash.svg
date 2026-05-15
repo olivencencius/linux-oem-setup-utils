@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="60" fill="#1A73E8"/>
+  <!-- 3/4 circular refresh arc, clockwise from 12 o'clock to 9 o'clock -->
+  <path d="M 256 116 A 140 140 0 1 1 116 256"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="44"
+        stroke-linecap="butt"/>
+  <!-- Arrowhead at start of arc, pointing east (clockwise tangent) -->
+  <polygon points="336,116 256,72 256,160" fill="#FFFFFF"/>
+  <!-- Center water drop suggesting "wash" / clean reset -->
+  <path d="M 256 208
+           C 230 240 220 262 220 282
+           A 36 36 0 0 0 292 282
+           C 292 262 282 240 256 208 Z"
+        fill="#FFFFFF" opacity="0.85"/>
+</svg>

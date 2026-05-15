@@ -1,0 +1,7 @@
+".*"
+None, Up, Up, 3
+None, Down, Down, 3
+Control_L, Up, Control_L|Up
+Control_L, Down, Control_L|Down
+Shift_L, Up, Shift_L|Up
+Shift_L, Down, Shift_L|Down

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Powerwash
+GenericName=Reset this device
+Comment=Erase all personal files and accounts, keeping the device's factory configuration
+Exec=/usr/local/bin/oem-powerwash.sh
+Icon=oem-powerwash
+Terminal=false
+Categories=System;Settings;
+Keywords=reset;factory;wipe;powerwash;erase;clean;reinstall;
+StartupNotify=true
