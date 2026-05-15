@@ -5,7 +5,10 @@
 #                   1. Applies the Malta wallpaper to every detected monitor.
 #                   2. Sets Mint-Y-Aqua GTK theme + Papirus icons via xsettings
 #                      and xfwm4 (window decorations).
-#                   3. Seeds a Plank dock at the bottom-centre with 11 pinned
+#                   3. Moves panel-1 to the top edge, slims it to 24 px, and
+#                      removes the window-buttons / tasklist plugin (redundant
+#                      with Plank's running-app indicators).
+#                   4. Seeds a Plank dock at the bottom-centre with 13 pinned
 #                      launchers (icon size 48, intelligent hide, Transparent
 #                      theme), starts plank, and installs a per-user plank
 #                      autostart entry so plank comes up on every subsequent
@@ -22,14 +25,19 @@
 #   Marker:       ~/.config/.oem-first-run-done  (created at end, checked at start)
 #   Reads:        /usr/share/backgrounds/oem-setup/malta.jpg
 #                 xfconf-query (xfce4-desktop channel) for monitor list
+#                 xfconf-query (xfce4-panel channel) for panel-1/plugin-ids
 #                 /usr/share/applications/*.desktop for each pinned launcher
 #   Writes:       xfconf-query: xfce4-desktop  ./<monitor>/last-image,
 #                                               ./<monitor>/image-style=5
 #                 xfconf-query: xsettings       /Net/ThemeName=Mint-Y-Aqua
 #                                               /Net/IconThemeName=Papirus
 #                 xfconf-query: xfwm4           /general/theme=Mint-Y-Aqua
+#                 xfconf-query: xfce4-panel     /panels/panel-1/position,
+#                                               /panels/panel-1/size,
+#                                               /panels/panel-1/plugin-ids
+#                                               (tasklist plugin removed)
 #                 ~/.config/plank/dock1/settings
-#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 11)
+#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 13)
 #                 ~/.config/autostart/plank.desktop
 #                 ~/.config/.oem-first-run-done
 #                 rm ~/.config/autostart/oem-first-run.desktop
@@ -66,9 +74,11 @@ WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 # Each entry is the .desktop basename WITHOUT the .desktop extension.
 # The exact capitalisation must match /usr/share/applications/<name>.desktop.
 DOCK_LAUNCHERS=(
+    xfce4-appfinder
     google-chrome
     xfce4-settings-manager
     thunar
+    mintinstall
     vlc
     Zoom
     Gmail
@@ -116,7 +126,68 @@ if command -v xfconf-query >/dev/null; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Plank dock (bottom-centre, intelligent hide, 11 pinned launchers).
+# 3. Panel-1 — move to top, slim to 24 px, remove window-list plugin.
+#
+# Mint XFCE ships one panel (panel-1) at the bottom. We move it to the top
+# so it acts as a slim status bar (Whisker Menu, clock, tray, volume, power)
+# while Plank owns the bottom edge as the dock. The window-buttons / tasklist
+# plugin is removed because Plank already shows running-app indicators.
+#
+# Position string encoding (XFCE GravityType):
+#   p=6  = top-left (NW_H) — default for a top horizontal panel on Mint.
+#   p=2  = top-center (N)  — fallback if the panel appears off-screen.
+# The exact value varies slightly between Mint releases; both are tried.
+#
+# Plugin discovery: XFCE allocates tasklist plugin IDs at install time and
+# they differ across machines, so we enumerate /panels/panel-1/plugin-ids,
+# look up each plugin's type, and filter out any whose type is "tasklist"
+# or "window-buttons". The remaining IDs are written back as the new list.
+# ------------------------------------------------------------------------------
+setup_top_panel() {
+    command -v xfconf-query >/dev/null || return 0
+
+    # Move panel-1 to the top edge (p=6 = top-left; try p=2 as fallback).
+    xfconf-query -c xfce4-panel -p /panels/panel-1/position \
+        -s "p=6;x=0;y=0" 2>/dev/null || true
+
+    # Slim the height to 24 px (Mint default is ~38 px).
+    xfconf-query -c xfce4-panel -p /panels/panel-1/size \
+        -t uint -s 24 2>/dev/null || true
+
+    # Read current plugin-ids for panel-1 (one integer per line).
+    local current_ids=()
+    mapfile -t current_ids < <(
+        xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids 2>/dev/null \
+        | grep -E '^[0-9]+$' || true
+    )
+
+    if [ ${#current_ids[@]} -gt 0 ]; then
+        # Build a new list that excludes tasklist / window-buttons plugins.
+        local new_ids=() pid ptype
+        for pid in "${current_ids[@]}"; do
+            ptype=$(xfconf-query -c xfce4-panel \
+                        -p "/plugins/plugin-${pid}" 2>/dev/null || true)
+            case "$ptype" in
+                tasklist|window-buttons) ;;  # drop it
+                *) new_ids+=( "$pid" ) ;;
+            esac
+        done
+
+        # Write back the filtered list only if anything changed.
+        if [ ${#new_ids[@]} -lt ${#current_ids[@]} ]; then
+            local id_args=()
+            for pid in "${new_ids[@]}"; do id_args+=( -t int -s "$pid" ); done
+            xfconf-query -c xfce4-panel \
+                -p /panels/panel-1/plugin-ids -a "${id_args[@]}" 2>/dev/null || true
+        fi
+    fi
+
+    # Restart the panel so it picks up all three changes in one go.
+    xfce4-panel --restart 2>/dev/null || true
+}
+
+# ------------------------------------------------------------------------------
+# 4. Plank dock (bottom-centre, intelligent hide, 13 pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
 # index (01-, 02-, … 11-) to lock the order specified in DOCK_LAUNCHERS.
@@ -197,10 +268,11 @@ EOF
     fi
 }
 
+setup_top_panel
 setup_plank_dock
 
 # ------------------------------------------------------------------------------
-# 4. Mark complete and self-delete autostart entry
+# 5. Mark complete and self-delete autostart entry
 # ------------------------------------------------------------------------------
 mkdir -p "$(dirname "$MARKER")"
 touch "$MARKER"
