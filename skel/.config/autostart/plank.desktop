@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Plank
-Comment=Plank dock bar
-Exec=bash -c "sleep 3 && plank"
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true

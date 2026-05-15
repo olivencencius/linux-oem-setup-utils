@@ -92,81 +92,82 @@ is ours and is removed cleanly by `step_uninstall`.
 
 `step_themes` does **one** `cp -r "$REPO_DIR/skel/." /etc/skel/`. After
 that, every newly created user account inherits this tree as their
-initial home. The live `oem` account doesn't, because the OEM
-installer creates it *before* `setup.sh` runs — `step_themes` and
-`step_touchpad` apply a few of these files to that user explicitly.
+initial home.
 
-### `skel/.imwheelrc`
-
-The single source of truth for the scroll-speed multiplier. `imwheel`
-intercepts X11 scroll events and re-emits them N times — here N=3:
-
-```
-".*"
-None, Up, Up, 3
-None, Down, Down, 3
-Control_L, Up, Control_L|Up
-Control_L, Down, Control_L|Down
-Shift_L, Up, Shift_L|Up
-Shift_L, Down, Shift_L|Down
-```
-
-Why imwheel and not libinput? See [`modules/touchpad.md`](./modules/touchpad.md).
+The live `oem` account does **not** automatically pick up `/etc/skel`
+because the OEM installer creates it *before* `setup.sh` runs.
+`step_themes` therefore also explicitly mirrors the autostart entries
+and `xsettings.xml` into `~oem/.config/` (chowned to the oem user) and
+live-applies the theme and wallpaper to the running session via
+`xfconf-query` / `xfsettingsd --replace`. It also runs
+`oem-first-run.sh` inline so the bottom panel-2 dock appears
+immediately during QA without needing a re-login.
 
 ### `skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml`
 
 XFCE's `xsettings` channel persisted to disk. Sets the GTK theme to
-`ChromeOS` and the icon theme to `Tela-blue` for every new user. The
-first-run script also sets these via `xfconf-query` to cover the live
-oem session.
+`Mint-Y-Aqua` and the icon theme to `Papirus` for every new user.
+`step_themes` also writes the same values via `xfconf-query` for the
+live oem session and pushes the xfwm4 window-decoration theme to
+`Mint-Y-Aqua` (xfconf channel `xfwm4`, property `/general/theme`).
 
 ### `skel/.config/autostart/*.desktop`
 
 | File | Starts | Why per-user |
 |---|---|---|
-| `plank.desktop` | `bash -c "sleep 3 && plank"` | One Plank per user; the 3s sleep waits for the panel to draw so Plank doesn't overlap the XFCE panel |
-| `imwheel.desktop` | `imwheel` | imwheel is a per-user X11 client (no system service) |
 | `touchegg-client.desktop` | `touchegg --client` | The system `touchegg` daemon dispatches to per-user clients over D-Bus |
-| `oem-first-run.desktop` | `bash -c "sleep 5 && /usr/local/bin/oem-first-run.sh"` | Self-deletes after first run |
+| `oem-first-run.desktop` | `bash -c "sleep 5 && /usr/local/bin/oem-first-run.sh"` | Self-deletes after first run; creates panel-2 dock on first login |
 
 The 5-second sleep before `oem-first-run.sh` lets xfdesktop register its
-monitors so the wallpaper applier can iterate over them.
+monitors so the wallpaper applier can iterate over them and the panel
+process is fully ready before the dock is created.
 
-### `skel/.config/plank/dock1/launchers/*.dockitem`
+There is **no** `plank.desktop` or `imwheel.desktop` in the current
+revision. Plank was replaced by a native XFCE panel-2 dock (created by
+`oem-first-run.sh`). The `imwheel`-based scroll multiplier was removed
+in favour of slowing libinput's native `ScrollPixelDistance` — see
+[`modules/touchpad.md`](./modules/touchpad.md). `step_uninstall`
+continues to clean legacy artefacts out of older installs.
 
-Eleven Plank dockitems, one per launcher. Each is a two-line INI file:
+### Bottom dock (panel-2) — created at first login, not staged in skel
 
-```
-[PlankItemsDockItemPreferences]
-Launcher=file:///usr/share/applications/google-chrome.desktop
-```
+There is no `skel/.config/xfce4/panel/launcher-NNN/` tree. The bottom
+dock is not pre-staged in `/etc/skel`; it is created on demand by
+`assets/scripts/oem-first-run.sh` (see
+[`modules/themes.md`](./modules/themes.md)). The script runs
+`xfconf-query` at first XFCE login to:
 
-Plank itself decides *which* of these are on the dock and in *what
-order* from the system dconf override at
-`/etc/dconf/db/local.d/00-plank` (written by `step_themes`). The
-dockitems just have to exist; the dconf `dock-items=[…]` key is the
-ordered list.
+1. Append a `panel-2` to the existing `/panels` list (Mint's default
+   `panel-1` is left untouched).
+2. Set panel-2 properties (bottom-centered, length-adjust, 48 px size,
+   semi-transparent background).
+3. For each pinned app whose `.desktop` exists in
+   `/usr/share/applications/`, allocate a plugin id ≥ 100, register it
+   as a `launcher` plugin, and copy the `.desktop` into
+   `~/.config/xfce4/panel/launcher-<pid>/`.
+4. Run `xfce4-panel --restart` so the new panel appears immediately.
 
-The eleven files:
+The pinned-app order, defined by the `DOCK_LAUNCHERS` array in the
+script:
 
-| File | Points at |
-|---|---|
-| `google-chrome.dockitem` | `/usr/share/applications/google-chrome.desktop` |
-| `xfce4-settings-manager.dockitem` | `/usr/share/applications/xfce4-settings-manager.desktop` |
-| `thunar.dockitem` | `/usr/share/applications/thunar.desktop` |
-| `vlc.dockitem` | `/usr/share/applications/vlc.desktop` |
-| `zoom.dockitem` | `/usr/share/applications/Zoom.desktop` |
-| `gmail.dockitem` | `/usr/share/applications/Gmail.desktop` |
-| `googledocs.dockitem` | `/usr/share/applications/GoogleDocs.desktop` |
-| `googledrive.dockitem` | `/usr/share/applications/GoogleDrive.desktop` |
-| `gemini.dockitem` | `/usr/share/applications/Gemini.desktop` |
-| `youtube.dockitem` | `/usr/share/applications/YouTube.desktop` |
-| `spotify.dockitem` | `/usr/share/applications/Spotify.desktop` |
+| Order | `.desktop` | Source |
+|---|---|---|
+| 1 | `google-chrome.desktop` | from `step_chrome` |
+| 2 | `xfce4-settings-manager.desktop` | XFCE default |
+| 3 | `thunar.desktop` | XFCE default |
+| 4 | `vlc.desktop` | from `step_apps` |
+| 5 | `Zoom.desktop` | from `step_zoom` |
+| 6 | `Gmail.desktop` | from `step_web_apps` |
+| 7 | `GoogleDocs.desktop` | from `step_web_apps` |
+| 8 | `GoogleDrive.desktop` | from `step_web_apps` |
+| 9 | `Gemini.desktop` | from `step_web_apps` |
+| 10 | `YouTube.desktop` | from `step_web_apps` |
+| 11 | `Spotify.desktop` | from `step_web_apps` |
 
-If any of those `.desktop` files is missing when Plank loads, the
-dockitem is silently dropped from the dock. That is why
-[`pipeline.md`](./pipeline.md) is strict about chrome/zoom/apps/webapps
-running before themes.
+If any `.desktop` is missing when `oem-first-run.sh` executes (e.g.
+Zoom's download timed out), its launcher is silently skipped — which
+is why [`pipeline.md`](./pipeline.md) is strict about
+chrome/zoom/apps/webapps running before themes.
 
 ---
 

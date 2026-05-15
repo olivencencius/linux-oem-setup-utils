@@ -22,7 +22,23 @@
 #
 #   NOTE: Categories=Network; (NOT WebBrowser;) is deliberate — these
 #   shortcuts must not appear as system "default browser" candidates.
+#
+#   NOTE — CHROME FLAGS: every Exec line passes two quality-of-life flags:
+#     --password-store=basic
+#         Stops Chrome from auto-detecting gnome-keyring and prompting
+#         the user to "create a password for the new keyring" the very
+#         first time a web app loads. Web apps do not store passwords
+#         worth encrypting; basic = plaintext in the user profile.
+#     --enable-features=OverlayScrollbar
+#         Switches Chrome to the thin auto-hide overlay scrollbar
+#         (matches ChromeOS behaviour) instead of the always-visible
+#         classic scrollbar that dominated the first QA window.
 # ==============================================================================
+
+# Common Chrome flags applied to every web-app launcher (see module header
+# for rationale). Kept as a single constant so a future tweak only needs
+# one edit.
+WEBAPP_CHROME_FLAGS='--password-store=basic --enable-features=OverlayScrollbar'
 
 step_web_apps() {
     echo "--> Installing branded web-app shortcuts..."
@@ -62,7 +78,7 @@ step_web_apps() {
 [Desktop Entry]
 Version=1.0
 Name=${LABEL}
-Exec=google-chrome --app="${URL}"
+Exec=google-chrome ${WEBAPP_CHROME_FLAGS} --app="${URL}"
 Terminal=false
 Type=Application
 Icon=${ICON}

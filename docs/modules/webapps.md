@@ -65,6 +65,13 @@ non-zero. We don't care.
 
 ### 2. Write each `.desktop` via the `write_webapp` helper
 
+The module defines a single shared flag string used by every
+launcher:
+
+```bash
+WEBAPP_CHROME_FLAGS='--password-store=basic --enable-features=OverlayScrollbar'
+```
+
 ```bash
 write_webapp() {
     local NAME="$1"     # .desktop basename (no extension)
@@ -76,7 +83,7 @@ write_webapp() {
 [Desktop Entry]
 Version=1.0
 Name=${LABEL}
-Exec=google-chrome --app="${URL}"
+Exec=google-chrome ${WEBAPP_CHROME_FLAGS} --app="${URL}"
 Terminal=false
 Type=Application
 Icon=${ICON}
@@ -93,7 +100,7 @@ Netflix:
 [Desktop Entry]
 Version=1.0
 Name=Netflix
-Exec=google-chrome --app="https://www.netflix.com"
+Exec=google-chrome --password-store=basic --enable-features=OverlayScrollbar --app="https://www.netflix.com"
 Terminal=false
 Type=Application
 Icon=netflix
@@ -101,13 +108,21 @@ Categories=Network;
 StartupNotify=true
 ```
 
+The two extra flags fix concrete first-QA-run complaints:
+
+| Flag | Symptom it fixes |
+|---|---|
+| `--password-store=basic` | Without it, Chrome auto-detects gnome-keyring on first launch and opens a "Choose password for new keyring" dialog before the web app's first paint. `basic` tells Chrome to store passwords as plaintext in the user's profile directory (web apps don't store credentials worth encrypting), bypassing the keyring entirely. |
+| `--enable-features=OverlayScrollbar` | Switches the always-visible classic scrollbar (very prominent on a 720p / 1080p Chromebook screen) for the thin auto-hide overlay scrollbar that matches ChromeOS behaviour. |
+
 ### 3. Refresh the desktop database
 
 ```bash
 update-desktop-database "$APP_DST" 2>/dev/null || true
 ```
 
-Makes XFCE's whisker menu and Plank notice the new `.desktop` files
+Makes XFCE's whisker menu (and `oem-first-run.sh`, when it later
+walks `/usr/share/applications/`) notice the new `.desktop` files
 without requiring a re-login.
 
 ## Notes

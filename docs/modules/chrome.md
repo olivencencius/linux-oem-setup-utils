@@ -20,7 +20,8 @@ Chrome stays current via the system's normal `apt update` cycle.
 
 - `/usr/bin/google-chrome` and the rest of the package (`google-chrome-stable`).
 - `/usr/share/applications/google-chrome.desktop` — the file the
-  Plank `google-chrome.dockitem` references.
+  panel-2 dock launcher (created at first login by
+  `oem-first-run.sh`) references.
 - `/etc/apt/sources.list.d/google-chrome.list` — registered by
   Chrome's postinst.
 - `/usr/share/keyrings/google-chrome.gpg` (or

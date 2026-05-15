@@ -316,16 +316,20 @@ Because everything in this toolkit writes *system-level* files (under
 `/etc/`, `/usr/`, `/var/`, never inside `$HOME`), all of the following
 are still in place when the wizard appears:
 
-- Every package the toolkit installed (Chrome, Zoom, VLC, Plank, …).
+- Every package the toolkit installed (Chrome, Zoom, VLC,
+  papirus-icon-theme, …).
 - Audio quirks and keyboard map from the hardware-fix step.
 - GRUB / initramfs kernel parameters from the hardware-fix step.
-- The ChromeOS GTK theme and Tela-blue icons under `/usr/share`.
+- The Mint-Y-Aqua GTK theme (shipped by `mint-themes`) and
+  `papirus-icon-theme` under `/usr/share`.
 - The wallpaper file at `/usr/share/backgrounds/oem-setup/malta.jpg`.
 - The 11 web-app `.desktop` entries and their icons.
-- Plank's dconf override that pins the dock contents.
-- The `/etc/skel` tree, so the buyer's freshly-created account gets all
-  the per-user defaults (theme, dock launchers, autostart entries,
-  imwheel config, first-run script) on first login.
+- `/usr/local/bin/oem-first-run.sh`, which builds the panel-2 dock
+  with eleven launchers on each new user's first XFCE login.
+- The `/etc/skel` tree, so the buyer's freshly-created account gets
+  the per-user defaults (xsettings.xml selecting Mint-Y-Aqua and
+  Papirus, the autostart entries that trigger `oem-first-run.sh` and
+  `touchegg --client`) on first login.
 - The Powerwash tool itself.
 
 ## What does **not** survive

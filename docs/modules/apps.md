@@ -17,7 +17,8 @@ player and three small games (`supertuxkart`, `aisleriot`,
 ## Outputs
 
 - `vlc` package and its `/usr/share/applications/vlc.desktop` (the
-  file the Plank `vlc.dockitem` references).
+  file the panel-2 dock launcher, created at first login by
+  `oem-first-run.sh`, references).
 - `supertuxkart`, `aisleriot`, `quadrapassel` packages and their
   menu entries.
 

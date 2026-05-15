@@ -116,9 +116,10 @@ if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
 fi
 ```
 
-Same shape as `step_touchpad`'s imwheel launch: kill any pre-existing
-client, start a fresh one for the live session. Without this the
-technician can't QA gestures until a re-login.
+Same shape as `step_themes`'s live-session `xfsettingsd --replace` and
+inline `oem-first-run.sh` call: kill any pre-existing client, start a
+fresh one for the live session. Without this the technician can't QA
+gestures until a re-login.
 
 ## Why touchegg, not libinput-gestures?
 

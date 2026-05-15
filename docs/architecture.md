@@ -221,7 +221,8 @@ counterpart in `step_uninstall`'s `restore_or_skip`:
 - `/etc/initramfs-tools/modules` (Type-C fix)
 - `/etc/inputrc`                 (bracketed-paste fix)
 - `/etc/default/keyboard`        (XKB layout)
-- `/etc/dconf/profile/user`      (Plank dconf system db)
+- `/etc/dconf/profile/user`      (legacy — Plank dconf system db; only
+  touched by `step_uninstall` to clean up older revisions)
 
 If no backup exists at uninstall time, `restore_or_skip` falls back to a
 sed-based removal of only the lines this toolkit added. Both paths are

@@ -35,9 +35,17 @@ go through anyway.
 - [ ] Two-finger tap = right click.
 - [ ] Two-finger drag = natural scroll (page scrolls *with* the
       fingers, ChromeOS-style).
-- [ ] Two-finger scroll feels fast (3x speed via imwheel) — at default
-      mouse speed, three slow ticks should scroll ~one page in a
-      typical web view.
+- [ ] Two-finger scroll feels noticeably slower than a default Mint
+      install (the toolkit sets `Option "ScrollPixelDistance" "40"` —
+      higher = slower; libinput default is ~15). To verify the property
+      is live:
+  ```
+  TPID=$(xinput list | grep -iE 'touchpad|trackpad|synaptics|elan' \
+         | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2)
+  xinput list-props "$TPID" | grep 'Scrolling Pixel Distance'
+  ```
+  → `libinput Scrolling Pixel Distance (NNN): 40`. Tune the value in
+  `modules/touchpad.sh` (`OEM_SCROLL_PIXEL_DISTANCE`) if needed.
 - [ ] All eight gestures:
   - [ ] 2-finger pinch in / out → zoom in / out (Ctrl+- / Ctrl+=).
   - [ ] 3-finger swipe left / right → browser back / forward
@@ -65,15 +73,17 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 - [ ] Malta wallpaper is shown on every connected display (the
       first-run script applies it to every detected monitor).
-- [ ] GTK theme is `ChromeOS`; icons are `Tela-blue`. Confirm via:
+- [ ] GTK theme is `Mint-Y-Aqua`; icons are `Papirus`. Confirm via:
   ```
-  xfconf-query -c xsettings -p /Net/ThemeName        # → ChromeOS
-  xfconf-query -c xsettings -p /Net/IconThemeName    # → Tela-blue
+  xfconf-query -c xsettings -p /Net/ThemeName        # → Mint-Y-Aqua
+  xfconf-query -c xsettings -p /Net/IconThemeName    # → Papirus
   ```
-- [ ] Plank dock is visible at the bottom of the screen, with exactly
-      11 icons, in this order:
+- [ ] A bottom dock panel (panel-2) is visible with exactly 11 icons,
+      centered, in this order:
       Chrome, Settings, Files, VLC, Zoom, Gmail, Docs, Drive, Gemini,
       YouTube, Spotify.
+      If an app's installer failed (e.g. Zoom download timed out), its
+      icon will simply be absent from the dock.
 - [ ] Clicking each dock icon opens the right app or web view.
 
 ## Chrome and web apps
@@ -95,6 +105,17 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
   Each should launch in its own Chrome window with no address bar
   (`--app=` mode) and the right icon in the taskbar.
+
+- [ ] Opening any web app does **not** prompt for a keyring password
+      (the launchers pass `--password-store=basic` so Chrome skips
+      gnome-keyring). If a "Choose password for new keyring" dialog
+      appears, the .desktop file was edited or the Exec line lost the
+      flag — re-run option 8.
+- [ ] The web-app window uses the thin auto-hide overlay scrollbar,
+      not the always-visible classic scrollbar (we pass
+      `--enable-features=OverlayScrollbar`). Hover near the right
+      edge: a slim track should fade in, then fade out a second after
+      you stop scrolling.
 
 ## Power management
 
@@ -130,8 +151,8 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 The next person to turn it on is the buyer. They will see the same
 welcome wizard a brand-new Mint OEM install shows, then land on a fully
-configured ChromeOS-like desktop with the Malta wallpaper, the Plank
-dock, the keyboard layout the technician picked, and every shortcut.
+configured ChromeOS-like desktop with the Malta wallpaper, the bottom
+dock panel, the keyboard layout the technician picked, and every shortcut.
 
 ---
 
@@ -143,7 +164,8 @@ dock, the keyboard layout the technician picked, and every shortcut.
 | Top-row keys wrong | `cros-keyboard-map` picked the wrong layout | Re-run option 4 and answer the layout question correctly |
 | USB-C dead on 11th-gen+ | initramfs not rebuilt | `sudo update-initramfs -u -k all`, reboot |
 | Wallpaper missing | First-run script didn't run | `ls ~/.config/.oem-first-run-done` — if present, delete it and log in/out |
-| Dock missing icons | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5, 6, 7, 8) then option 9 |
+| Dock (panel-2) missing | First-run script didn't run, or panel-2 check failed | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login |
+| Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5, 6, 7, 8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
 | Powerwash menu icon is generic | GTK icon cache stale | `sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor` |
 

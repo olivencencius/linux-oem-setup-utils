@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=imwheel
-Comment=Scroll speed multiplier
-Exec=imwheel
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true

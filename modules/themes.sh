@@ -1,33 +1,32 @@
 #!/bin/bash
 # ==============================================================================
 #   Module:    themes.sh
-#   Purpose:   The big one — ChromeOS GTK theme, Tela-blue icons, Plank dock
-#              with a pinned ordered launcher list, Malta wallpaper, per-user
-#              first-run script, and the entire /etc/skel staging.
+#   Purpose:   ChromeOS-like visual polish using fully Mint-shipped components:
+#              Mint-Y-Aqua GTK theme (ships with mint-themes, always present),
+#              Papirus icon theme (apt), and an XFCE bottom panel created as
+#              a dock-style launcher bar by oem-first-run.sh.
+#              Also handles: Malta wallpaper, per-user first-run script, and
+#              the full /etc/skel staging.
 #   Reads:     REPO_DIR/assets/wallpapers/malta.jpg
 #              REPO_DIR/assets/scripts/oem-first-run.sh
 #              REPO_DIR/skel/...
-#              network: github.com/vinceliuice/ChromeOS-theme,Tela-icon-theme
 #              SUDO_USER (optional, for live-session apply)
-#              helpers: backup_once, ensure_apt_fresh
-#   Writes:    apt: plank
-#              /usr/share/themes/ChromeOS*
-#              /usr/share/icons/Tela-blue*           (ONLY 'blue' variant)
-#              /etc/dconf/profile/user               (idempotent append)
-#              /etc/dconf/db/local.d/00-plank        (dock items + theme)
-#              /etc/dconf/db/local                   (via dconf update)
+#              helpers: ensure_apt_fresh
+#   Writes:    apt: papirus-icon-theme, gtk2-engines-murrine
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
 #              /etc/skel/...                         (full skel tree copy)
-#              /var/lib/oem-setup/backups/user       (dconf profile, if existed)
+#              ~SUDO_USER/.config/{autostart,xfce4}  (mirrored from skel so
+#                                                     the live oem session
+#                                                     gets the theme and
+#                                                     wallpaper without a
+#                                                     re-login)
 #   Step fn:   step_themes
 #   Helpers:   oem_user_xrun (file-scope)
 #   Docs:      docs/modules/themes.md
-#   Uninstall: step_uninstall reverse-installs the themes via upstream -r flag
-#              (sub-step 4), purges plank (sub-step 2), removes dconf override
-#              + profile additions + wallpaper + first-run script (sub-step 8),
-#              and scrubs /etc/skel (sub-step 12) and per-user homes
-#              (sub-step 13).
+#   Uninstall: step_uninstall purges papirus-icon-theme (sub-step 2), removes
+#              wallpaper + first-run script (sub-step 8), scrubs /etc/skel
+#              (sub-step 12), and cleans per-user panel-2 + marker (sub-step 13).
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -55,7 +54,25 @@ oem_user_xrun() {
                     | awk '/^DBUS_SESSION_BUS_ADDRESS=/{ print substr($0, index($0,"=")+1); exit }' || true)
     fi
 
-    sudo -u "$user" \
+    # We deliberately route through `env` rather than passing inline
+    # VAR=value to sudo: sudo's env_reset filters most VAR=value pairs
+    # given on its command line unless they are in env_keep, which
+    # makes DBUS_SESSION_BUS_ADDRESS unreliable. `sudo … env VAR=value
+    # cmd` instead exec()s `env` with the post-sudo environment plus
+    # our overrides, then `env` exec()s the target — guaranteed to
+    # deliver every variable.
+    #
+    # HOME is the critical addition. Without it the child inherits
+    # /root, which makes `~/.config` writes land under /root and (e.g.)
+    # the oem-first-run marker end up in the wrong place — the buyer
+    # would then see the first-run script re-run on their initial
+    # login. PATH is set explicitly because `sudo`'s default secure_path
+    # may not include /usr/local/bin (where oem-first-run.sh lives).
+    sudo -u "$user" env \
+        HOME="$home" \
+        USER="$user" \
+        LOGNAME="$user" \
+        PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
         DISPLAY="${DISPLAY:-:0}" \
         XAUTHORITY="$home/.Xauthority" \
         DBUS_SESSION_BUS_ADDRESS="${dbus_addr:-}" \
@@ -63,96 +80,16 @@ oem_user_xrun() {
 }
 
 step_themes() {
-    echo "--> Installing ChromeOS visual themes..."
-    cd /tmp
-    rm -rf ChromeOS-theme Tela-icon-theme
+    echo "--> Installing visual theme and icon packages..."
 
-    # ChromeOS GTK theme (system-wide install when running as root).
-    #
-    # Upstream's install.sh ends each variant with:
-    #     ln -sf "$THEME_DIR/gtk-4.0/assets" "$HOME/.config/gtk-4.0/assets"
-    # with no `mkdir -p` before it. Under sudo, $HOME is /root, and /root has
-    # no .config/gtk-4.0 on a fresh Mint install, so `ln` aborts with
-    # "no such file or directory" and the whole step fails. Pre-create it.
-    #
-    # We also pin to `--color standard --size standard` (the 'ChromeOS' variant,
-    # no suffix) because that's the only variant our xsettings.xml and
-    # oem-first-run.sh ever select. The default would install 6 variants
-    # (~50 MB) and, worse, the libadwaita link would end up pointing to
-    # whichever variant is iterated last (ChromeOS-Light-Compact) instead of
-    # our ChromeOS target.
-    mkdir -p /root/.config/gtk-4.0
-    git clone --depth 1 https://github.com/vinceliuice/ChromeOS-theme.git
-    ./ChromeOS-theme/install.sh --color standard --size standard
-
-    # Make every new user inherit GTK4 / libadwaita theming. Upstream only
-    # links into the *invoking* user's $HOME (here: root), so without this
-    # block buyers' GNOME apps would render with the default purple Adwaita
-    # instead of the ChromeOS theme.
-    mkdir -p /etc/skel/.config/gtk-4.0
-    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/assets   /etc/skel/.config/gtk-4.0/assets
-    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk.css  /etc/skel/.config/gtk-4.0/gtk.css
-    ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk-dark.css \
-                                                       /etc/skel/.config/gtk-4.0/gtk-dark.css
-
-    # Same link inside the live oem session so libadwaita apps look right
-    # without waiting for the buyer's first login.
-    if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
-        SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-        sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/.config/gtk-4.0"
-        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/assets \
-                                    "$SUDO_HOME/.config/gtk-4.0/assets"
-        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk.css \
-                                    "$SUDO_HOME/.config/gtk-4.0/gtk.css"
-        sudo -u "$SUDO_USER" ln -sf /usr/share/themes/ChromeOS/gtk-4.0/gtk-dark.css \
-                                    "$SUDO_HOME/.config/gtk-4.0/gtk-dark.css"
-    fi
-
-    # Tela icon theme — ONLY install the 'blue' variant (matches xsettings.xml
-    # default below). Installing -a pulls ~100 MB of unused colour variants.
-    git clone --depth 1 https://github.com/vinceliuice/Tela-icon-theme.git
-    ./Tela-icon-theme/install.sh blue
-
-    rm -rf /tmp/ChromeOS-theme /tmp/Tela-icon-theme
-
-    # -------------------------------------------------------------------------
-    # Plank dock
-    # -------------------------------------------------------------------------
-    echo "--> Installing Plank dock..."
+    # Mint-Y-Aqua ships with mint-themes which is always installed on Mint.
+    # We install the GTK2 engine that makes Mint-Y-Aqua render correctly on
+    # GTK2 widgets (XFCE panel, older apps). Without it the theme is selected
+    # but visually inert on those widgets.
     ensure_apt_fresh
-    apt-get install -y plank
-
-    # Plank autostart is staged via skel/.config/autostart/plank.desktop so it
-    # starts per-user. We do NOT also drop /etc/xdg/autostart/plank.desktop —
-    # the system-wide entry was duplicating the skel one and causing harmless
-    # but ugly D-Bus warnings.
-
-    # -------------------------------------------------------------------------
-    # dconf system database — sets dock appearance AND the ordered list of
-    # launchers for all users. Without dock-items, Plank's choice of which
-    # .dockitem files to show is alphabetical / version-dependent.
-    # -------------------------------------------------------------------------
-    mkdir -p /etc/dconf/profile
-    backup_once /etc/dconf/profile/user
-    if [ -f /etc/dconf/profile/user ]; then
-        grep -qxF 'user-db:user'    /etc/dconf/profile/user \
-            || echo 'user-db:user'    >> /etc/dconf/profile/user
-        grep -qxF 'system-db:local' /etc/dconf/profile/user \
-            || echo 'system-db:local' >> /etc/dconf/profile/user
-    else
-        printf 'user-db:user\nsystem-db:local\n' > /etc/dconf/profile/user
-    fi
-
-    mkdir -p /etc/dconf/db/local.d
-    cat > /etc/dconf/db/local.d/00-plank << 'EOF'
-[net/launchpad/plank/docks/dock1]
-theme='Transparent'
-position='bottom'
-icon-size=48
-hide-mode='none'
-dock-items=['google-chrome.dockitem', 'xfce4-settings-manager.dockitem', 'thunar.dockitem', 'vlc.dockitem', 'zoom.dockitem', 'gmail.dockitem', 'googledocs.dockitem', 'googledrive.dockitem', 'gemini.dockitem', 'youtube.dockitem', 'spotify.dockitem']
-EOF
-    dconf update
+    apt-get install -y papirus-icon-theme gtk2-engines-murrine
+    echo "    [+] papirus-icon-theme installed."
+    echo "    [+] gtk2-engines-murrine installed."
 
     # -------------------------------------------------------------------------
     # Wallpaper file deploy
@@ -161,10 +98,12 @@ EOF
     mkdir -p /usr/share/backgrounds/oem-setup
     cp "$REPO_DIR/assets/wallpapers/malta.jpg" \
        /usr/share/backgrounds/oem-setup/malta.jpg
+    echo "    [+] /usr/share/backgrounds/oem-setup/malta.jpg deployed."
 
     # -------------------------------------------------------------------------
-    # First-run applier script — runs once per user account on first login,
-    # applies theme + wallpaper to detected monitors, then self-deletes.
+    # First-run applier script — runs once per user account on first login.
+    # Sets wallpaper, sets theme/icons, creates the bottom panel-2 dock, then
+    # self-deletes its autostart entry so the user keeps full control.
     # -------------------------------------------------------------------------
     install -m 755 "$REPO_DIR/assets/scripts/oem-first-run.sh" \
                    /usr/local/bin/oem-first-run.sh
@@ -173,23 +112,74 @@ EOF
     # -------------------------------------------------------------------------
     # Copy skel/ tree → /etc/skel so every new user account inherits:
     #   - GTK + icon theme defaults (xsettings.xml)
-    #   - First-run autostart entry
-    #   - Pre-pinned Plank launchers
-    #   - Plank + imwheel autostart entries
-    #   - imwheel scroll config (~/.imwheelrc)
+    #   - touchegg-client and oem-first-run autostart entries
     # -------------------------------------------------------------------------
     echo "--> Staging defaults into /etc/skel..."
     cp -r "$REPO_DIR/skel/." /etc/skel/
 
     # -------------------------------------------------------------------------
-    # Apply theme immediately in the live (oem) X session for QA visibility
+    # Mirror skel into the live oem user's home and apply everything live.
+    #
+    # /etc/skel is consulted by useradd ONLY when a new account is created.
+    # The oem user pre-exists, so without this block the technician sees:
+    #   - no wallpaper            (oem-first-run.sh autostart never copied)
+    #   - no panel dock           (oem-first-run.sh never ran for this user)
+    #   - theme has no effect     (xsettings.xml never copied; xfsettingsd
+    #                              cached the old value; xfwm4 theme not set)
     # -------------------------------------------------------------------------
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
-        oem_user_xrun "$SUDO_USER" xfconf-query -c xsettings -p /Net/ThemeName -s "ChromeOS" \
-            2>/dev/null || true
-        oem_user_xrun "$SUDO_USER" xfconf-query -c xsettings -p /Net/IconThemeName -s "Tela-blue" \
-            2>/dev/null || true
-        echo "    [+] Theme applied to live session for user: $SUDO_USER"
+        SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+
+        echo "--> Mirroring skel defaults into live user's home: $SUDO_USER"
+
+        sudo -u "$SUDO_USER" mkdir -p \
+            "$SUDO_HOME/.config/autostart" \
+            "$SUDO_HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
+
+        # Autostart entries for the live oem session.
+        for f in oem-first-run.desktop touchegg-client.desktop; do
+            if [ -f "/etc/skel/.config/autostart/$f" ]; then
+                cp "/etc/skel/.config/autostart/$f" \
+                   "$SUDO_HOME/.config/autostart/$f"
+            fi
+        done
+
+        # xsettings — primary source-of-truth for GTK theme + icons.
+        # Overwrite any pre-existing oem copy so our values win.
+        if [ -f "/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml" ]; then
+            cp -f /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
+                  "$SUDO_HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+        fi
+
+        chown -R "$SUDO_USER:$SUDO_USER" \
+            "$SUDO_HOME/.config/autostart" \
+            "$SUDO_HOME/.config/xfce4"
+
+        # Push the same values via xfconf-query so the running xfsettingsd
+        # picks them up without waiting for a re-login. Also set the xfwm4
+        # window-decoration theme — without this, only widget colours change
+        # and the title bars stay default-grey.
+        oem_user_xrun "$SUDO_USER" xfconf-query \
+            -c xsettings -p /Net/ThemeName -s "Mint-Y-Aqua" 2>/dev/null || true
+        oem_user_xrun "$SUDO_USER" xfconf-query \
+            -c xsettings -p /Net/IconThemeName -s "Papirus" 2>/dev/null || true
+        oem_user_xrun "$SUDO_USER" xfconf-query \
+            -c xfwm4 -p /general/theme -s "Mint-Y-Aqua" 2>/dev/null || true
+
+        # Force xfsettingsd to reload — `--replace` tells the existing
+        # instance to quit and the new one to take over with fresh values.
+        sudo -u "$SUDO_USER" pkill -x xfsettingsd 2>/dev/null || true
+        sleep 0.3
+        oem_user_xrun "$SUDO_USER" xfsettingsd --replace 2>/dev/null &
+        disown 2>/dev/null || true
+
+        # Run the per-user first-run script inline so the live session sees the
+        # wallpaper and the bottom panel-2 dock immediately, without a re-login.
+        # The marker file created at the end makes the autostart entry silently
+        # no-op on all subsequent logins.
+        oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true
+
+        echo "    [+] Theme, wallpaper, and dock panel applied to live session for user: $SUDO_USER"
     else
         echo "    [i] \$SUDO_USER not set — theme will apply on next login via skel."
     fi

@@ -55,15 +55,18 @@ harmless but a leftover unzipped tree is not.
 ### 3. `updates` — before anything depends on apt
 
 Runs `apt-get update`, `apt-get upgrade`, then installs `mint-meta-codecs`,
-`git`, `wget`, `curl`, `xinput`, `gimp`, `imwheel`, `zram-tools`, `tlp`.
-Crucially, `step_updates` exports `OEM_APT_FRESH=1` so later modules'
-`ensure_apt_fresh` calls become no-ops — one `apt-get update` per
-pipeline.
+`git`, `wget`, `curl`, `xinput`, `gimp`, `gtk2-engines-murrine`,
+`zram-tools`, `tlp`. Crucially, `step_updates` exports `OEM_APT_FRESH=1`
+so later modules' `ensure_apt_fresh` calls become no-ops — one
+`apt-get update` per pipeline.
 
-`imwheel` and `xinput` are installed here so `step_touchpad` doesn't
-need to. `gimp` is installed in the base-tools group rather than in
-`step_apps` because it's a productivity tool, not a media-player /
-game.
+`xinput` is installed here so `step_touchpad` can push live values via
+`xinput set-prop` without needing its own apt install. `gtk2-engines-
+murrine` is needed by the ChromeOS GTK theme to render GTK2 widgets
+(XFCE panel plugins, older apps); without it the theme is "selected"
+but visually inert on those widgets. `gimp` is in the base-tools group
+rather than `step_apps` because it's a productivity tool, not a
+media-player / game.
 
 ### 4. `flathub` — early, low-risk
 
@@ -96,47 +99,58 @@ Three concerns, all board-specific:
 
 ### 6–9. `chrome`, `zoom`, `apps`, `web_apps` — *before* `themes`
 
-Order is critical. `step_themes` stages dock launchers from `skel/`
-into `/etc/skel`. Each dockitem references a `/usr/share/applications/
-NAME.desktop` file. Plank reads dockitems at user login and silently
-drops any whose referenced `.desktop` is missing. So:
+Order is critical. `step_themes` deploys `oem-first-run.sh`, which on
+first XFCE login walks a fixed `DOCK_LAUNCHERS` list and adds one
+panel-2 launcher per `/usr/share/applications/NAME.desktop` that
+exists. Anything missing at first-login time is silently skipped — the
+dock is just short by that icon. So:
 
 - Chrome's `.deb` ships `/usr/share/applications/google-chrome.desktop`.
 - Zoom's `.deb` ships `/usr/share/applications/Zoom.desktop`.
 - VLC (from `step_apps`) ships `/usr/share/applications/vlc.desktop`.
 - The 11 web-app `.desktop` files are created by `step_web_apps`.
 
-If any of those is missing when `step_themes` copies `/etc/skel`, the
-dock for every future user is short by an icon.
+If any of those is missing when `oem-first-run.sh` runs, the dock for
+that user is short by an icon. (For the live oem user, `step_themes`
+runs `oem-first-run.sh` inline at the end of the install — same
+guarantee.)
 
 Zoom is allowed to fail. Its CDN is occasionally flaky and Zoom is
 "nice to have", not "must ship". The module returns 0 in that case,
-the dockitem still references `/usr/share/applications/Zoom.desktop`
-which won't exist, and Plank will silently skip it — slightly ugly,
-but the rest of the dock is still correct. The technician sees a
-`[!] Zoom .deb download failed — skipping.` line in the log.
+`/usr/share/applications/Zoom.desktop` won't exist, and
+`oem-first-run.sh` simply omits the Zoom launcher from panel-2. The
+technician sees a `[!] Zoom .deb download failed — skipping.` line in
+the log.
 
 ### 10. `themes` — the big one
 
-Pulls together: ChromeOS GTK theme, Tela-blue icons, the Plank dock
-binary + config, the wallpaper file, the per-user first-run script,
-and the entire `/etc/skel` tree. See
+Installs `papirus-icon-theme` and `gtk2-engines-murrine`, deploys the
+Malta wallpaper, deploys and stages the per-user first-run script, and
+copies the entire `/etc/skel` tree. For the live oem session it also
+mirrors the autostart entries and `xsettings.xml` into the oem user's
+home, sets `Mint-Y-Aqua` via xsettings + xfwm4, restarts xfsettingsd,
+and runs `oem-first-run.sh` inline to apply the wallpaper and create
+the bottom panel-2 dock immediately. See
 [`modules/themes.md`](./modules/themes.md) for the detail.
 
 This is the step that turns a "Mint XFCE with some apps installed"
-into "looks and feels like ChromeOS".
+into "looks and feels like ChromeOS". No git clones required — all
+components ship in apt or are part of a standard Mint install.
 
-### 11. `touchpad` — after themes (so imwheel uses the skel config)
+### 11. `touchpad` — after themes (purely a position-of-convenience now)
 
-`skel/.imwheelrc` (the single source of truth for the scroll multiplier)
-has been staged into `/etc/skel` by step `themes`. `step_touchpad` then
-copies the same file into the live `oem` user's home so the technician
-sees 3x scroll *during QA*. The autostart entry that runs imwheel on
-each login was also placed in `/etc/skel/.config/autostart/` by
-`step_themes`.
+Writes `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` with
+`NaturalScrolling`, `Tapping`, `TappingDrag`, `DisableWhileTyping`,
+and `ScrollPixelDistance=40` (libinput's default is ~15; higher =
+slower scroll, which is the OEM-desired feel). The same values are
+pushed to the live session via `xinput set-prop` so the technician
+feels the slower scroll during QA without needing an X restart.
 
-The xorg.conf snippet (`40-chromebook-touchpad.conf`) is system-wide
-and survives reboot for every user.
+The previous revision wired up an `imwheel`-based 3x scroll
+*multiplier* in this step. That made scrolling *faster* than default
+— the opposite of what the workflow wants — and has been removed.
+`step_uninstall` still purges `imwheel` and the per-user `.imwheelrc`
+to clean up legacy installs.
 
 ### 12. `gestures` — after touchpad
 

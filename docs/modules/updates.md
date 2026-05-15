@@ -29,8 +29,11 @@ None.
     the live oem session.
   - `gimp` — image editor; bundled into the base tools rather than
     `step_apps` because it's a general-purpose productivity tool.
-  - `imwheel` — scroll-speed multiplier; installed here so the
-    `step_touchpad` module doesn't need its own `apt-get install`.
+  - `gtk2-engines-murrine` — required by the vinceliuice ChromeOS
+    GTK theme to render GTK2 widgets correctly (XFCE panel plugins,
+    older apps). Without it the theme is "selected" but visually
+    inert on those widgets — which was the symptom in the first QA
+    run.
   - `zram-tools` — ZRAM swap on compressed RAM, prevents stuttering
     on 4 GB eMMC Chromebooks.
   - `tlp` — battery management; enables and starts `tlp.service`.
@@ -44,7 +47,8 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 export OEM_APT_FRESH=1
 
-apt-get install -y mint-meta-codecs git wget curl xinput gimp imwheel
+apt-get install -y mint-meta-codecs git wget curl xinput gimp \
+                   gtk2-engines-murrine
 apt-get install -y zram-tools tlp
 systemctl enable --now tlp.service
 ```
@@ -75,9 +79,12 @@ Fully idempotent:
 ## Uninstall counterpart
 
 `step_uninstall` purges `tlp`, `zram-tools`, `mint-meta-codecs`,
-`imwheel`, and `gimp` (sub-step 2). The other base tools
-(`git`, `wget`, `curl`, `xinput`) are intentionally left in place
-because they are routinely needed for general Linux administration.
+`imwheel` (legacy — no longer installed by this module, but the purge
+is kept as a courtesy for systems that ran an earlier revision of the
+toolkit), and `gimp` (sub-step 2). The other base tools
+(`git`, `wget`, `curl`, `xinput`, `gtk2-engines-murrine`) are
+intentionally left in place because they are routinely needed for
+general Linux administration / by other GTK themes.
 
 `OEM_APT_FRESH` is a per-process variable and is naturally cleared
 when `setup.sh` exits.

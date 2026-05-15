@@ -21,8 +21,8 @@ Removes — `rm -rf` for directories, `rm -f` for files, both ignore
 
 - `/tmp/chromebook-linux-audio`
 - `/tmp/cros-keyboard-map`
-- `/tmp/ChromeOS-theme`
-- `/tmp/Tela-icon-theme`
+- `/tmp/ChromeOS-theme` *(legacy — old `themes.sh` git-cloned this; current revision doesn't, but the entry is kept defensively for upgrades)*
+- `/tmp/Tela-icon-theme` *(legacy — same reason as `ChromeOS-theme`)*
 - `/tmp/google-chrome-stable_current_amd64.deb`
 - `/tmp/zoom_amd64.deb`
 - `/tmp/touchegg.deb`

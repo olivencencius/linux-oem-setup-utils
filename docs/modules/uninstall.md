@@ -38,9 +38,9 @@ inside the function.
   - `inputrc`
   - `keyboard`
   - `user` (dconf profile)
-- `$SUDO_USER` (optional) — used to kill the user's helpers (imwheel,
-  touchegg client, plank, xfdashboard) and to dedupe the per-user
-  cleanup loop.
+- `$SUDO_USER` (optional) — used to kill the user's helpers
+  (touchegg client, xfdashboard, plus legacy imwheel/plank from old
+  installs) and to dedupe the per-user cleanup loop.
 - `/dev/tty` — the `YES` confirmation prompt reads from it.
 
 ## Outputs
@@ -51,20 +51,22 @@ sub-step-by-sub-step listing is in [`../uninstall.md`](../uninstall.md).
 The headline buckets:
 
 1. Stops services (`tlp`, `touchegg`, `keyd`, `oem-powerwash-finalize`)
-   and user-session processes (`imwheel`, `touchegg --client`, `plank`,
-   `xfdashboard`).
-2. `apt purge` 20+ packages, `apt-get autoremove --purge`, autoclean.
+   and user-session processes (`touchegg --client`, `xfdashboard`,
+   plus legacy `imwheel` / `plank` from old installs).
+2. `apt purge` 20+ packages, including `papirus-icon-theme` and the
+   legacy `plank` / `imwheel` (in case an older revision installed
+   them); then `apt-get autoremove --purge`, autoclean.
 3. Removes the Google Chrome apt repository file and signing key.
 4. Removes the Flathub remote.
-5. Reverse-installs ChromeOS GTK theme and Tela icon theme via their
-   upstream `-r` flag.
+5. (No theme reverse-install.) `Mint-Y-Aqua` is shipped by Mint and
+   stays put; `papirus-icon-theme` is purged via apt in sub-step 2.
 6. Best-effort cleans `chromebook-linux-audio` quirks (no upstream
    uninstaller — adds a note).
 7. Reverts `/etc/default/grub`, `/etc/initramfs-tools/modules`
    (regenerates grub.cfg and initramfs after).
 8. Removes touchpad and gestures system config.
-9. Removes Plank dconf override, dconf profile additions, wallpaper,
-   first-run script.
+9. Removes wallpaper, `/usr/local/bin/oem-first-run.sh`, and legacy
+   Plank dconf override / dconf profile additions.
 10. Removes the Powerwash tool (scripts, unit, polkit policy, menu,
     icon, flag).
 11. Removes 11 web-app `.desktop` entries and their icons.
@@ -72,7 +74,9 @@ The headline buckets:
 13. Reverts `/etc/default/keyboard`, locale to `en_US.UTF-8`,
     timezone to `UTC`.
 14. Cleans `/etc/skel` of toolkit artefacts.
-15. Cleans `~/` of toolkit artefacts for every uid≥1000 (deduped).
+15. Cleans `~/` of toolkit artefacts for every uid≥1000 (deduped),
+    including `~/.config/xfce4/panel/launcher-NNN/` (NNN ≥ 100) and
+    the panel-2 xfconf subtree.
 16. Clears `/var/lib/oem-setup/state/` so a future setup.sh starts
     fresh.
 17. `step_cleanup` + final `apt autoremove`.
@@ -84,7 +88,7 @@ The function is long (~330 lines) and intentionally linear. The
 ordering matters in two places:
 
 1. **Stop services before purging their packages** — otherwise
-   `apt purge plank` would refuse because plank is running, or
+   `apt purge touchegg` would refuse because the daemon is running, or
    `systemctl` would fail because the unit files have been removed.
 2. **Restore system files before regenerating derived files** —
    `/etc/default/grub` is restored before `update-grub`;

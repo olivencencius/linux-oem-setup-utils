@@ -73,21 +73,21 @@ matches the inline section comments.
 
 | # | Phase | Action |
 |---|---|---|
-| 1 | Stop services & user helpers | `systemctl disable --now` for `tlp`, `touchegg`, `keyd`, `oem-powerwash-finalize`. `pkill` `imwheel` / `touchegg --client` / `plank` / `xfdashboard` for `$SUDO_USER`. |
-| 2 | `apt purge` everything the toolkit installs | Chrome, Zoom, VLC, GIMP, Plank, TLP, ZRAM tools, imwheel, touchegg, xfdashboard, wmctrl, xdotool, keyd, language packs (`-pl`, `-gnome-pl`, `-en`, `-gnome-en`), `mint-meta-codecs`, `supertuxkart`, `aisleriot`, `quadrapassel`. Then `apt-get autoremove --purge` + `apt-get autoclean`. |
+| 1 | Stop services & user helpers | `systemctl disable --now` for `tlp`, `touchegg`, `keyd`, `oem-powerwash-finalize`. `pkill` `imwheel` (legacy) / `touchegg --client` / `plank` (legacy) / `xfdashboard` for `$SUDO_USER`. |
+| 2 | `apt purge` everything the toolkit installs | Chrome, Zoom, VLC, GIMP, `papirus-icon-theme`, TLP, ZRAM tools, `imwheel` (legacy), `plank` (legacy), touchegg, xfdashboard, wmctrl, xdotool, keyd, language packs (`-pl`, `-gnome-pl`, `-en`, `-gnome-en`), `mint-meta-codecs`, `supertuxkart`, `aisleriot`, `quadrapassel`. Then `apt-get autoremove --purge` + `apt-get autoclean`. |
 | 2b | Google apt repo | Remove `/etc/apt/sources.list.d/google-chrome.list`, `…/google.list`, `/usr/share/keyrings/google-chrome.gpg`, `/etc/apt/trusted.gpg.d/google-chrome.gpg`. `apt-get update` once to drop the entries from the cache. |
 | 3 | Flathub remote | `flatpak remote-delete --force flathub` (if `flatpak` is installed). |
-| 4 | Themes | Re-clone `vinceliuice/ChromeOS-theme` and `vinceliuice/Tela-icon-theme`, run their installers with `-r`. Note added to `UNINSTALL_NOTES` if a clone or reverse-install fails. |
+| 4 | Visual theme | `Mint-Y-Aqua` ships with `mint-themes` and is not removed. `papirus-icon-theme` was purged in step 2. No git-cloned themes exist. |
 | 5 | Audio quirks | Best-effort `rm` of `/usr/share/alsa/ucm2/codecs/cros-*`, `cros-*` UCM trees, `sof-*chrome*` config, related udev rules and systemd units. Adds a note that `chromebook-linux-audio` has no upstream uninstaller — a clean OS install is the only fully-deterministic reset. |
 | 6 | Hardware-fix config | `restore_or_skip /etc/default/grub` or sed-remove `clocksource=hpet hpet=force`. `restore_or_skip /etc/initramfs-tools/modules` or sed-remove `cros-ec-typec` / `intel-pmc-mux`. Then `update-grub` and `update-initramfs -u -k all`. |
 | 7 | Touchpad/gestures config | `rm /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf`, `rm /etc/touchegg/touchegg.conf`, attempt to `rmdir /etc/touchegg`. |
-| 8 | Themes / dock / wallpaper / first-run | `rm` Plank dconf override at `/etc/dconf/db/local.d/00-plank`; restore or sed `/etc/dconf/profile/user`; `dconf update`. `rm -rf /usr/share/backgrounds/oem-setup`. `rm /usr/local/bin/oem-first-run.sh`. |
+| 8 | Wallpaper / first-run script | `rm -rf /usr/share/backgrounds/oem-setup`. `rm /usr/local/bin/oem-first-run.sh`. Also cleans legacy artefacts from earlier revisions: `rm /etc/dconf/db/local.d/00-plank`, `dconf update`. |
 | 8b | Powerwash tool | Disable + remove `oem-powerwash-finalize.service`. `rm` the three scripts, the icon, the polkit policy, the menu `.desktop`, the flag file, the powerwash log. `update-desktop-database`. |
 | 9 | Web-app shortcuts | `rm` 11 `.desktop` entries (Netflix, PrimeVideo, DisneyPlus, HBOMax, Spotify, YouTube, Gmail, GoogleDocs, GoogleDrive, Gemini, ChromeRemoteDesktop) and 11 icons. Refresh GTK icon cache. |
 | 10 | Terminal | `restore_or_skip /etc/inputrc` or sed-remove the bracketed-paste line. Same on `/etc/skel/.inputrc`; remove the skel file if empty. |
 | 11 | Regional | `restore_or_skip /etc/default/keyboard` or sed `XKBLAYOUT="us"`. `setupcon`. `localectl set-locale LANG=en_US.UTF-8`. `timedatectl set-timezone UTC`. |
-| 12 | `/etc/skel` cleanup | `rm` `.imwheelrc`, the four autostart entries, the entire `plank/` tree, `xsettings.xml`. `rmdir` empty parents. |
-| 13 | Per-user cleanup | For every uid ≥ 1000, plus `$SUDO_USER` (deduped via an associative array): `rm` `.imwheelrc`, `.config/.oem-first-run-done`, the four autostart entries, `~/.config/plank/`. |
+| 12 | `/etc/skel` cleanup | `rm` current autostart entries (`oem-first-run`, `touchegg-client`), `xsettings.xml`. Also `rm -f` legacy artefacts (`.imwheelrc`, `imwheel.desktop`, `plank.desktop`, `plank/` tree, `gtk-4.0` symlinks) — no-ops on current revision. `rmdir` empty parents. |
+| 13 | Per-user cleanup | For every uid ≥ 1000, plus `$SUDO_USER` (deduped): `rm` `.oem-first-run-done`, autostart entries, `launcher-NNN` dirs with NNN ≥ 100 under `~/.config/xfce4/panel/`, and legacy artefacts (`.imwheelrc`, `plank/`, `gtk-4.0` symlinks). xfconf `/panels/panel-2` subtree removed via `xfconf-query -r -R`. |
 | 14 | Clear state markers | `rm -rf /var/lib/oem-setup/state` so a future setup.sh thinks the toolkit was never applied. |
 | 15 | `/tmp` residue + final autoremove | Call `step_cleanup`. `apt-get autoremove --purge`. |
 | 16 | Closing summary | Print every entry in `UNINSTALL_NOTES`. Remind that backups remain at `BACKUP_DIR`. Recommend a reboot. |
@@ -121,20 +121,6 @@ matches the inline section comments.
 > *chromebook-linux-audio has no upstream uninstaller — board-specific
 > PipeWire/ALSA quirks may still be present. A fresh OS install is the
 > only fully-clean reset.*
-
-May also contain (if the upstream installer's `-r` returns non-zero):
-
-> *ChromeOS-theme uninstall failed — residual files may exist under
-> /usr/share/themes/ChromeOS\**
-
-> *Tela-icon-theme uninstall failed — residual files may exist under
-> /usr/share/icons/Tela\**
-
-> *Could not clone ChromeOS-theme to reverse-install — remove
-> /usr/share/themes/ChromeOS\* manually if desired.*
-
-> *Could not clone Tela-icon-theme to reverse-install — remove
-> /usr/share/icons/Tela\* manually if desired.*
 
 Other classes of un-revertable change documented elsewhere in the
 toolkit:

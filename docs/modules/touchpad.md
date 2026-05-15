@@ -2,72 +2,69 @@
 
 ## Purpose
 
-Three touchpad concerns in one module:
+Two touchpad concerns in one module:
 
 1. **Natural scrolling** — page scrolls in the same direction as the
    fingers move (ChromeOS / macOS style).
-2. **Persistent xorg.conf snippet** — survives reboot and applies to
-   every user on every login.
-3. **imwheel scroll multiplier** — 3x the default scroll-event delta,
-   because Chromebook touchpads default to a frustratingly slow
-   scroll on Linux.
+2. **Slower-than-default two-finger scroll** — Chromebook touchpads
+   emit scroll events very densely; out of the box that feels frantic
+   in a browser. We tell libinput "require more finger travel per
+   scroll event" so the same physical drag covers less distance on
+   screen.
+
+(There used to be a third concern — an `imwheel`-based **3x scroll
+multiplier** — that has been removed. It made scrolling *faster* than
+default, which is the opposite of what the OEM workflow wants. See the
+removal note at the bottom of this document for the migration story.)
 
 ## Function exported
 
 `step_touchpad`
 
+## Module-level constant
+
+```bash
+OEM_SCROLL_PIXEL_DISTANCE=40
+```
+
+The pixel distance a finger has to travel on the touchpad to emit one
+scroll event. libinput's default is ~15. Higher = slower scroll.
+**40** was picked as a comfortable browser feel on Lenovo / HP / Acer
+Chromebook touchpads. Bump it higher (e.g. 60) for even slower scroll,
+or lower it toward 15 for faster.
+
 ## Inputs
 
 - `xinput` (installed by `step_updates`).
-- `imwheel` (installed by `step_updates`).
-- `$SUDO_USER` (optional) — if set, the live oem session gets imwheel
-  immediately for QA.
+- `$SUDO_USER` (optional) — if set, the live oem session has the
+  scroll properties applied immediately for QA.
 - `$DISPLAY` (optional) — defaults to `:0`.
-- `$REPO_DIR/skel/.imwheelrc`.
 
 ## Outputs
 
 - `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` — system-wide
   libinput config for any matching touchpad.
-- For the live oem user: `~/.imwheelrc` (copied from
-  `$REPO_DIR/skel/.imwheelrc`).
-- A running `imwheel` process for the live oem user.
+- For the live oem session (if `$SUDO_USER` is set):
+  - `xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1`.
+  - `xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" 40`.
 
 ## Walkthrough
 
-### 1. Apply natural scrolling to the live session
+### 1. Persistent xorg.conf.d snippet
 
 ```bash
-local TP_ID
-TP_ID=$(xinput list 2>/dev/null \
-    | grep -iE 'touchpad|trackpad|synaptics|elan' \
-    | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2 || true)
-
-if [ -n "$TP_ID" ]; then
-    xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1 2>/dev/null || true
-fi
-```
-
-Discovery via `xinput list` — matches "touchpad", "trackpad",
-"synaptics", or "elan" case-insensitively (covers every Chromebook
-touchpad family I've seen). If no match: print a warning and skip
-the live apply. The xorg.conf snippet (next sub-step) handles the
-reboot case anyway.
-
-### 2. Persistent xorg.conf snippet
-
-```bash
-cat > /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf << 'EOF'
+mkdir -p /etc/X11/xorg.conf.d
+cat > /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf << EOF
 Section "InputClass"
     Identifier      "chromebook-touchpad"
     MatchIsTouchpad "on"
     Driver          "libinput"
-    Option "NaturalScrolling"              "true"
-    Option "AccelProfile"                  "adaptive"
-    Option "HighResolutionWheelScrolling"  "false"
-    Option "Tapping"                       "on"
-    Option "TappingDrag"                   "on"
-    Option "DisableWhileTyping"            "on"
+    Option "NaturalScrolling"      "true"
+    Option "AccelProfile"          "adaptive"
+    Option "Tapping"               "on"
+    Option "TappingDrag"           "on"
+    Option "DisableWhileTyping"    "on"
+    Option "ScrollPixelDistance"   "${OEM_SCROLL_PIXEL_DISTANCE}"
 EndSection
 EOF
 ```
@@ -78,92 +75,87 @@ Six options worth understanding:
 |---|---|
 | `NaturalScrolling true` | Page follows fingers. |
 | `AccelProfile adaptive` | Cursor accel speeds up on rapid movement — what users expect. |
-| `HighResolutionWheelScrolling false` | **The single most important line.** Chromebook HID touchpads report scroll events twice when HiRes wheel scrolling is on (once as a hi-res event, once as a coarse fallback) — confirmed on HP / Lenovo / ELAN devices. Turning it off makes scroll behave consistently. |
 | `Tapping on` | Tap-to-click. |
 | `TappingDrag on` | Tap-and-drag (double-tap then slide). |
 | `DisableWhileTyping on` | The classic palm-rejection-while-typing toggle. |
+| `ScrollPixelDistance 40` | **The single most important line.** Default is ~15. Larger value = the finger has to travel further to fire one scroll event = slower scroll. Tuned to roughly halve the dense scroll feed Chromebook touchpads emit. |
 
 `MatchIsTouchpad on` makes the section apply to any libinput-recognised
 touchpad, regardless of vendor or product ID. Future Chromebook
 touchpads will just work.
 
-### 3. imwheel for the live session
+### 2. Live-session apply via xinput
 
 ```bash
-if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
-    local USER_HOME
-    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+TP_ID=$(xinput list 2>/dev/null \
+    | grep -iE 'touchpad|trackpad|synaptics|elan' \
+    | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2 || true)
 
-    install -m 644 -o "$SUDO_USER" -g "$SUDO_USER" \
-        "$REPO_DIR/skel/.imwheelrc" "$USER_HOME/.imwheelrc"
-
-    sudo -u "$SUDO_USER" pkill -x imwheel 2>/dev/null || true
-    sudo -u "$SUDO_USER" \
-        DISPLAY="${DISPLAY:-:0}" \
-        XAUTHORITY="$USER_HOME/.Xauthority" \
-        imwheel 2>/dev/null &
+if [ -n "$TP_ID" ]; then
+    xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1 \
+        2>/dev/null || true
+    xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" \
+        "$OEM_SCROLL_PIXEL_DISTANCE" 2>/dev/null \
+        || echo "[!] property not exposed by this driver"
 fi
 ```
 
-- `install` is used instead of `cp` so we can set the right owner,
-  group, and mode in one atomic call.
-- `pkill -x imwheel` kills any previously-started instance — the new
-  one will read the freshly-installed `.imwheelrc`.
-- `imwheel … &` backgrounds the process. `DISPLAY` and `XAUTHORITY`
-  are set in the `sudo -u` env so the child connects to the right X
-  server.
+Discovery via `xinput list` matches "touchpad", "trackpad",
+"synaptics", or "elan" case-insensitively (covers every Chromebook
+touchpad family I've seen). The `xinput set-prop` calls push the same
+values that the xorg.conf.d snippet will use after a reboot, so the
+technician feels the change *during the same QA session* without
+needing an X restart.
 
-For every new user account, the same `.imwheelrc` lives in `/etc/skel/`
-(staged by `step_themes`), and the `imwheel.desktop` autostart entry
-launches it on each XFCE login.
+If a given libinput build doesn't expose `Scrolling Pixel Distance`
+(very old versions only), the second `set-prop` returns non-zero and
+we print a one-line warning. The xorg.conf snippet still applies on
+the next boot.
 
-## Why imwheel?
+## Why ScrollPixelDistance, not imwheel?
 
-libinput exposes no scroll-speed property. Its `AccelSpeed` option
-affects only cursor movement, not scroll delta. After two days of
-experiments:
+libinput exposes no scroll-*speed* knob, but it does expose a scroll-
+*granularity* knob. `ScrollPixelDistance` is exactly that: the pixel
+distance the finger has to drag to fire one scroll event. Doubling it
+roughly halves perceived scroll speed.
 
-- `evdev` driver tweaks: ineffective, libinput overrides.
-- `synclient` (synaptics): only works on the synaptics driver,
-  Mint defaults to libinput.
-- `xinput set-prop "Scroll Multiplier"`: doesn't exist for libinput.
-- imwheel: works on every board tested.
-
-imwheel intercepts X11 scroll events and re-emits them N times.
-`skel/.imwheelrc` says N=3. To change the multiplier system-wide,
-edit that file before running the toolkit.
+The previous design used `imwheel` to *multiply* scroll events 3x
+("Chromebook touchpads scroll too slowly"). It was the wrong call —
+in QA the multiplied scroll felt frantic, especially in browser long
+pages. Removing imwheel and slowing libinput's native granularity
+gives the OEM the calmer feel the workflow wants.
 
 ## Notes
 
 - `set-prop` may return non-zero if the touchpad doesn't expose the
   property (e.g. it's already been claimed by Wayland or a different
   driver) — hence the `|| true`.
-- imwheel is intentionally **not** a system service. It's a per-user
-  X11 client because that's the only context where it can grab the
-  scroll events.
 - The xorg.conf snippet is in `/etc/X11/xorg.conf.d/` (system-wide),
   not under `/etc/skel/`. Touchpad behaviour is a hardware concern,
   not a per-user preference.
+- imwheel is no longer installed by `step_updates` and the autostart
+  entry has been removed from `skel/`. `step_uninstall` still purges
+  the imwheel package as a courtesy to anyone upgrading from an
+  earlier revision of this toolkit.
 
 ## Idempotency
 
 Fully idempotent:
 
-- `xinput set-prop` is a value-set; re-applying the same value is a
-  no-op.
 - `cat > … << EOF` truncates and rewrites the xorg.conf file with
   identical content.
-- `install` overwrites; idempotent.
-- `pkill -x imwheel` is allowed to "fail" (no matching process).
-- A re-launch of `imwheel` after `pkill` is the same as the first
-  launch.
+- `xinput set-prop` is a value-set; re-applying the same value is a
+  no-op.
 
 ## Uninstall counterpart
 
 `step_uninstall`:
 
-- `pkill imwheel` (sub-step 1).
-- `apt purge imwheel` (sub-step 2).
 - `rm /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` (sub-step 7).
+- `apt purge imwheel` (sub-step 2) — backwards-compat cleanup for
+  systems that had the old toolkit revision installed.
+- `pkill imwheel` (sub-step 1) — ditto.
 - Remove per-user `.imwheelrc` from every uid≥1000 (sub-step 13) and
-  `/etc/skel/.imwheelrc` (sub-step 12).
+  `/etc/skel/.imwheelrc` (sub-step 12) — `rm -f` is a no-op on the
+  current revision (those files no longer exist) and a clean-up on
+  legacy installs.

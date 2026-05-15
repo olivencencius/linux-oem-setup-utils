@@ -5,13 +5,13 @@
 #              Restores from /var/lib/oem-setup/backups/ where possible;
 #              falls back to sed-based line removal where no backup exists.
 #   Reads:     SUDO_USER (optional), /dev/tty (YES confirmation)
-#              /var/lib/oem-setup/backups/{grub,modules,inputrc,
-#                                          keyboard,user}
+#              /var/lib/oem-setup/backups/{grub,modules,inputrc,keyboard}
 #   Writes:    Reverts every system-level change the toolkit makes —
 #              16 sub-steps detailed in docs/uninstall.md.
 #              Notable: NOT removed are zenity/policykit-1/oem-config-gtk
-#              (commonly part of Mint OEM images) and
-#              /var/lib/oem-setup/backups/ (kept for repeat uninstalls).
+#              (commonly part of Mint OEM images),
+#              gtk2-engines-murrine (shared dep used by many GTK themes),
+#              and /var/lib/oem-setup/backups/ (kept for repeat uninstalls).
 #   Step fn:   step_uninstall
 #   Helpers:   note, restore_or_skip (file-scope)
 #   Docs:      docs/modules/uninstall.md   (this module)
@@ -47,14 +47,14 @@ step_uninstall() {
     echo "         UNDO / FULL UNINSTALL           "
     echo "========================================="
     echo "This will remove every package and config change this toolkit made:"
-    echo "  - Purge: Chrome, Zoom, VLC, GIMP, Plank, TLP, ZRAM tools, imwheel,"
-    echo "          touchegg, xfdashboard, keyd, language packs, mint codecs,"
+    echo "  - Purge: Chrome, Zoom, VLC, GIMP, Papirus icons, TLP, ZRAM tools,"
+    echo "          imwheel (legacy), touchegg, xfdashboard, keyd,"
+    echo "          language packs, mint codecs,"
     echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
     echo "  - Remove Google Chrome apt repository and signing key"
     echo "  - Remove Flathub remote"
-    echo "  - Reverse-install ChromeOS GTK theme and Tela icon theme"
     echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
-    echo "          /etc/inputrc, /etc/default/keyboard, dconf profile"
+    echo "          /etc/inputrc, /etc/default/keyboard"
     echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
     echo "  - Remove Powerwash tool, polkit policy and systemd finalize unit"
     echo "  - Clean /etc/skel and every user's home of toolkit artefacts"
@@ -79,8 +79,10 @@ step_uninstall() {
     done
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
+        # Legacy: imwheel was removed from the toolkit; kill it on old installs.
         sudo -u "$SUDO_USER" pkill -x imwheel              2>/dev/null || true
         sudo -u "$SUDO_USER" pkill -f 'touchegg --client'  2>/dev/null || true
+        # Legacy: Plank was replaced by the panel-2 dock; kill it on old installs.
         sudo -u "$SUDO_USER" pkill -x plank                2>/dev/null || true
         sudo -u "$SUDO_USER" pkill -x xfdashboard          2>/dev/null || true
     fi
@@ -96,6 +98,7 @@ step_uninstall() {
         supertuxkart \
         aisleriot \
         quadrapassel \
+        papirus-icon-theme \
         plank \
         gimp \
         imwheel \
@@ -138,27 +141,12 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 4. Reverse-install themes via upstream installers (support -r flag)
+    # 4. (No theme reverse-install needed)
+    #    Mint-Y-Aqua ships with mint-themes (always present on Mint; we did not
+    #    install it). Papirus was purged in step 2. No git clones were made.
     # -------------------------------------------------------------------------
-    echo "--> Reverse-installing ChromeOS GTK theme and Tela icons..."
-    cd /tmp
-    rm -rf ChromeOS-theme Tela-icon-theme
-
-    if git clone --depth 1 https://github.com/vinceliuice/ChromeOS-theme.git 2>/dev/null; then
-        ./ChromeOS-theme/install.sh -r 2>/dev/null \
-            || note "ChromeOS-theme uninstall failed — residual files may exist under /usr/share/themes/ChromeOS*"
-    else
-        note "Could not clone ChromeOS-theme to reverse-install — remove /usr/share/themes/ChromeOS* manually if desired."
-    fi
-
-    if git clone --depth 1 https://github.com/vinceliuice/Tela-icon-theme.git 2>/dev/null; then
-        ./Tela-icon-theme/install.sh -r 2>/dev/null \
-            || note "Tela-icon-theme uninstall failed — residual files may exist under /usr/share/icons/Tela*"
-    else
-        note "Could not clone Tela-icon-theme to reverse-install — remove /usr/share/icons/Tela* manually if desired."
-    fi
-
-    rm -rf /tmp/ChromeOS-theme /tmp/Tela-icon-theme
+    echo "--> Visual theme stack: Papirus purged (sub-step 2); Mint-Y-Aqua is"
+    echo "    a system theme and does not need removal."
 
     # -------------------------------------------------------------------------
     # 5. Chromebook-linux-audio quirks (best-effort; upstream has no uninstaller)
@@ -209,25 +197,19 @@ step_uninstall() {
     rmdir --ignore-fail-on-non-empty /etc/touchegg 2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 8. Themes / dock / wallpaper / first-run script
+    # 8. Themes / wallpaper / first-run script
+    #    (no Plank dconf override to remove — we never wrote one)
     # -------------------------------------------------------------------------
-    echo "--> Removing dock, wallpaper, and first-run script..."
+    echo "--> Removing wallpaper and first-run script..."
+    rm -rf /usr/share/backgrounds/oem-setup
+    rm -f  /usr/local/bin/oem-first-run.sh
+
+    # Legacy: clean up any dconf/Plank artefacts left by earlier toolkit revisions.
     rm -f /etc/xdg/autostart/plank.desktop
     rm -f /etc/dconf/db/local.d/00-plank
     if command -v dconf &>/dev/null; then
         dconf update 2>/dev/null || true
     fi
-
-    if ! restore_or_skip /etc/dconf/profile/user; then
-        if [ -f /etc/dconf/profile/user ]; then
-            sed -i -e '/^user-db:user$/d' -e '/^system-db:local$/d' \
-                /etc/dconf/profile/user
-            [ ! -s /etc/dconf/profile/user ] && rm -f /etc/dconf/profile/user
-        fi
-    fi
-
-    rm -rf /usr/share/backgrounds/oem-setup
-    rm -f  /usr/local/bin/oem-first-run.sh
 
     # -------------------------------------------------------------------------
     # 8b. Powerwash tool — scripts, systemd unit, polkit policy, menu entry,
@@ -306,14 +288,15 @@ step_uninstall() {
     # 12. /etc/skel cleanup — files this toolkit placed there
     # -------------------------------------------------------------------------
     echo "--> Cleaning /etc/skel artefacts..."
+    # Current artefacts
+    rm -f  /etc/skel/.config/autostart/oem-first-run.desktop
+    rm -f  /etc/skel/.config/autostart/touchegg-client.desktop
+    rm -f  /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+    # Legacy artefacts (imwheel, plank, gtk-4.0 symlinks from earlier revisions)
     rm -f  /etc/skel/.imwheelrc
     rm -f  /etc/skel/.config/autostart/imwheel.desktop
     rm -f  /etc/skel/.config/autostart/plank.desktop
-    rm -f  /etc/skel/.config/autostart/oem-first-run.desktop
-    rm -f  /etc/skel/.config/autostart/touchegg-client.desktop
     rm -rf /etc/skel/.config/plank
-    rm -f  /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
-    # Libadwaita symlinks staged by step_themes for new users.
     rm -f  /etc/skel/.config/gtk-4.0/{assets,gtk.css,gtk-dark.css}
     rmdir --ignore-fail-on-non-empty -p \
         /etc/skel/.config/autostart \
@@ -321,8 +304,7 @@ step_uninstall() {
         /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml \
         2>/dev/null || true
 
-    # /root/.config/gtk-4.0 — created so upstream's install.sh wouldn't crash.
-    # Drop the symlinks it deposited, then prune the dir if empty.
+    # Legacy: /root/.config/gtk-4.0 created by old ChromeOS theme install.
     rm -f /root/.config/gtk-4.0/{assets,gtk.css,gtk-dark.css}
     rmdir --ignore-fail-on-non-empty /root/.config/gtk-4.0 2>/dev/null || true
 
@@ -330,34 +312,81 @@ step_uninstall() {
     # 13. Per-user cleanup (every uid >= 1000 plus $SUDO_USER, deduped)
     # -------------------------------------------------------------------------
     echo "--> Cleaning per-user artefacts..."
+
+    # Helper that removes all toolkit artefacts from a single home directory.
+    # Accepts the home path as its first argument.
+    _clean_user_home() {
+        local home="$1"
+        [ -d "$home" ] || return 0
+
+        # Marker + autostart entries (current + legacy)
+        rm -f  "$home/.config/.oem-first-run-done"
+        rm -f  "$home/.config/autostart/oem-first-run.desktop"
+        rm -f  "$home/.config/autostart/touchegg-client.desktop"
+        rm -f  "$home/.config/autostart/imwheel.desktop"      # legacy
+        rm -f  "$home/.config/autostart/plank.desktop"        # legacy
+        rm -f  "$home/.imwheelrc"                             # legacy
+        rm -rf "$home/.config/plank"                          # legacy
+        rm -f  "$home/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}  # legacy
+
+        # Panel-2 dock: remove every launcher-NNN directory that contains a
+        # .desktop file also present in /usr/share/applications (a reasonable
+        # proxy for "created by oem-first-run.sh"). We identify our launchers
+        # by the fact that they live in IDs >= 100 AND their directory was
+        # written under ~/.config/xfce4/panel/launcher-NNN/.
+        # Strategy: remove all launcher-NNN dirs whose NNN >= 100, then remove
+        # the matching xfconf keys. The panel will self-heal on next restart.
+        local panel_dir="$home/.config/xfce4/panel"
+        if [ -d "$panel_dir" ]; then
+            for ldir in "$panel_dir"/launcher-[0-9]*; do
+                [ -d "$ldir" ] || continue
+                local lnum="${ldir##*launcher-}"
+                if [ "$lnum" -ge 100 ] 2>/dev/null; then
+                    rm -rf "$ldir"
+                fi
+            done
+        fi
+    }
+
     declare -A SEEN
     while IFS=: read -r u _ uid _ _ home _; do
         [ "$uid" -ge 1000 ] && [ "$uid" -lt 65534 ] || continue
         [ -n "${SEEN[$u]:-}" ] && continue
         SEEN[$u]=1
-
-        [ -d "$home" ] || continue
-        rm -f  "$home/.imwheelrc"
-        rm -f  "$home/.config/.oem-first-run-done"
-        rm -f  "$home/.config/autostart/oem-first-run.desktop"
-        rm -f  "$home/.config/autostart/touchegg-client.desktop"
-        rm -f  "$home/.config/autostart/plank.desktop"
-        rm -f  "$home/.config/autostart/imwheel.desktop"
-        rm -rf "$home/.config/plank"
-        rm -f  "$home/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}
+        _clean_user_home "$home"
     done < /etc/passwd
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null \
        && [ -z "${SEEN[$SUDO_USER]:-}" ]; then
+        _clean_user_home "$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    fi
+
+    # Remove panel-2 xfconf keys for the live oem user so XFCE doesn't show
+    # an empty panel on next login. We do this via xfconf-query as root+sudo
+    # (the same env trick used in step_themes).
+    if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null \
+       && command -v xfconf-query &>/dev/null; then
+        local SUDO_HOME oem_dbus_addr=""
         SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-        rm -f  "$SUDO_HOME/.imwheelrc"
-        rm -f  "$SUDO_HOME/.config/.oem-first-run-done"
-        rm -f  "$SUDO_HOME/.config/autostart/oem-first-run.desktop"
-        rm -f  "$SUDO_HOME/.config/autostart/touchegg-client.desktop"
-        rm -f  "$SUDO_HOME/.config/autostart/plank.desktop"
-        rm -f  "$SUDO_HOME/.config/autostart/imwheel.desktop"
-        rm -rf "$SUDO_HOME/.config/plank"
-        rm -f  "$SUDO_HOME/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}
+        local pid
+        pid=$(pgrep -u "$SUDO_USER" -x xfce4-session 2>/dev/null | head -1 || true)
+        if [ -n "$pid" ] && [ -r "/proc/$pid/environ" ]; then
+            oem_dbus_addr=$(tr '\0' '\n' < "/proc/$pid/environ" \
+                | awk '/^DBUS_SESSION_BUS_ADDRESS=/{ print substr($0, index($0,"=")+1); exit }' || true)
+        fi
+        sudo -u "$SUDO_USER" env \
+            HOME="$SUDO_HOME" \
+            DISPLAY="${DISPLAY:-:0}" \
+            XAUTHORITY="$SUDO_HOME/.Xauthority" \
+            DBUS_SESSION_BUS_ADDRESS="${oem_dbus_addr:-}" \
+            xfconf-query -c xfce4-panel -p /panels/panel-2 -r -R \
+            2>/dev/null || true
+        sudo -u "$SUDO_USER" env \
+            HOME="$SUDO_HOME" \
+            DISPLAY="${DISPLAY:-:0}" \
+            XAUTHORITY="$SUDO_HOME/.Xauthority" \
+            DBUS_SESSION_BUS_ADDRESS="${oem_dbus_addr:-}" \
+            xfce4-panel --restart 2>/dev/null || true
     fi
 
     # -------------------------------------------------------------------------
