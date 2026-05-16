@@ -9,13 +9,14 @@ like ChromeOS, using fully Mint-shipped or apt-available components:
    on Linux Mint XFCE; no download required.
 2. **Papirus icon theme** — installed from apt; rounded, modern, close
    in spirit to ChromeOS's icon family.
-3. **XFCE bottom panel-2 dock** — created at first login by
-   `oem-first-run.sh` using XFCE's built-in launcher plugin. No extra
-   packages; no extra process.
+3. **Plank dock** — bottom-centred dock seeded at first login by
+   `oem-first-run.sh` (`plank` from apt).
 4. **Malta wallpaper** — deployed to `/usr/share/backgrounds/oem-setup/`
    and applied per-user by the first-run script.
-5. **Per-user first-run script** — applies wallpaper, theme, and dock on
-   first XFCE login, then self-deletes its autostart entry.
+5. **Per-user first-run script** — applies wallpaper, theme, and Plank on
+   first XFCE login; moves panel-1 to the top, removes its tasklist and
+   default Firefox / Terminal / Thunar launchers, then self-deletes its
+   autostart entry.
 
 ## Function exported
 
@@ -59,8 +60,8 @@ Live session changes (only when `$SUDO_USER` is set):
 - `pkill xfsettingsd` + `xfsettingsd --replace` (forces daemon to
   serve the new values rather than its cached state).
 - Inline execution of `/usr/local/bin/oem-first-run.sh` — applies
-  wallpaper and creates the bottom panel-2 dock without waiting for
-  a re-login.
+  wallpaper, adjusts panel-1, strips default panel launchers, seeds Plank
+  without waiting for a re-login.
 
 ## Walkthrough
 
@@ -140,9 +141,10 @@ Three things worth knowing:
 2. **xfsettingsd must be replaced**, not just signalled. It caches
    xsettings values and serves them on demand; without a restart,
    already-running apps keep the old theme.
-3. **Running oem-first-run.sh inline** applies the wallpaper and
-   creates the panel-2 dock in the live session without waiting for
-   a re-login. The marker file (`~/.config/.oem-first-run-done`) that
+3. **Running oem-first-run.sh inline** applies the wallpaper, panel-1
+   layout (including removing default Firefox, terminal, and Thunar icons
+   from the top bar), and seeds Plank in the live session without waiting
+   for a re-login. The marker file (`~/.config/.oem-first-run-done`) that
    the script writes at the end makes the skel autostart entry silently
    no-op on all subsequent logins.
 
@@ -194,8 +196,8 @@ called command land in the user's home, not `/root`.
   xsettings.xml`, and `assets/scripts/oem-first-run.sh`.
 - No dconf system database is written. The previous revision used
   `/etc/dconf/db/local.d/00-plank` to force dock contents system-wide.
-  The current design manages the dock entirely per-user in
-  `oem-first-run.sh`, which is simpler and avoids the dconf-service
+  The current design manages the dock and panel-1 quick-launch cleanup
+  entirely per-user in `oem-first-run.sh`, which is simpler and avoids the dconf-service
   restart race condition seen during the first QA run.
 
 ## Idempotency

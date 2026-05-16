@@ -13,6 +13,7 @@ and Google services without depending on remote icon URLs.
 ## Inputs
 
 - `$REPO_DIR/assets/icons/*.svg` (11 SVG files).
+- `$REPO_DIR/modules/chrome-exec-flags.sh` (`OEM_CHROME_EXEC_FLAGS`; shared with `chrome.sh`).
 - `$REPO_DIR` (exported by `setup.sh`).
 
 ## Outputs
@@ -65,11 +66,12 @@ non-zero. We don't care.
 
 ### 2. Write each `.desktop` via the `write_webapp` helper
 
-The module defines a single shared flag string used by every
-launcher:
+The module sources [`chrome-exec-flags.sh`](../../modules/chrome-exec-flags.sh)
+and uses the same `OEM_CHROME_EXEC_FLAGS` string as `step_chrome` (main
+`google-chrome.desktop`):
 
 ```bash
-WEBAPP_CHROME_FLAGS='--password-store=basic --enable-features=OverlayScrollbar'
+OEM_CHROME_EXEC_FLAGS='--password-store=basic --enable-features=OverlayScrollbar'
 ```
 
 ```bash
@@ -83,7 +85,7 @@ write_webapp() {
 [Desktop Entry]
 Version=1.0
 Name=${LABEL}
-Exec=google-chrome ${WEBAPP_CHROME_FLAGS} --app="${URL}"
+Exec=google-chrome ${OEM_CHROME_EXEC_FLAGS} --app="${URL}"
 Terminal=false
 Type=Application
 Icon=${ICON}

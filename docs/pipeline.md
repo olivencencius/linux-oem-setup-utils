@@ -141,11 +141,12 @@ components ship in apt or are part of a standard Mint install.
 ### 11. `touchpad` — after themes (purely a position-of-convenience now)
 
 Writes `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` with
-`NaturalScrolling`, `Tapping`, `TappingDrag`, `DisableWhileTyping`,
-and `ScrollPixelDistance=40` (libinput's default is ~15; higher =
-slower scroll, which is the OEM-desired feel). The same values are
-pushed to the live session via `xinput set-prop` so the technician
-feels the slower scroll during QA without needing an X restart.
+`NaturalScrolling`, `Tapping`, `TappingDrag`, `ClickMethod clickfinger`,
+`DisableWhileTyping`, and `ScrollPixelDistance=40` (libinput's default
+is ~15; higher = slower scroll, which is the OEM-desired feel). The same
+values are pushed to the live session via `xinput set-prop` (including
+tapping and clickfinger) so the technician feels the behaviour during QA
+without needing an X restart.
 
 The previous revision wired up an `imwheel`-based 3x scroll
 *multiplier* in this step. That made scrolling *faster* than default

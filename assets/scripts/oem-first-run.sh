@@ -5,9 +5,11 @@
 #                   1. Applies the Malta wallpaper to every detected monitor.
 #                   2. Sets Mint-Y-Aqua GTK theme + Papirus icons via xsettings
 #                      and xfwm4 (window decorations).
-#                   3. Moves panel-1 to the top edge, slims it to 24 px, and
+#                   3. Moves panel-1 to the top edge, slims it to 24 px,
 #                      removes the window-buttons / tasklist plugin (redundant
-#                      with Plank's running-app indicators).
+#                      with Plank's running-app indicators), and strips Mint's
+#                      default panel launchers (Firefox, XFCE Terminal, Thunar)
+#                      so the top bar stays status-only.
 #                   4. Seeds a Plank dock at the bottom-centre with 15 pinned
 #                      launchers (icon size 48, intelligent hide, Transparent
 #                      theme), starts plank, and installs a per-user plank
@@ -35,7 +37,9 @@
 #                 xfconf-query: xfce4-panel     /panels/panel-1/position,
 #                                               /panels/panel-1/size,
 #                                               /panels/panel-1/plugin-ids
-#                                               (tasklist plugin removed)
+#                                               (tasklist removed; default launchers
+#                                               stripped; empty launcher plugins
+#                                               removed + pruned from xfconf)
 #                 ~/.config/plank/dock1/settings
 #                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 15)
 #                 ~/.config/autostart/plank.desktop
@@ -128,23 +132,59 @@ if command -v xfconf-query >/dev/null; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Panel-1 — move to top, slim to 24 px, remove window-list plugin.
+# 3. Panel-1 — move to top, slim to 24 px, strip tasklist + default launchers.
 #
 # Mint XFCE ships one panel (panel-1) at the bottom. We move it to the top
 # so it acts as a slim status bar (Whisker Menu, clock, tray, volume, power)
 # while Plank owns the bottom edge as the dock. The window-buttons / tasklist
 # plugin is removed because Plank already shows running-app indicators.
 #
+# Default quick-launch icons (Firefox, XFCE Terminal, Thunar) are stored by XFCE
+# as .desktop files under ~/.config/xfce4/panel/launcher-<plugin-id>/. Those
+# entries are removed so the top bar does not duplicate Plank pins (Thunar is
+# on the dock). Launcher plugins with no items left are dropped from panel-1
+# and pruned from xfconf (/plugins/plugin-<id>).
+#
 # Position string encoding (XFCE GravityType):
 #   p=6  = top-left (NW_H) — default for a top horizontal panel on Mint.
 #   p=2  = top-center (N)  — fallback if the panel appears off-screen.
 # The exact value varies slightly between Mint releases; both are tried.
 #
-# Plugin discovery: XFCE allocates tasklist plugin IDs at install time and
-# they differ across machines, so we enumerate /panels/panel-1/plugin-ids,
-# look up each plugin's type, and filter out any whose type is "tasklist"
-# or "window-buttons". The remaining IDs are written back as the new list.
+# Plugin discovery: XFCE allocates plugin IDs at install time and they differ
+# across machines, so we enumerate /panels/panel-1/plugin-ids, look up each
+# plugin's type, delete matching launcher .desktop files, filter out
+# tasklist / window-buttons, drop empty launcher plugins, then write back.
 # ------------------------------------------------------------------------------
+
+# Returns 0 if this launcher-item .desktop should be removed from panel-1.
+panel_launcher_desktop_should_strip() {
+    local f="$1" bn line val first
+    [ -f "$f" ] || return 1
+
+    bn=$(basename "$f" | tr '[:upper:]' '[:lower:]')
+    case "$bn" in
+        firefox.desktop|firefox-esr.desktop)          return 0 ;;
+        thunar.desktop|org.xfce.thunar.desktop)       return 0 ;;
+        xfce4-terminal.desktop|xfce4-terminal-emulator.desktop) return 0 ;;
+    esac
+
+    line=$(LC_ALL=C grep -m1 '^Exec=' "$f" 2>/dev/null || true)
+    [ -n "$line" ] || return 1
+    val=${line#Exec=}
+    read -r first _ <<< "$val"
+    first=${first%/}
+    first=${first##*/}
+    case "$first" in
+        firefox|firefox-esr|thunar|xfce4-terminal) return 0 ;;
+    esac
+
+    # Non-standard filenames: Mint targets as argv0 (optional path prefix).
+    if echo "$line" | grep -Eiq '^Exec=([^[:space:]]*/)?(firefox-esr|firefox|thunar|xfce4-terminal)([[:space:]]|%|$)' ; then
+        return 0
+    fi
+    return 1
+}
+
 setup_top_panel() {
     command -v xfconf-query >/dev/null || return 0
 
@@ -163,28 +203,77 @@ setup_top_panel() {
         | grep -E '^[0-9]+$' || true
     )
 
-    if [ ${#current_ids[@]} -gt 0 ]; then
-        # Build a new list that excludes tasklist / window-buttons plugins.
-        local new_ids=() pid ptype
-        for pid in "${current_ids[@]}"; do
-            ptype=$(xfconf-query -c xfce4-panel \
-                        -p "/plugins/plugin-${pid}" 2>/dev/null || true)
-            case "$ptype" in
-                tasklist|window-buttons) ;;  # drop it
-                *) new_ids+=( "$pid" ) ;;
-            esac
-        done
-
-        # Write back the filtered list only if anything changed.
-        if [ ${#new_ids[@]} -lt ${#current_ids[@]} ]; then
-            local id_args=()
-            for pid in "${new_ids[@]}"; do id_args+=( -t int -s "$pid" ); done
-            xfconf-query -c xfce4-panel \
-                -p /panels/panel-1/plugin-ids -a "${id_args[@]}" 2>/dev/null || true
-        fi
+    if [ ${#current_ids[@]} -eq 0 ]; then
+        xfce4-panel --restart 2>/dev/null || true
+        return 0
     fi
 
-    # Restart the panel so it picks up all three changes in one go.
+    local pid ptype ldir f remove_plugin_ids=()
+    for pid in "${current_ids[@]}"; do
+        ptype=$(xfconf-query -c xfce4-panel \
+                    -p "/plugins/plugin-${pid}" 2>/dev/null || true)
+        if [ "$ptype" = launcher ]; then
+            ldir="$HOME/.config/xfce4/panel/launcher-$pid"
+            if [ -d "$ldir" ]; then
+                shopt -s nullglob
+                for f in "$ldir"/*.desktop; do
+                    if panel_launcher_desktop_should_strip "$f"; then
+                        rm -f "$f"
+                    fi
+                done
+                shopt -u nullglob
+            fi
+        fi
+    done
+
+    local new_ids=() remaining
+    for pid in "${current_ids[@]}"; do
+        ptype=$(xfconf-query -c xfce4-panel \
+                    -p "/plugins/plugin-${pid}" 2>/dev/null || true)
+        case "$ptype" in
+            tasklist|window-buttons) ;;
+            launcher)
+                ldir="$HOME/.config/xfce4/panel/launcher-$pid"
+                if [ ! -d "$ldir" ]; then
+                    new_ids+=( "$pid" )
+                else
+                    shopt -s nullglob
+                    remaining=( "$ldir"/*.desktop )
+                    shopt -u nullglob
+                    if [ ${#remaining[@]} -eq 0 ]; then
+                        remove_plugin_ids+=( "$pid" )
+                    else
+                        new_ids+=( "$pid" )
+                    fi
+                fi
+                ;;
+            *) new_ids+=( "$pid" ) ;;
+        esac
+    done
+
+    local changed=false _i
+    if [ ${#new_ids[@]} -ne ${#current_ids[@]} ]; then
+        changed=true
+    else
+        for _i in "${!current_ids[@]}"; do
+            if [ "${current_ids[$_i]}" != "${new_ids[$_i]}" ]; then
+                changed=true
+                break
+            fi
+        done
+    fi
+
+    if [ "$changed" = true ] && [ ${#new_ids[@]} -gt 0 ]; then
+        local id_args=()
+        for pid in "${new_ids[@]}"; do id_args+=( -t int -s "$pid" ); done
+        xfconf-query -c xfce4-panel \
+            -p /panels/panel-1/plugin-ids -a "${id_args[@]}" 2>/dev/null || true
+        for pid in "${remove_plugin_ids[@]}"; do
+            xfconf-query -c xfce4-panel \
+                -p "/plugins/plugin-${pid}" -r -R 2>/dev/null || true
+        done
+    fi
+
     xfce4-panel --restart 2>/dev/null || true
 }
 

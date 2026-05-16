@@ -36,8 +36,18 @@ go through anyway.
 
 ## Touchpad
 
-- [ ] Single-finger tap = left click.
-- [ ] Two-finger tap = right click.
+- [ ] Single-finger tap = left click; two-finger tap = right click.
+- [ ] Single-finger **physical press** anywhere on the pad = left click;
+      two-finger **physical press** = right click (not left/right
+      zones). If presses still feel zoned, confirm libinput:
+  ```
+  TPID=$(xinput list | grep -iE 'touchpad|trackpad|synaptics|elan' \
+         | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2)
+  xinput list-props "$TPID" | grep -E 'Tapping Enabled|Click Method Enabled'
+  ```
+  → `libinput Tapping Enabled (NNN): 1` and
+  `libinput Click Method Enabled (NNN): 0, 1` (buttonareas off,
+  clickfinger on).
 - [ ] Two-finger drag = natural scroll (page scrolls *with* the
       fingers, ChromeOS-style).
 - [ ] Two-finger scroll feels noticeably slower than a default Mint
@@ -93,7 +103,11 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 ## Chrome and web apps
 
-- [ ] Chrome opens, logs in to a Google account, plays a YouTube video.
+- [ ] Chrome opens, logs in to a Google account, plays a YouTube video
+      **without** a gnome-keyring / "new keyring password" dialog (`step_chrome`
+      patches `google-chrome.desktop` with the same `OEM_CHROME_EXEC_FLAGS` as
+      web apps; re-run menu option 5 if a Chrome package upgrade restored the
+      vendor desktop file).
 - [ ] All 11 web-app shortcuts (from the application menu, search for
       each):
   - [ ] Netflix
@@ -112,10 +126,10 @@ work; the 4-finger ones silently no-op on unsupported hardware.
   (`--app=` mode) and the right icon in the taskbar.
 
 - [ ] Opening any web app does **not** prompt for a keyring password
-      (the launchers pass `--password-store=basic` so Chrome skips
-      gnome-keyring). If a "Choose password for new keyring" dialog
-      appears, the .desktop file was edited or the Exec line lost the
-      flag — re-run option 8.
+      (`OEM_CHROME_EXEC_FLAGS` / `--password-store=basic`; same as main
+      Chrome after `step_chrome`). If a "Choose password for new keyring" dialog
+      appears, the `Exec=` line lost the flag — re-run option 5 (Chrome) and/or
+      option 8 (web apps).
 - [ ] The web-app window uses the thin auto-hide overlay scrollbar,
       not the always-visible classic scrollbar (we pass
       `--enable-features=OverlayScrollbar`). Hover near the right

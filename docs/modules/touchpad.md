@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Two touchpad concerns in one module:
+Three touchpad concerns in one module:
 
 1. **Natural scrolling** — page scrolls in the same direction as the
    fingers move (ChromeOS / macOS style).
@@ -11,11 +11,26 @@ Two touchpad concerns in one module:
    in a browser. We tell libinput "require more finger travel per
    scroll event" so the same physical drag covers less distance on
    screen.
+3. **Modern click / tap behaviour** — `ClickMethod clickfinger` so a
+   physical press uses finger *count* (1 = left, 2 = right) anywhere
+   on the pad instead of left/right *zones* (`buttonareas`). Together
+   with `Tapping on`, a one-finger tap is left click and a two-finger
+   tap is right click (libinput default `TappingButtonMap` lrm).
 
-(There used to be a third concern — an `imwheel`-based **3x scroll
-multiplier** — that has been removed. It made scrolling *faster* than
-default, which is the opposite of what the OEM workflow wants. See the
-removal note at the bottom of this document for the migration story.)
+### Mint XFCE GUI (buyer or technician)
+
+After install, confirm **Settings → Mouse and Touchpad → Touchpad**:
+**Tap to click** is on (and enable two-finger tap / context menu if
+the dialog exposes it). Prefer any option that sounds like
+**multi-touch** or **click with multiple fingers** over **split** or
+**area** buttons. The xorg snippet from `step_touchpad` applies system-
+wide; the GUI should align and must not leave tapping off on a fresh
+profile that never inherited the defaults.
+
+Historically, this module also shipped an `imwheel`-based **3x scroll
+multiplier** that made scrolling *faster* than default — removed for
+the opposite reason we slow scroll today. See the removal note at the
+bottom of this document.
 
 ## Function exported
 
@@ -37,15 +52,18 @@ or lower it toward 15 for faster.
 
 - `xinput` (installed by `step_updates`).
 - `$SUDO_USER` (optional) — if set, the live oem session has the
-  scroll properties applied immediately for QA.
+  scroll / tap / clickfinger properties applied immediately for QA.
 - `$DISPLAY` (optional) — defaults to `:0`.
 
 ## Outputs
 
 - `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` — system-wide
   libinput config for any matching touchpad.
-- For the live oem session (if `$SUDO_USER` is set):
+- For the live oem session (if a touchpad id is found):
   - `xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1`.
+  - `xinput set-prop "$TP_ID" "libinput Tapping Enabled" 1`.
+  - `xinput set-prop "$TP_ID" "libinput Click Method Enabled" 0 1`  
+    (`buttonareas` off, `clickfinger` on).
   - `xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" 40`.
 
 ## Walkthrough
@@ -63,22 +81,24 @@ Section "InputClass"
     Option "AccelProfile"          "adaptive"
     Option "Tapping"               "on"
     Option "TappingDrag"           "on"
+    Option "ClickMethod"           "clickfinger"
     Option "DisableWhileTyping"    "on"
     Option "ScrollPixelDistance"   "${OEM_SCROLL_PIXEL_DISTANCE}"
 EndSection
 EOF
 ```
 
-Six options worth understanding:
+Seven options worth understanding:
 
 | Option | Why |
 |---|---|
 | `NaturalScrolling true` | Page follows fingers. |
 | `AccelProfile adaptive` | Cursor accel speeds up on rapid movement — what users expect. |
-| `Tapping on` | Tap-to-click. |
+| `Tapping on` | Tap-to-click; one-finger tap = left, two-finger = right (default map lrm). |
 | `TappingDrag on` | Tap-and-drag (double-tap then slide). |
+| `ClickMethod clickfinger` | Physical press by finger *count*: 1 = left, 2 = right, anywhere on the pad — not left/right zones. |
 | `DisableWhileTyping on` | The classic palm-rejection-while-typing toggle. |
-| `ScrollPixelDistance 40` | **The single most important line.** Default is ~15. Larger value = the finger has to travel further to fire one scroll event = slower scroll. Tuned to roughly halve the dense scroll feed Chromebook touchpads emit. |
+| `ScrollPixelDistance 40` | **The single most important scroll line.** Default is ~15. Larger value = the finger has to travel further to fire one scroll event = slower scroll. Tuned to roughly halve the dense scroll feed Chromebook touchpads emit. |
 
 `MatchIsTouchpad on` makes the section apply to any libinput-recognised
 touchpad, regardless of vendor or product ID. Future Chromebook
@@ -94,9 +114,14 @@ TP_ID=$(xinput list 2>/dev/null \
 if [ -n "$TP_ID" ]; then
     xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1 \
         2>/dev/null || true
+    xinput set-prop "$TP_ID" "libinput Tapping Enabled" 1 \
+        2>/dev/null || true
+    xinput set-prop "$TP_ID" "libinput Click Method Enabled" 0 1 \
+        2>/dev/null \
+        || echo "[!] Click Method property not exposed by this driver"
     xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" \
         "$OEM_SCROLL_PIXEL_DISTANCE" 2>/dev/null \
-        || echo "[!] property not exposed by this driver"
+        || echo "[!] Scrolling Pixel Distance not exposed by this driver"
 fi
 ```
 
@@ -107,10 +132,22 @@ values that the xorg.conf.d snippet will use after a reboot, so the
 technician feels the change *during the same QA session* without
 needing an X restart.
 
-If a given libinput build doesn't expose `Scrolling Pixel Distance`
-(very old versions only), the second `set-prop` returns non-zero and
-we print a one-line warning. The xorg.conf snippet still applies on
-the next boot.
+### 3. Verify libinput properties (QA)
+
+```bash
+TPID=$(xinput list | grep -iE 'touchpad|trackpad|synaptics|elan' \
+       | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2)
+xinput list-props "$TPID" | grep -E 'Tapping Enabled|Click Method|Scrolling Pixel'
+```
+
+Expect **Tapping Enabled: 1**, **Click Methods Enabled: 0, 1** (areas
+off, clickfinger on), and **Scrolling Pixel Distance** matching
+`OEM_SCROLL_PIXEL_DISTANCE`.
+
+If a given libinput build doesn't expose `Scrolling Pixel Distance` or
+`Click Method Enabled` (unusual hardware or driver), the matching
+`set-prop` returns non-zero and `step_touchpad` prints a one-line
+warning. The xorg.conf snippet still applies on the next boot.
 
 ## Why ScrollPixelDistance, not imwheel?
 

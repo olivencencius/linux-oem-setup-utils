@@ -1,10 +1,9 @@
 #!/bin/bash
 # ==============================================================================
 #   Module:    touchpad.sh
-#   Purpose:   Two touchpad concerns: natural scrolling and a SLOWER-than-
-#              default two-finger scroll (Chromebook touchpads emit scroll
-#              events very densely; out of the box that feels frantic in a
-#              browser).
+#   Purpose:   Touchpad tuning: natural scrolling, slower two-finger scroll,
+#              tap-to-click, and clickfinger (1-finger / 2-finger physical
+#              press = left / right anywhere — not left/right tap zones).
 #   Reads:     xinput list (touchpad detection)
 #              SUDO_USER (optional), DISPLAY (defaults to :0)
 #   Writes:    /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf
@@ -35,7 +34,7 @@
 OEM_SCROLL_PIXEL_DISTANCE=40
 
 step_touchpad() {
-    echo "--> Configuring touchpad (natural scrolling + slower scroll speed)..."
+    echo "--> Configuring touchpad (natural scroll, slower scroll, tap-to-click, clickfinger)..."
 
     # -------------------------------------------------------------------------
     # 1. Persistent xorg.conf.d snippet (survives reboot, applies to all users
@@ -51,6 +50,7 @@ Section "InputClass"
     Option "AccelProfile"          "adaptive"
     Option "Tapping"               "on"
     Option "TappingDrag"           "on"
+    Option "ClickMethod"           "clickfinger"
     Option "DisableWhileTyping"    "on"
     # Higher = slower scroll. Default ~15. See modules/touchpad.sh
     # (OEM_SCROLL_PIXEL_DISTANCE) to change the canonical value.
@@ -74,6 +74,11 @@ EOF
         echo "    [i] Touchpad detected: id=$TP_ID — applying live"
         xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1 \
             2>/dev/null || true
+        xinput set-prop "$TP_ID" "libinput Tapping Enabled" 1 \
+            2>/dev/null || true
+        xinput set-prop "$TP_ID" "libinput Click Method Enabled" 0 1 \
+            2>/dev/null \
+            || echo "    [!] 'libinput Click Method Enabled' not exposed by this driver"
         xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" \
             "$OEM_SCROLL_PIXEL_DISTANCE" 2>/dev/null \
             || echo "    [!] 'libinput Scrolling Pixel Distance' not exposed by this driver"
