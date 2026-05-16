@@ -11,8 +11,8 @@
 #                      default panel launchers (Firefox, XFCE Terminal, Thunar)
 #                      so the top bar stays status-only.
 #                   4. Seeds a Plank dock at the bottom-centre with pinned
-#                      launchers (icon size 48, intelligent hide, Transparent
-#                      theme), starts plank, and installs a per-user plank
+#                      launchers (icon size 40, auto-hide, Matte theme — tuned
+#                      for weaker GPUs / small panels), starts plank, and installs a per-user plank
 #                      autostart entry so plank comes up on every subsequent
 #                      login.
 #                 Then self-deletes its autostart entry so the user keeps full
@@ -308,7 +308,7 @@ setup_workspace_overview_keys() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Plank dock (bottom-centre, intelligent hide, pinned launchers).
+# 4. Plank dock (bottom-centre, auto-hide, pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
 # index (01-, 02-, …) to lock the order specified in DOCK_LAUNCHERS.
@@ -320,25 +320,26 @@ setup_plank_dock() {
     local launchers_dir="$plank_dir/launchers"
     mkdir -p "$launchers_dir"
 
-    # Settings:
+    # Settings (lighter redraw + smoother hide/show on composited desktops):
     #   Position=3       Gtk.PositionType.BOTTOM
     #   Alignment=3      PlankItemsAlignment.CENTER
-    #   HideMode=1       PlankHideType.INTELLIGENT (hide only when a window overlaps)
-    #   IconSize=48      48 px (matches Mint XFCE panel-1 height)
-    #   Theme=Transparent  ships with plank; cleanest ChromeOS-like look
+    #   HideMode=2       HideType AUTOHIDE (hide until cursor hits dock edge — frees vertical space)
+    #   HideDelay/UnhideDelay  small nonzero ms — reduces twitchy overlap flaps at launch/maximize
+    #   IconSize=40      modest GPU win vs 48 px; tighter strip on laptops
+    #   Theme=Matte      ships with plank; less translucent work than Transparent
     #   LockItems=false  buyer can drag-rearrange after purchase
     cat > "$plank_dir/settings" <<'EOF'
 [PlankDockPreferences]
 CurrentWorkspaceOnly=false
-IconSize=48
-HideMode=1
-UnhideDelay=0
-HideDelay=0
+IconSize=40
+HideMode=2
+UnhideDelay=150
+HideDelay=150
 Monitor=
 DockItems=
 Position=3
 Offset=0
-Theme=Transparent
+Theme=Matte
 Alignment=3
 ItemsAlignment=3
 LockItems=false
