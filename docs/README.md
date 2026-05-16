@@ -35,6 +35,7 @@ One file per script in `modules/`, all follow the same template
 - [`modules/terminal.md`](./modules/terminal.md)
 - [`modules/regional.md`](./modules/regional.md)
 - [`modules/powerwash.md`](./modules/powerwash.md)
+- [`modules/diagnostics.md`](./modules/diagnostics.md)
 - [`modules/uninstall.md`](./modules/uninstall.md)
 
 ## Conventions used in these docs

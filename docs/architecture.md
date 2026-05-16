@@ -30,6 +30,7 @@ linux-oem-setup-utils/
 │   ├── terminal.sh
 │   ├── regional.sh
 │   ├── powerwash.sh
+│   ├── diagnostics.sh
 │   └── uninstall.sh
 ├── assets/                     ← anything the modules install onto the system
 │   ├── configs/
@@ -117,8 +118,11 @@ run_step <name>  # Skips if /var/lib/oem-setup/state/<name>.done exists,
                  # otherwise calls do_step.
 ```
 
-- The **menu's individual options** (`2`–`14`) call `do_step` so a
+- The **menu's individual options** (`2`–`15`) call `do_step` so a
   technician can re-apply one step on demand even after a full pipeline.
+  Option **`16`** (Undo all changes) is the exception — it calls
+  `step_uninstall` directly (see [`modules/uninstall.md`](./modules/uninstall.md)).
+  Option **`17`** exits without invoking a step.
 - The **full pipeline** (option `1`) calls `run_step` so a re-run after a
   failure resumes from the broken step.
 

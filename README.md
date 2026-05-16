@@ -63,7 +63,7 @@ sudo rm -rf /var/lib/oem-setup/state && sudo bash setup.sh
 
 ### Reverting a deployment
 
-Run the script again and pick **option 15 — Undo all changes**. See
+Run the script again and pick **option 16 — Undo all changes**. See
 [`docs/uninstall.md`](docs/uninstall.md) for what gets reverted and the
 best-effort caveats.
 
@@ -98,7 +98,7 @@ Everything beyond the quickstart lives in **[`docs/`](docs/)**:
   `skel/` mapped to its install path and owning module.
 - [`docs/powerwash.md`](docs/powerwash.md) — the multi-stage
   Powerwash flow end-to-end.
-- [`docs/uninstall.md`](docs/uninstall.md) — what option 15 reverts,
+- [`docs/uninstall.md`](docs/uninstall.md) — what option 16 reverts,
   and the best-effort caveats.
 - [`docs/handover-qa.md`](docs/handover-qa.md) — the per-machine QA
   checklist to run before shipping.

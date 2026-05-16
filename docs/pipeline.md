@@ -23,6 +23,7 @@ run_full_pipeline() {
     run_step terminal
     run_step regional
     run_step powerwash
+    run_step diagnostics
 }
 ```
 
@@ -172,17 +173,27 @@ generates locales, sets `LANG=pl_PL.UTF-8`, timezone `Europe/Warsaw`,
 and the chosen `XKBLAYOUT`. Because this runs late, the language packs
 do not slow down apt during the earlier package-heavy steps.
 
-### 15. `powerwash` — last
+### 15. `powerwash`
 
 Installs the buyer-facing factory-reset tool: scripts, systemd unit,
-polkit policy, menu entry, icon. Last because it's a feature for the
+polkit policy, menu entry, icon. Positioned late because it's a feature for the
 *buyer*, not part of the visible deployment, and only depends on
 `zenity` / `policykit-1` / `oem-config-gtk` which it brings in
 itself.
 
+### 16. `diagnostics` — last
+
+Runs **`step_diagnostics`** (`modules/diagnostics.sh`): a read-only inventory and
+automated `[PASS]`/`[WARN]`/`[FAIL]` report so technicians see system state and
+common misconfiguration hints immediately after every other step has run.
+Keeping it last ensures the report reflects the deployed wallpaper, web apps,
+Powerwash files, touchpad snippet, `touchegg`, ZRAM, TLP, and keyboard/audio
+stack as left by earlier steps. The script never prompts and never raises —
+manual QA remains in [`handover-qa.md`](./handover-qa.md).
+
 ## What is **not** in the pipeline
 
-- **`uninstall`** is only reachable via menu option `15`. It is sourced
+- **`uninstall`** is only reachable via menu option `16`. It is sourced
   by `setup.sh` like every other module but never called from
   `run_full_pipeline`.
 - **`cleanup` is repeated**: `step_uninstall` calls `step_cleanup` near
@@ -208,7 +219,7 @@ case. The actual list:
 
 ## Menu vs full pipeline
 
-| Concern | Full pipeline (`1`) | Individual options (`2`–`14`) |
+| Concern | Full pipeline (`1`) | Individual options (`2`–`15`) |
 |---|---|---|
 | Step wrapper | `run_step` (skip if done) | `do_step` (always run) |
 | Resume after crash | yes — finished steps skipped | n/a (technician picks what to run) |
@@ -217,4 +228,4 @@ case. The actual list:
 | Reboot reminder | printed automatically | not printed |
 | `step_cleanup` | runs once, early | options 2, 4, 9 chain it before their main step |
 
-For the option-15 (uninstall) flow see [`uninstall.md`](./uninstall.md).
+For the option-16 (uninstall) flow see [`uninstall.md`](./uninstall.md).

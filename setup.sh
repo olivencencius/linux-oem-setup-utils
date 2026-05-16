@@ -142,6 +142,7 @@ source "$REPO_DIR/modules/gestures.sh"
 source "$REPO_DIR/modules/terminal.sh"
 source "$REPO_DIR/modules/regional.sh"
 source "$REPO_DIR/modules/powerwash.sh"
+source "$REPO_DIR/modules/diagnostics.sh"
 source "$REPO_DIR/modules/uninstall.sh"
 
 # ==============================================================================
@@ -167,6 +168,7 @@ run_full_pipeline() {
     run_step terminal
     run_step regional
     run_step powerwash
+    run_step diagnostics
 }
 
 # ==============================================================================
@@ -205,10 +207,11 @@ while true; do
     echo " 12) Apply terminal paste fix"
     echo " 13) Adjust region, language and keyboard layout"
     echo " 14) Install Powerwash (buyer-facing factory reset) tool"
-    echo " 15) Undo all changes (full uninstall)"
-    echo " 16) Exit setup"
+    echo " 15) Run hardware diagnostics report"
+    echo " 16) Undo all changes (full uninstall)"
+    echo " 17) Exit setup"
     echo "========================================="
-    read -p "Select choice [1-16]: " main_choice < /dev/tty
+    read -p "Select choice [1-17]: " main_choice < /dev/tty
     echo ""
 
     case $main_choice in
@@ -226,9 +229,10 @@ while true; do
         12) do_step terminal ;;
         13) do_step regional ;;
         14) do_step powerwash ;;
-        15) step_uninstall ;;
-        16) echo "Exiting configuration engine."; exit 0 ;;
-        *)  echo "Invalid option. Please choose 1-16." ;;
+        15) do_step diagnostics ;;
+        16) step_uninstall ;;
+        17) echo "Exiting configuration engine."; exit 0 ;;
+        *)  echo "Invalid option. Please choose 1-17." ;;
     esac
 done
 

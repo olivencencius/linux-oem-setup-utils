@@ -99,7 +99,7 @@ change.
 
 ## Notes
 
-- `step_uninstall` is invoked directly from the menu (option 15), not
+- `step_uninstall` is invoked directly from the menu (option 16), not
   via `do_step` / `run_step`. It owns its own confirmation
   (`read … YES`) and never writes a `uninstall.done` marker. A re-run
   is always allowed.

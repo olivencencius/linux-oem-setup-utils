@@ -1,5 +1,10 @@
 # Handover QA checklist
 
+Most checks below are partially automated by **`setup.sh` menu option 15**
+(`step_diagnostics`) — see `/var/lib/oem-setup/diagnostics-report.txt`. This
+page remains the master checklist and lists everything that still requires a
+human.
+
 Run after a full pipeline **and after a reboot**. Tick every box; if any
 fails, fix or re-apply the relevant step before shipping the machine.
 

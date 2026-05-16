@@ -1,6 +1,6 @@
 # Uninstall — what `Undo all changes` reverts
 
-Menu option **15** runs `step_uninstall`, the best-effort reversal of
+Menu option **16** runs `step_uninstall`, the best-effort reversal of
 every change this toolkit makes. This page explains exactly what it
 does, in order, and where the inevitable "best-effort" caveats are.
 
@@ -11,7 +11,7 @@ cross-cutting summary.
 
 ## How it's invoked
 
-Menu option `15` calls `step_uninstall` directly (not via `do_step`).
+Menu option `16` calls `step_uninstall` directly (not via `do_step`).
 The function asks for a `YES` (uppercase) confirmation read from
 `/dev/tty`. Anything else aborts.
 
@@ -88,7 +88,7 @@ matches the inline section comments.
 | 11 | Regional | `restore_or_skip /etc/default/keyboard` or sed `XKBLAYOUT="us"`. `setupcon`. `localectl set-locale LANG=en_US.UTF-8`. `timedatectl set-timezone UTC`. |
 | 12 | `/etc/skel` cleanup | `rm` current autostart entries (`oem-first-run`, `touchegg-client`), `xsettings.xml`. Also `rm -f` legacy artefacts (`.imwheelrc`, `imwheel.desktop`, `plank.desktop`, `plank/` tree, `gtk-4.0` symlinks) — no-ops on current revision. `rmdir` empty parents. |
 | 13 | Per-user cleanup | For every uid ≥ 1000, plus `$SUDO_USER` (deduped): `rm` `.oem-first-run-done`, autostart entries, `launcher-NNN` dirs with NNN ≥ 100 under `~/.config/xfce4/panel/`, and legacy artefacts (`.imwheelrc`, `plank/`, `gtk-4.0` symlinks). xfconf `/panels/panel-2` subtree removed via `xfconf-query -r -R`. |
-| 14 | Clear state markers | `rm -rf /var/lib/oem-setup/state` so a future setup.sh thinks the toolkit was never applied. |
+| 14 | Clear state markers | `rm -rf /var/lib/oem-setup/state` so a future setup.sh thinks the toolkit was never applied. Also `rm -f /var/lib/oem-setup/diagnostics-report.txt`. |
 | 15 | `/tmp` residue + final autoremove | Call `step_cleanup`. `apt-get autoremove --purge`. |
 | 16 | Closing summary | Print every entry in `UNINSTALL_NOTES`. Remind that backups remain at `BACKUP_DIR`. Recommend a reboot. |
 

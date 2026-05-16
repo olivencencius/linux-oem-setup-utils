@@ -17,7 +17,7 @@
 #   Docs:      docs/modules/uninstall.md   (this module)
 #              docs/uninstall.md            (cross-cutting reverted-items map)
 #
-#   NOTE: Invoked DIRECTLY from the menu (option 15), not via do_step.
+#   NOTE: Invoked DIRECTLY from the menu (option 16), not via do_step.
 #   Owns its own YES confirmation. Never writes an uninstall.done marker —
 #   re-runs always proceed (which is what you want for idempotent cleanup).
 # ==============================================================================
@@ -399,6 +399,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     echo "--> Clearing oem-setup state markers..."
     rm -rf /var/lib/oem-setup/state
+    rm -f /var/lib/oem-setup/diagnostics-report.txt
 
     # -------------------------------------------------------------------------
     # 15. /tmp residue + final autoremove
