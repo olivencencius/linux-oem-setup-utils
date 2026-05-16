@@ -195,7 +195,7 @@ banner can name which step was running.
 - `-E` — `ERR` traps are inherited by functions. Without this, a failure
   inside a module function would not trigger the trap.
 - `-e` — exit on any unhandled non-zero. Modules use `|| true` (zoom
-  download, xfdashboard install, dconf update, theme reverse-install,
+  download, dconf update, theme reverse-install,
   every cleanup `rm`) when a single command's failure should not abort
   the run.
 - `-u` — treat unset variables as errors. Modules guard with

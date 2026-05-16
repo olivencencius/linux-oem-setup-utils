@@ -10,7 +10,7 @@
 #                      with Plank's running-app indicators), and strips Mint's
 #                      default panel launchers (Firefox, XFCE Terminal, Thunar)
 #                      so the top bar stays status-only.
-#                   4. Seeds a Plank dock at the bottom-centre with 15 pinned
+#                   4. Seeds a Plank dock at the bottom-centre with pinned
 #                      launchers (icon size 48, intelligent hide, Transparent
 #                      theme), starts plank, and installs a per-user plank
 #                      autostart entry so plank comes up on every subsequent
@@ -40,8 +40,10 @@
 #                                               (tasklist removed; default launchers
 #                                               stripped; empty launcher plugins
 #                                               removed + pruned from xfconf)
+#                 xfconf-query: xfce4-keyboard-shortcuts  /commands/custom/XF86*
+#                                               -> xfdashboard (Chromebook overview)
 #                 ~/.config/plank/dock1/settings
-#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 15)
+#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem
 #                 ~/.config/autostart/plank.desktop
 #                 ~/.config/.oem-first-run-done
 #                 rm ~/.config/autostart/oem-first-run.desktop
@@ -79,6 +81,7 @@ WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 # The exact capitalisation must match /usr/share/applications/<name>.desktop.
 DOCK_LAUNCHERS=(
     xfce4-appfinder
+    oem-workspace-overview
     google-chrome
     xfce4-settings-manager
     thunar
@@ -278,10 +281,37 @@ setup_top_panel() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Plank dock (bottom-centre, intelligent hide, 15 pinned launchers).
+# 3b. Chromebook top-row “overview / scale” → xfdashboard
+#
+# cros-keyboard-map (keyd) leaves the Vivaldi “scale” key as XF86Scale (and
+# similar XF86* codes on some boards). XFCE does not map those to an overview
+# by default — bind common keys to the same binary as Plank + touchegg.
+# If a device uses a different keysym, run `xev`, note the KeyPress name, and
+# add a /commands/custom/<keysym> line below.
+# ------------------------------------------------------------------------------
+setup_workspace_overview_keys() {
+    command -v xfconf-query >/dev/null || return 0
+    command -v xfdashboard >/dev/null 2>&1 || return 0
+
+    bind_xfdashboard_keysym() {
+        local keysym="$1"
+        local prop="/commands/custom/${keysym}"
+        xfconf-query -c xfce4-keyboard-shortcuts \
+            -p "$prop" -n -t string -s "xfdashboard" 2>/dev/null || \
+        xfconf-query -c xfce4-keyboard-shortcuts \
+            -p "$prop" -s "xfdashboard" 2>/dev/null || true
+    }
+
+    bind_xfdashboard_keysym "XF86Scale"
+    bind_xfdashboard_keysym "XF86LaunchA"
+    bind_xfdashboard_keysym "XF86Explorer"
+}
+
+# ------------------------------------------------------------------------------
+# 4. Plank dock (bottom-centre, intelligent hide, pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
-# index (01-, 02-, … 11-) to lock the order specified in DOCK_LAUNCHERS.
+# index (01-, 02-, …) to lock the order specified in DOCK_LAUNCHERS.
 # ------------------------------------------------------------------------------
 setup_plank_dock() {
     command -v plank >/dev/null || return 0
@@ -360,6 +390,7 @@ EOF
 }
 
 setup_top_panel
+setup_workspace_overview_keys
 setup_plank_dock
 
 # ------------------------------------------------------------------------------

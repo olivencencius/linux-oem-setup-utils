@@ -204,6 +204,7 @@ step_uninstall() {
     echo "--> Removing wallpaper and first-run script..."
     rm -rf /usr/share/backgrounds/oem-setup
     rm -f  /usr/local/bin/oem-first-run.sh
+    rm -f  /usr/share/applications/oem-workspace-overview.desktop
 
     # Legacy: clean up any dconf/Plank artefacts left by earlier toolkit revisions.
     rm -f /etc/xdg/autostart/plank.desktop

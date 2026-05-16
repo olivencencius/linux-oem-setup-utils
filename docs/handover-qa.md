@@ -93,12 +93,20 @@ work; the 4-finger ones silently no-op on unsupported hardware.
   xfconf-query -c xsettings -p /Net/ThemeName        # → Mint-Y-Aqua
   xfconf-query -c xsettings -p /Net/IconThemeName    # → Papirus
   ```
-- [ ] A bottom dock panel (panel-2) is visible with exactly 11 icons,
-      centered, in this order:
-      Chrome, Settings, Files, VLC, Zoom, Gmail, Docs, Drive, Gemini,
-      YouTube, Spotify.
+- [ ] Plank (bottom dock) is visible with **up to 16** icons when every
+      optional package installed successfully, centered, in this order:
+      App Finder, **Workspace overview** (`xfdashboard`), Chrome, Settings,
+      Files, Software Manager, VLC, Zoom, Gmail, Docs, Sheets, Slides, Drive,
+      Gemini, YouTube, Spotify.
       If an app's installer failed (e.g. Zoom download timed out), its
       icon will simply be absent from the dock.
+- [ ] **Workspace overview:** the second dock icon opens `xfdashboard`; the
+      same action is bound to **3-finger swipe up** (Touchegg).
+- [ ] **Chromebook top-row overview key** (window / workspace overview,
+      often the “scale” icon next to brightness): should launch the same
+      **`xfdashboard`** view as the dock’s workspace-overview icon and **3-finger
+      swipe up**. If it does nothing on your board, note the keysym with
+      `xev` and extend `setup_workspace_overview_keys` in `oem-first-run.sh`.
 - [ ] Clicking each dock icon opens the right app or web view.
 
 ## Chrome and web apps
@@ -183,7 +191,7 @@ dock panel, the keyboard layout the technician picked, and every shortcut.
 | Top-row keys wrong | `cros-keyboard-map` picked the wrong layout | Re-run option 4 and answer the layout question correctly |
 | USB-C dead on 11th-gen+ | initramfs not rebuilt | `sudo update-initramfs -u -k all`, reboot |
 | Wallpaper missing | First-run script didn't run | `ls ~/.config/.oem-first-run-done` — if present, delete it and log in/out |
-| Dock (panel-2) missing | First-run script didn't run, or panel-2 check failed | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login |
+| Dock / Plank missing or short an icon | First-run script didn't run, or a `.desktop` was missing at first-run time | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login; ensure `step_gestures_and_workspaces` ran before `step_themes` when reprovisioning |
 | Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5, 6, 7, 8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
 | Powerwash menu icon is generic | GTK icon cache stale | `sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor` |

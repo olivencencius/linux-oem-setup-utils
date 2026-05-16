@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Workspace overview
+GenericName=Window and workspace overview
+Comment=Show Xfce workspace and window overview (xfdashboard)
+Exec=xfdashboard
+Icon=preferences-desktop-workspace
+Terminal=false
+Categories=Utility;Desktop;
+Keywords=overview;workspace;desktop;expose;xfdashboard;
+StartupNotify=true

@@ -3,46 +3,48 @@
 #   Module:    gestures.sh
 #   Purpose:   ChromeOS-like multi-finger touchpad gestures via touchegg
 #              (pinch zoom, 3/4-finger swipes for back/forward, overview,
-#              show-desktop, workspaces, whisker menu).
+#              show-desktop, workspaces, whisker menu), plus xfdashboard
+#              workspace/window overview and a system launcher for Plank.
 #   Reads:     REPO_DIR/assets/configs/touchegg.conf
+#              REPO_DIR/assets/configs/oem-workspace-overview.desktop
 #              SUDO_USER (optional, for live-session client)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: wmctrl, xdotool, touchegg, xfdashboard (optional)
+#   Writes:    apt: wmctrl, xdotool, touchegg, xfdashboard
+#              /usr/share/applications/oem-workspace-overview.desktop
 #              /etc/touchegg/touchegg.conf
 #              systemd: enables + starts touchegg.service
 #              runs: touchegg --client for SUDO_USER (background)
-#   Step fn:   step_gestures
+#   Step fn:   step_gestures_and_workspaces
 #   Docs:      docs/modules/gestures.md
 #   Uninstall: step_uninstall stops touchegg + kills clients (sub-step 1),
 #              purges touchegg/xfdashboard/wmctrl/xdotool (sub-step 2),
-#              removes /etc/touchegg/touchegg.conf and the touchegg client
-#              autostart entry in skel and per-user (sub-steps 7, 12, 13).
+#              removes /etc/touchegg/touchegg.conf, oem-workspace-overview.desktop,
+#              and the touchegg client autostart entry in skel and per-user
+#              (sub-steps 7, 8, 12, 13).
 #
 #   NOTE: WHY TOUCHEGG, NOT libinput-gestures? touchegg runs the libinput
 #   reader as a SYSTEM service and dispatches to per-user clients over
 #   D-Bus, so no buyer needs to be added to the `input` group after
-#   handover. xfdashboard is upstream-deprecated and may be absent from
-#   newer Mint repos; its install failure is tolerated and the 3-finger
-#   swipe-up gesture silently no-ops in that case.
+#   handover. xfdashboard is the Xfce window/workspace overview for the
+#   3-finger swipe-up gesture and the Plank “overview” pin; it must be
+#   installed before step_themes runs oem-first-run.sh so the dockitem exists.
 # ==============================================================================
 
-step_gestures() {
-    echo "--> Installing ChromeOS-like touchpad gestures (touchegg)..."
+step_gestures_and_workspaces() {
+    echo "--> Installing touchpad gestures (touchegg) and workspace overview (xfdashboard)..."
 
     ensure_apt_fresh
 
-    # Required gesture helpers + touchegg itself. We use the apt-packaged
-    # touchegg (Mint repos carry a recent enough version) rather than juggling
-    # GitHub release filenames whose names include the upstream version number.
-    apt-get install -y wmctrl xdotool touchegg
+    # Required: one failed package blocks this step so QA never sees a silently
+    # broken 3-finger-up or missing dock pin.
+    apt-get install -y wmctrl xdotool touchegg xfdashboard
 
-    # xfdashboard is the XFCE "window overview" used by the 3-finger swipe up
-    # gesture. It has been deprecated upstream and is missing from some
-    # newer Mint releases — tolerate that. If absent, the gesture is a no-op.
-    if ! apt-get install -y xfdashboard; then
-        echo "    [!] xfdashboard not available in apt — 3-finger swipe up gesture"
-        echo "        will silently no-op. Everything else (zoom, back/forward,"
-        echo "        workspaces, show-desktop, whisker-menu) still works."
+    install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
+        /usr/share/applications/oem-workspace-overview.desktop
+    echo "    [+] /usr/share/applications/oem-workspace-overview.desktop"
+
+    if command -v update-desktop-database &>/dev/null; then
+        update-desktop-database /usr/share/applications 2>/dev/null || true
     fi
 
     # -------------------------------------------------------------------------
@@ -82,4 +84,7 @@ step_gestures() {
     else
         echo "    [i] \$SUDO_USER not set — client autostart on next login only."
     fi
+
+    # Legacy step id was `gestures`; drop its marker so resume matches setup.sh.
+    rm -f "${STATE_DIR:-/var/lib/oem-setup/state}/gestures.done" 2>/dev/null || true
 }

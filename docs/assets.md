@@ -16,6 +16,7 @@ configuration consumed by other services.
 | Source (in repo) | Installed to | Placed by | Consumer |
 |---|---|---|---|
 | `assets/configs/touchegg.conf` | `/etc/touchegg/touchegg.conf` | `modules/gestures.sh` | `touchegg.service` |
+| `assets/configs/oem-workspace-overview.desktop` | `/usr/share/applications/oem-workspace-overview.desktop` | `modules/gestures.sh` | Plank / menu — `xfdashboard` |
 | `assets/configs/oem-powerwash.desktop` | `/usr/share/applications/oem-powerwash.desktop` | `modules/powerwash.sh` | XFCE menu / `update-desktop-database` |
 | `assets/configs/oem-powerwash.policy` | `/usr/share/polkit-1/actions/org.linuxoem.powerwash.policy` | `modules/powerwash.sh` | `polkitd` |
 | `assets/configs/oem-powerwash-finalize.service` | `/etc/systemd/system/oem-powerwash-finalize.service` | `modules/powerwash.sh` | `systemd` |

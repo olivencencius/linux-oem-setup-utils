@@ -17,9 +17,9 @@ run_full_pipeline() {
     run_step zoom
     run_step apps
     run_step web_apps
+    run_step gestures_and_workspaces
     run_step themes
     run_step touchpad
-    run_step gestures
     run_step terminal
     run_step regional
     run_step powerwash
@@ -101,8 +101,8 @@ Three concerns, all board-specific:
 ### 6–9. `chrome`, `zoom`, `apps`, `web_apps` — *before* `themes`
 
 Order is critical. `step_themes` deploys `oem-first-run.sh`, which on
-first XFCE login walks a fixed `DOCK_LAUNCHERS` list and adds one
-panel-2 launcher per `/usr/share/applications/NAME.desktop` that
+first XFCE login walks a fixed `DOCK_LAUNCHERS` list and adds one Plank
+launcher (dockitem) per `/usr/share/applications/NAME.desktop` that
 exists. Anything missing at first-login time is silently skipped — the
 dock is just short by that icon. So:
 
@@ -111,19 +111,35 @@ dock is just short by that icon. So:
 - VLC (from `step_apps`) ships `/usr/share/applications/vlc.desktop`.
 - The 11 web-app `.desktop` files are created by `step_web_apps`.
 
-If any of those is missing when `oem-first-run.sh` runs, the dock for
+If any of those is missing when `oem-first-run.sh` runs, the Plank dock for
 that user is short by an icon. (For the live oem user, `step_themes`
 runs `oem-first-run.sh` inline at the end of the install — same
 guarantee.)
 
+The **workspace overview** launcher (`oem-workspace-overview.desktop`, running
+`xfdashboard`) is installed in **`step_gestures_and_workspaces`**, which runs
+**next**, so that `.desktop` exists before `step_themes` invokes
+`oem-first-run.sh`.
+
 Zoom is allowed to fail. Its CDN is occasionally flaky and Zoom is
 "nice to have", not "must ship". The module returns 0 in that case,
 `/usr/share/applications/Zoom.desktop` won't exist, and
-`oem-first-run.sh` simply omits the Zoom launcher from panel-2. The
+`oem-first-run.sh` simply omits the Zoom launcher from the dock. The
 technician sees a `[!] Zoom .deb download failed — skipping.` line in
 the log.
 
-### 10. `themes` — the big one
+### 10. `gestures_and_workspaces` — after web apps, before themes
+
+Installs **`wmctrl`**, **`xdotool`**, **`touchegg`**, and **`xfdashboard`**;
+deploys **`/usr/share/applications/oem-workspace-overview.desktop`** (Plank /
+menu launcher for the overview); copies **`/etc/touchegg/touchegg.conf`** from
+assets; enables **`touchegg.service`**; and starts **`touchegg --client`** for
+the live oem user when `$SUDO_USER` is set.
+
+This step is deliberately **before** `themes` so `oem-first-run.sh` can pin the
+overview icon when it seeds Plank.
+
+### 11. `themes` — the big one
 
 Installs `papirus-icon-theme` and `gtk2-engines-murrine`, deploys the
 Malta wallpaper, deploys and stages the per-user first-run script, and
@@ -131,14 +147,14 @@ copies the entire `/etc/skel` tree. For the live oem session it also
 mirrors the autostart entries and `xsettings.xml` into the oem user's
 home, sets `Mint-Y-Aqua` via xsettings + xfwm4, restarts xfsettingsd,
 and runs `oem-first-run.sh` inline to apply the wallpaper and create
-the bottom panel-2 dock immediately. See
+the bottom Plank dock immediately. See
 [`modules/themes.md`](./modules/themes.md) for the detail.
 
 This is the step that turns a "Mint XFCE with some apps installed"
 into "looks and feels like ChromeOS". No git clones required — all
 components ship in apt or are part of a standard Mint install.
 
-### 11. `touchpad` — after themes (purely a position-of-convenience now)
+### 12. `touchpad` — after themes
 
 Writes `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` with
 `NaturalScrolling`, `Tapping`, `TappingDrag`, `ClickMethod clickfinger`,
@@ -153,14 +169,6 @@ The previous revision wired up an `imwheel`-based 3x scroll
 — the opposite of what the workflow wants — and has been removed.
 `step_uninstall` still purges `imwheel` and the per-user `.imwheelrc`
 to clean up legacy installs.
-
-### 12. `gestures` — after touchpad
-
-`touchegg` is installed and its system daemon enabled. The
-`/etc/touchegg/touchegg.conf` file is deployed from
-`assets/configs/`. The skel autostart entry that runs `touchegg --client`
-per user has been staged by `step_themes`. `step_gestures` only adds the
-live-session client start so the technician can QA gestures.
 
 ### 13. `terminal` — tiny, before regional
 

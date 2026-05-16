@@ -4,17 +4,22 @@
 
 Installs and configures `touchegg` for ChromeOS-like multi-finger
 touchpad gestures (pinch zoom, 3-finger swipes for back/forward and
-overview, 4-finger swipes for workspace and launcher).
+overview, 4-finger swipes for workspace and launcher). Also installs
+`xfdashboard`, deploys `/usr/share/applications/oem-workspace-overview.desktop`
+for the Plank “workspace overview” pin, and runs **before** `step_themes` in
+the full pipeline so `oem-first-run.sh` can create that dockitem.
 
 ## Function exported
 
-`step_gestures`
+`step_gestures_and_workspaces`
 
 ## Inputs
 
 - `ensure_apt_fresh` (helper from `setup.sh`).
 - `$REPO_DIR/assets/configs/touchegg.conf` — the system-wide binding
   profile.
+- `$REPO_DIR/assets/configs/oem-workspace-overview.desktop` — menu / Plank
+  launcher for `xfdashboard`.
 - `$SUDO_USER` (optional) — if set, the live oem session gets the
   touchegg client started for QA.
 
@@ -25,13 +30,15 @@ Installed packages:
 - `wmctrl`, `xdotool` — used by gesture commands (`wmctrl -k on` for
   show-desktop, `xdotool` for some key-send fallbacks).
 - `touchegg` — the gesture daemon and client.
-- `xfdashboard` (optional; allowed to fail) — XFCE window overview
-  used by the 3-finger swipe up gesture.
+- `xfdashboard` — Xfce window/workspace overview (3-finger swipe up and dock
+  launcher); install failure fails the whole step.
 
 System files placed:
 
 - `/etc/touchegg/touchegg.conf` — copied from
   `$REPO_DIR/assets/configs/touchegg.conf` with mode `644`.
+- `/usr/share/applications/oem-workspace-overview.desktop` — copied from
+  assets with mode `644`.
 
 Services enabled:
 
@@ -62,22 +69,17 @@ will silently no-op the 4-finger gestures.
 
 ## Walkthrough
 
-### 1. Apt install
+### 1. Apt install and overview launcher
 
 ```bash
 ensure_apt_fresh
-apt-get install -y wmctrl xdotool touchegg
-
-if ! apt-get install -y xfdashboard; then
-    echo "    [!] xfdashboard not available in apt — 3-finger swipe up gesture"
-    echo "        will silently no-op."
-fi
+apt-get install -y wmctrl xdotool touchegg xfdashboard
+install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
+    /usr/share/applications/oem-workspace-overview.desktop
 ```
 
-`xfdashboard` is intentionally in its own apt-call wrapped with
-`if !`. The project is upstream-deprecated and absent from some newer
-Mint repos. We don't want the *whole module* to fail just because the
-window-overview gesture won't have an action.
+If `xfdashboard` is not in the distro repos, this step fails (no silent
+overview pin or gesture).
 
 ### 2. Deploy bindings
 
@@ -91,7 +93,7 @@ also a per-user override location under `~/.config/touchegg/`, which
 this toolkit does **not** use — the buyer is free to add one later if
 they want different bindings.
 
-### 3. Enable the daemon
+### 3. Enable the Touchegg daemon
 
 ```bash
 systemctl enable --now touchegg.service 2>/dev/null || true
@@ -135,13 +137,18 @@ the buyer. They just log in and gestures work.
 
 ## Notes
 
+- Full pipeline order is `… web_apps → gestures_and_workspaces → themes →
+  touchpad …` so `oem-workspace-overview.desktop` exists before
+  `oem-first-run.sh` writes Plank dockitems.
 - The system-wide config is deployed *before* the daemon is enabled.
   Order matters: if the daemon starts and reads an empty config first,
   it ignores future config changes until restart. Starting after the
   file is in place avoids that race.
 - The skel autostart entry that starts `touchegg --client` for every
-  user (`/etc/skel/.config/autostart/touchegg-client.desktop`) was
+  user (`/etc/skel/.config/autostart/touchegg-client.desktop`) is
   staged by `step_themes`.
+- On success, any legacy state file `gestures.done` is removed so only
+  `gestures_and_workspaces.done` tracks completion.
 - `wmctrl -k on` is the GNOME / Compiz "show desktop" toggle, which
   XFCE understands. Replacing it with `xdotool key super+d` works on
   Wayland but not consistently on XFCE/X11.
@@ -164,6 +171,7 @@ Fully idempotent:
 - `systemctl disable --now touchegg` (sub-step 1).
 - `pkill 'touchegg --client'` (sub-step 1).
 - `apt purge touchegg xfdashboard wmctrl xdotool` (sub-step 2).
+- `rm /usr/share/applications/oem-workspace-overview.desktop` (sub-step 8).
 - `rm /etc/touchegg/touchegg.conf`, `rmdir /etc/touchegg`
   (sub-step 7).
 - Per-user `~/.config/autostart/touchegg-client.desktop` removed for

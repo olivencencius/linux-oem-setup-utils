@@ -151,6 +151,8 @@ source "$REPO_DIR/modules/uninstall.sh"
 #     - prompt_keyboard FIRST so the rest can run unattended
 #     - chrome + zoom + apps + web_apps BEFORE themes so the .desktop files
 #       referenced by the skel dockitems already exist when /etc/skel is staged
+#     - gestures_and_workspaces AFTER web_apps and BEFORE themes so xfdashboard
+#       and oem-workspace-overview.desktop exist before oem-first-run.sh seeds Plank
 # ==============================================================================
 run_full_pipeline() {
     prompt_keyboard
@@ -162,9 +164,9 @@ run_full_pipeline() {
     run_step zoom
     run_step apps
     run_step web_apps
+    run_step gestures_and_workspaces
     run_step themes
     run_step touchpad
-    run_step gestures
     run_step terminal
     run_step regional
     run_step powerwash
@@ -201,9 +203,9 @@ while true; do
     echo " 6)  Install Zoom"
     echo " 7)  Install standard apps (VLC + games)"
     echo " 8)  Inject branded web-app shortcuts"
-    echo " 9)  Apply ChromeOS themes, Plank dock and wallpaper"
+    echo " 9)  Workspace overview, ChromeOS themes, Plank dock and wallpaper"
     echo " 10) Apply touchpad calibration and scroll speed fix"
-    echo " 11) Apply ChromeOS-like touchpad gestures"
+    echo " 11) Apply touchpad gestures and workspace overview"
     echo " 12) Apply terminal paste fix"
     echo " 13) Adjust region, language and keyboard layout"
     echo " 14) Install Powerwash (buyer-facing factory reset) tool"
@@ -223,9 +225,9 @@ while true; do
         6)  do_step zoom ;;
         7)  do_step apps ;;
         8)  do_step web_apps ;;
-        9)  do_step cleanup; do_step themes ;;
+        9)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
         10) do_step touchpad ;;
-        11) do_step gestures ;;
+        11) do_step gestures_and_workspaces ;;
         12) do_step terminal ;;
         13) do_step regional ;;
         14) do_step powerwash ;;
