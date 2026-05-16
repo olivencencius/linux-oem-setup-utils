@@ -240,11 +240,11 @@ step_uninstall() {
     echo "--> Removing web-app shortcuts and icons..."
     local WEBAPP_NAMES=(
         Netflix PrimeVideo DisneyPlus HBOMax Spotify YouTube
-        Gmail GoogleDocs GoogleDrive Gemini ChromeRemoteDesktop
+        Gmail GoogleDocs GoogleSheets GoogleSlides GoogleDrive Gemini ChromeRemoteDesktop
     )
     local ICON_NAMES=(
         netflix primevideo disneyplus hbomax spotify youtube
-        gmail googledocs googledrive gemini chromeremotedesktop
+        gmail googledocs googlesheets googleslides googledrive gemini chromeremotedesktop
     )
     for name in "${WEBAPP_NAMES[@]}"; do
         rm -f "/usr/share/applications/${name}.desktop"

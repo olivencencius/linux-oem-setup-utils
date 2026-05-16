@@ -8,7 +8,7 @@
 #                   3. Moves panel-1 to the top edge, slims it to 24 px, and
 #                      removes the window-buttons / tasklist plugin (redundant
 #                      with Plank's running-app indicators).
-#                   4. Seeds a Plank dock at the bottom-centre with 13 pinned
+#                   4. Seeds a Plank dock at the bottom-centre with 15 pinned
 #                      launchers (icon size 48, intelligent hide, Transparent
 #                      theme), starts plank, and installs a per-user plank
 #                      autostart entry so plank comes up on every subsequent
@@ -37,7 +37,7 @@
 #                                               /panels/panel-1/plugin-ids
 #                                               (tasklist plugin removed)
 #                 ~/.config/plank/dock1/settings
-#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 13)
+#                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem (× 15)
 #                 ~/.config/autostart/plank.desktop
 #                 ~/.config/.oem-first-run-done
 #                 rm ~/.config/autostart/oem-first-run.desktop
@@ -83,6 +83,8 @@ DOCK_LAUNCHERS=(
     Zoom
     Gmail
     GoogleDocs
+    GoogleSheets
+    GoogleSlides
     GoogleDrive
     Gemini
     YouTube
@@ -187,7 +189,7 @@ setup_top_panel() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Plank dock (bottom-centre, intelligent hide, 13 pinned launchers).
+# 4. Plank dock (bottom-centre, intelligent hide, 15 pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
 # index (01-, 02-, … 11-) to lock the order specified in DOCK_LAUNCHERS.
