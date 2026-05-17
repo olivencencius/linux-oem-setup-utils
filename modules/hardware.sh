@@ -37,11 +37,12 @@ step_hardware_fixes() {
 
     rm -rf /tmp/chromebook-linux-audio
     git clone --depth 1 https://github.com/WeirdTreeThing/chromebook-linux-audio.git
-    ( cd /tmp/chromebook-linux-audio && ./setup-audio < /dev/tty )
+    # Line-buffer child stdio — stdout/stderr inherit the `tee` pipe (fully buffered).
+    ( cd /tmp/chromebook-linux-audio && stdbuf -oL -eL ./setup-audio ) < /dev/tty
 
     rm -rf /tmp/cros-keyboard-map
     git clone --depth 1 https://github.com/WeirdTreeThing/cros-keyboard-map.git
-    ( cd /tmp/cros-keyboard-map && ./install.sh < /dev/tty )
+    ( cd /tmp/cros-keyboard-map && stdbuf -oL -eL ./install.sh ) < /dev/tty
 
     echo "--> Analysing motherboard for specialised patches..."
 

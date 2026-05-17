@@ -7,7 +7,7 @@
 #                step_regional   — language packs, locale (PL), timezone
 #                                  (Warsaw), keyboard layout, called late
 #   Reads:     STATE_DIR/kb_layout (resume cache)
-#              /dev/tty (read prompt)
+#              fd 3 (TTY — set by setup.sh before `tee`; interactive prompt)
 #              helpers: ensure_apt_fresh, backup_once
 #   Writes:    apt: language-pack-pl, language-pack-gnome-pl,
 #                   language-pack-en, language-pack-gnome-en, locales
@@ -24,9 +24,10 @@
 #              resets locale to en_US.UTF-8 and timezone to UTC,
 #              clears STATE_DIR (sub-step 14).
 #
-#   NOTE: prompt_keyboard reads from /dev/tty so it works under
-#   `curl … | sudo bash`. Invalid input falls back to 'us' rather than
-#   re-prompting (avoids infinite loops in scripted setups).
+#   NOTE: prompt_keyboard uses fd 3 (saved TTY in setup.sh) so it stays
+#   responsive under `tee`; reading works under `curl … | sudo bash` the same
+#   way as /dev/tty. Invalid input falls back to 'us' rather than re-prompting
+#   (avoids infinite loops in scripted setups).
 # ==============================================================================
 
 prompt_keyboard() {
@@ -38,16 +39,20 @@ prompt_keyboard() {
         return
     fi
 
-    echo ""
-    echo "========================================="
-    echo " What is the PHYSICAL keyboard layout?  "
-    echo " 1) US English (Standard)               "
-    echo " 2) UK English (GB)                     "
-    echo " 3) German (DE)                         "
-    echo " 4) Swedish (SE)                        "
-    echo " 5) Polish (PL)                         "
-    echo "========================================="
-    read -p "Enter number [1-5]: " kb_choice < /dev/tty
+    # Use fd 3 (real TTY) — same as setup.sh menu; stdout is fully buffered via `tee`.
+    {
+        echo ""
+        echo "========================================="
+        echo " What is the PHYSICAL keyboard layout?  "
+        echo " 1) US English (Standard)               "
+        echo " 2) UK English (GB)                     "
+        echo " 3) German (DE)                         "
+        echo " 4) Swedish (SE)                        "
+        echo " 5) Polish (PL)                         "
+        echo "========================================="
+        printf "Enter number [1-5] (then press Enter): "
+    } >&3
+    read -r -u3 kb_choice || true
 
     case $kb_choice in
         1) KB_LAYOUT="us" ;;
@@ -55,7 +60,7 @@ prompt_keyboard() {
         3) KB_LAYOUT="de" ;;
         4) KB_LAYOUT="se" ;;
         5) KB_LAYOUT="pl" ;;
-        *) echo "Invalid input. Defaulting to US layout."; KB_LAYOUT="us" ;;
+        *) echo "Invalid input. Defaulting to US layout." >&3; KB_LAYOUT="us" ;;
     esac
     export KB_LAYOUT
     echo "$KB_LAYOUT" > "$STATE_DIR/kb_layout"

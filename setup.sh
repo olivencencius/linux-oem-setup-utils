@@ -38,6 +38,11 @@ STATE_DIR="/var/lib/oem-setup/state"
 mkdir -p "$(dirname "$LOG_FILE")" "$STATE_DIR" /var/lib/oem-setup/backups
 export STATE_DIR
 
+# Keep the real terminal on fd 3. The `tee` redirect below turns stdout/stderr
+# into a pipe; libc then fully buffers them, so prompts and echoes can appear
+# "stuck" until ~4KiB fills. The main menu (and immediate feedback) uses fd 3.
+exec 3>&2
+
 # Tee everything (stdout + stderr) into the log file as well as the terminal.
 # Done before we source modules so their output is also captured.
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -188,29 +193,33 @@ print_reboot_reminder() {
 #   technician can re-apply a step on demand even after a full pipeline.
 # ==============================================================================
 while true; do
-    echo ""
-    echo "========================================="
-    echo "        CHROMEBOOK DEPLOYMENT ENGINE     "
-    echo "========================================="
-    echo " 1)  Run entire pipeline (recommended for fresh setup)"
-    echo " 2)  Xubuntu/Ubuntu boot optimisations (optional — not in pipeline)"
-    echo " 3)  Run system updates and dependency installation"
-    echo " 4)  Run Chromebook hardware fixes and patches"
-    echo " 5)  Install Google Chrome"
-    echo " 6)  Install Zoom"
-    echo " 7)  Install standard apps (VLC + games)"
-    echo " 8)  Inject branded web-app shortcuts"
-    echo " 9)  Workspace overview, gestures, Plank dock and wallpaper"
-    echo " 10) Apply touchpad calibration and scroll speed fix"
-    echo " 11) Apply touchpad gestures and install workspace overview"
-    echo " 12) Apply terminal paste fix"
-    echo " 13) Adjust region, language and keyboard layout"
-    echo " 14) Run hardware diagnostics report"
-    echo " 15) Undo all changes (full uninstall)"
-    echo " 16) Exit setup"
-    echo "========================================="
-    read -p "Select choice [1-16]: " main_choice < /dev/tty
-    echo ""
+    # Writes go to fd 3 (real terminal), not stdout — avoids full-buffer delays.
+    {
+        echo ""
+        echo "========================================="
+        echo "        CHROMEBOOK DEPLOYMENT ENGINE     "
+        echo "========================================="
+        echo " 1)  Run entire pipeline (recommended for fresh setup)"
+        echo " 2)  Xubuntu/Ubuntu boot optimisations (optional — not in pipeline)"
+        echo " 3)  Run system updates and dependency installation"
+        echo " 4)  Run Chromebook hardware fixes and patches"
+        echo " 5)  Install Google Chrome"
+        echo " 6)  Install Zoom"
+        echo " 7)  Install standard apps (VLC + games)"
+        echo " 8)  Inject branded web-app shortcuts"
+        echo " 9)  Workspace overview, gestures, Plank dock and wallpaper"
+        echo " 10) Apply touchpad calibration and scroll speed fix"
+        echo " 11) Apply touchpad gestures and install workspace overview"
+        echo " 12) Apply terminal paste fix"
+        echo " 13) Adjust region, language and keyboard layout"
+        echo " 14) Run hardware diagnostics report"
+        echo " 15) Undo all changes (full uninstall)"
+        echo " 16) Exit setup"
+        echo "========================================="
+        printf "Select choice [1-16] (type number, then press Enter): "
+    } >&3
+    read -r -u3 main_choice || true
+    echo "" >&3
 
     case $main_choice in
         1)  run_full_pipeline; print_reboot_reminder; break ;;
@@ -228,8 +237,8 @@ while true; do
         13) do_step regional ;;
         14) do_step diagnostics ;;
         15) step_uninstall ;;
-        16) echo "Exiting configuration engine."; exit 0 ;;
-        *)  echo "Invalid option. Please choose 1-16." ;;
+        16) echo "Exiting configuration engine." >&3; exit 0 ;;
+        *)  echo "Invalid option. Please choose 1-16." >&3 ;;
     esac
 done
 

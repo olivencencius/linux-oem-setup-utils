@@ -4,7 +4,7 @@
 #   Purpose:   Best-effort reversal of every change this toolkit makes.
 #              Restores from /var/lib/oem-setup/backups/ where possible;
 #              falls back to sed-based line removal where no backup exists.
-#   Reads:     SUDO_USER (optional), /dev/tty (YES confirmation)
+#   Reads:     SUDO_USER (optional), fd 3 (YES confirmation — TTY from setup.sh)
 #              /var/lib/oem-setup/backups/{grub,modules,inputrc,keyboard}
 #   Writes:    Reverts every system-level change the toolkit makes —
 #              15 sub-steps detailed in docs/uninstall.md.
@@ -39,27 +39,31 @@ restore_or_skip() {
 }
 
 step_uninstall() {
-    echo ""
-    echo "========================================="
-    echo "         UNDO / FULL UNINSTALL           "
-    echo "========================================="
-    echo "This will remove every package and config change this toolkit made:"
-    echo "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools,"
-    echo "          imwheel (legacy), plank, touchegg, xfdashboard, keyd,"
-    echo "          language packs,"
-    echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
-    echo "  - Remove Google Chrome apt repository and signing key"
-    echo "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)"
-    echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
-    echo "          /etc/inputrc, /etc/default/keyboard"
-    echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
-    echo "  - Clean /etc/skel and every user's home of toolkit artefacts"
-    echo "  - Reset locale to en_US.UTF-8 and timezone to UTC"
-    echo "  - Clear the oem-setup state markers and saved keyboard layout"
-    echo "========================================="
-    read -p "Type 'YES' (uppercase) to proceed, anything else to abort: " confirm < /dev/tty
+    # Banner + confirmation on fd 3 — stdout is buffered through setup.sh's `tee`.
+    {
+        echo ""
+        echo "========================================="
+        echo "         UNDO / FULL UNINSTALL           "
+        echo "========================================="
+        echo "This will remove every package and config change this toolkit made:"
+        echo "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools,"
+        echo "          imwheel (legacy), plank, touchegg, xfdashboard, keyd,"
+        echo "          language packs,"
+        echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
+        echo "  - Remove Google Chrome apt repository and signing key"
+        echo "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)"
+        echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
+        echo "          /etc/inputrc, /etc/default/keyboard"
+        echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
+        echo "  - Clean /etc/skel and every user's home of toolkit artefacts"
+        echo "  - Reset locale to en_US.UTF-8 and timezone to UTC"
+        echo "  - Clear the oem-setup state markers and saved keyboard layout"
+        echo "========================================="
+        printf "Type 'YES' (uppercase) to proceed, anything else to abort: "
+    } >&3
+    read -r -u3 confirm || true
     if [ "$confirm" != "YES" ]; then
-        echo "Uninstall aborted."
+        echo "Uninstall aborted." >&3
         return 0
     fi
     echo ""
