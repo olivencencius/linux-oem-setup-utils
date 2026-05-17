@@ -55,7 +55,7 @@ git clone --depth 1 https://github.com/WeirdTreeThing/chromebook-linux-audio.git
 
 `oem_run_interactive` runs the installer with **stdin, stdout, and stderr on
 the real TTY** (fd 3 in `setup.sh`). That matters when `setup.sh` was started
-with `curl … | sudo bash`: the script’s stdin is still the curl pipe, but the
+with `wget … | sudo bash`: the script’s stdin is still the wget pipe, but the
 installer’s prompts must attach to the physical terminal.
 
 ### 2. Keyboard — `cros-keyboard-map`

@@ -102,8 +102,8 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 ## Keyboard
 
 - [ ] Pressing the keys printed on the keycaps types the expected
-      characters (matches the layout chosen during
-      `prompt_keyboard`).
+      characters (**matches keyboard layout chosen during OS / Xubuntu
+      installation**, not overridden by this toolkit).
 - [ ] AltGr / dead keys work for accented characters in the chosen
       layout (if applicable).
 - [ ] Terminal: pasting a multi-line block does **not** produce
@@ -206,7 +206,7 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 The next person to turn it on is the buyer. They will see the same
 welcome wizard as a fresh OEM install, then land on a configured desktop
-with the Malta wallpaper, Plank dock, keyboard layout the technician picked,
+with the Malta wallpaper, Plank dock, layout and timezone from OS install,
 and every shortcut.
 
 ---

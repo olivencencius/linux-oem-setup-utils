@@ -8,7 +8,6 @@ particular step, see [`modules/`](./modules/).
 
 ```bash
 run_full_pipeline() {
-    prompt_keyboard
     run_step cleanup
     run_step updates
     run_step hardware_fixes
@@ -30,21 +29,9 @@ Each `run_step` skips if `/var/lib/oem-setup/state/<name>.done` exists, so
 a re-run after a crash resumes from the failed step. See
 [`architecture.md`](./architecture.md) for the state model.
 
-`prompt_keyboard` is **not** wrapped in `run_step` because it does its own
-persistence — it writes to `$STATE_DIR/kb_layout` and short-circuits on
-re-runs.
-
 ## Why this order
 
-### 1. `prompt_keyboard` — first
-
-The pipeline is intended to run mostly unattended. The keyboard prompt
-is the one human-blocking interaction we can't push to the end (locale
-generation, `setupcon` and `localectl` in `step_regional` all need the
-answer). Asking up-front means the technician can walk away after a
-single answer.
-
-### 2. `cleanup` — before any download
+### 1. `cleanup` — before any download
 
 Removes leftover `/tmp/*.deb` and `/tmp/Chrome*` / `/tmp/Tela*` /
 `/tmp/cros-*` directories from a previous partial run. Without this, a
@@ -52,10 +39,10 @@ half-extracted tree from a failed run can confuse the installer's
 overwrite logic; a `wget` to an already-existing `.deb` path is
 harmless but a leftover unzipped tree is not.
 
-### 3. `updates` — before anything depends on apt
+### 2. `updates` — before anything depends on apt
 
 Runs `apt-get update`, `apt-get upgrade`, then installs `git`, `wget`,
-`curl`, `xinput`, `gimp`, `zram-tools`, `tlp`. Multimedia codecs are
+`xinput`, `gimp`, `zram-tools`, `tlp`. Multimedia codecs are
 **not** installed here — use the OS installer / image options for that.
 `step_updates` exports `OEM_APT_FRESH=1` so later modules'
 `ensure_apt_fresh` calls become no-ops — one `apt-get update` per pipeline.
@@ -63,14 +50,14 @@ Runs `apt-get update`, `apt-get upgrade`, then installs `git`, `wget`,
 `xinput` is installed here so `step_touchpad` can push live values via
 `xinput set-prop` without needing its own apt install.
 
-### 4. `hardware_fixes` — before themes/touchpad so a reboot affects everything
+### 3. `hardware_fixes` — before themes/touchpad so a reboot affects everything
 
 Three concerns, all board-specific:
 
 - **Audio** — clones and runs
   `WeirdTreeThing/chromebook-linux-audio`. **This installer may ask
   questions.** It is run under **`oem_run_interactive`** (real TTY on fd 3)
-  so the technician can answer even when launched via `curl … | sudo bash`.
+  so the technician can answer even when launched via `wget … | sudo bash`.
 - **Top-row keys** — clones and runs
   `WeirdTreeThing/cros-keyboard-map`. Same **`oem_run_interactive`**
   plumbing; same "answer the prompts" expectation.
@@ -85,7 +72,7 @@ Three concerns, all board-specific:
   Both mutations call `backup_once` first so the originals are
   restored cleanly by `step_uninstall`.
 
-### 4b. `xubuntu_boot` — immediately after hardware (boot polish)
+### 4. `xubuntu_boot` — immediately after hardware (boot polish)
 
 Applies **systemd** tuning (ModemManager off, `NetworkManager-wait-online`
 masked, snapd units disabled when present) and **GRUB** silent-boot kernel
@@ -180,9 +167,10 @@ Cheap.
 ### 13. `regional` — after the apt-fresh modules are done
 
 Installs language packs (`-pl`, `-gnome-pl`, `-en`, `-gnome-en`),
-generates locales, sets `LANG=pl_PL.UTF-8`, timezone `Europe/Warsaw`,
-and the chosen `XKBLAYOUT`. Because this runs late, the language packs
-do not slow down apt during the earlier package-heavy steps.
+generates locales, and sets `LANG=pl_PL.UTF-8`. **Keyboard layout and
+timezone** are left as configured during OS installation (`step_regional`
+does not run `timedatectl` or edit `/etc/default/keyboard`). Because this runs
+late, the language packs do not slow apt during earlier package-heavy steps.
 
 ### 14. `diagnostics` — last
 
@@ -214,9 +202,6 @@ case. The actual list:
   UCM, so they need a reboot to fully take effect.
 - cros-keyboard-map / `keyd` — needs reboot for the daemon to attach
   to the keyboard at the right point in early userspace.
-- `XKBLAYOUT` change — applied immediately by `setupcon`, but the
-  display manager and any running apps cache the old layout until
-  login.
 - Locale change — `localectl set-locale` writes `/etc/default/locale`,
   but already-running processes (including the `oem` session) keep the
   old locale until next login.
@@ -228,7 +213,6 @@ case. The actual list:
 | Step wrapper | `run_step` (skip if done) | `do_step` (always run) |
 | Resume after crash | yes — finished steps skipped | n/a (technician picks what to run) |
 | `apt-get update` | once, in `step_updates` | `ensure_apt_fresh` runs it once per session |
-| Keyboard prompt | once, at the start | only when option 13 is picked stand-alone |
 | Reboot reminder | printed automatically | not printed |
 | `step_cleanup` | runs once, early | options 3, 4, 9 chain it before their main step |
 

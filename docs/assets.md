@@ -103,7 +103,7 @@ Pinned launcher order is the `DOCK_LAUNCHERS` logic in `oem-first-run.sh`
 
 ```
 /var/lib/oem-setup/
-├── state/                        ← per-step .done markers, kb_layout
+├── state/                        ← per-step `.done` markers only
 └── backups/                      ← snapshots before mutation
     ├── grub
     ├── modules

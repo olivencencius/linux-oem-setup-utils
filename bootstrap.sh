@@ -4,7 +4,7 @@
 #   Downloads the full deployment toolkit and launches the setup menu.
 #
 #   Run this single command from the oem terminal:
-#     curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
+#     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
 # ==============================================================================
 
 set -Eeuo pipefail

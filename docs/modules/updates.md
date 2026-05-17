@@ -24,7 +24,7 @@ None.
   prompting about modified config files; the OEM workflow can't pause
   for that.
 - Installs:
-  - `git`, `wget`, `curl` — used by later modules to fetch source.
+  - `git`, `wget` — used by later modules to fetch source.
   - `xinput` — used by `step_touchpad` to apply natural scrolling to
     the live oem session.
   - `zram-tools` — ZRAM swap on compressed RAM, prevents stuttering
@@ -41,7 +41,7 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 export OEM_APT_FRESH=1
 
-apt-get install -y git wget curl xinput
+apt-get install -y git wget xinput
 apt-get install -y zram-tools tlp
 systemctl enable --now tlp.service
 ```
@@ -73,7 +73,7 @@ Fully idempotent:
 `step_uninstall` purges `tlp`, `zram-tools`, `imwheel` (legacy — no
 longer installed by this module, but the purge is kept as a courtesy for
 systems that ran an earlier revision of the toolkit). The other base tools
-(`git`, `wget`, `curl`, `xinput`) are intentionally left in place.
+(`git`, `wget`, `xinput`) are intentionally left in place.
 
 If `step_gimp` was run (optional menu option 14), `step_uninstall` also
 purges `gimp` (sub-step 2).

@@ -50,7 +50,7 @@ and owning module) lives in [`assets.md`](./assets.md).
 ### `bootstrap.sh` — for a fresh OEM install
 
 A technician machine freshly imaged for OEM prep may not have `git`. The
-bootstrap exists to make the very first command be a single `curl | sudo bash`:
+bootstrap exists to make the very first command be a single `wget | sudo bash`:
 
 1. Refuses to run as non-root (`EUID != 0`).
 2. Installs `git` via `apt-get install -y git` if missing.
@@ -71,7 +71,7 @@ The boot sequence inside `setup.sh`:
    line number (see *Error handling* below).
 2. Refuse to run if `EUID != 0`.
 3. Resolve `REPO_DIR` to the absolute path of the script's own directory.
-   Modules read assets via `$REPO_DIR/assets/...`, so a `curl | bash`
+   Modules read assets via `$REPO_DIR/assets/...`, so a `wget | bash`
    invocation, a `cd` into the wrong place, or symlinks all work the same.
 4. Open fd 3 on `/dev/tty` (fallback: dup stderr) for **direct TTY I/O**; export
    `LOG_FILE` and create `LOG_FILE`, `STATE_DIR`
@@ -103,12 +103,11 @@ flat directory of empty marker files.
 │   ├── updates.done
 │   ├── chrome.done
 │   ├── …                     ← one per successfully-completed step
-│   └── kb_layout             ← persisted choice from prompt_keyboard
 └── backups/                  ← snapshots taken by backup_once before mutation
     ├── grub                    ← /etc/default/grub (basename)
     ├── modules                 ← /etc/initramfs-tools/modules
     ├── inputrc
-    ├── keyboard                ← /etc/default/keyboard
+    ├── keyboard               ← legacy: /etc/default/keyboard (only if snapped by an older regional step)
     └── adduser.conf            ← /etc/adduser.conf (gestures / EXTRA_GROUPS)
 ```
 
@@ -139,13 +138,6 @@ reads to print a meaningful message.
 ```bash
 sudo rm -rf /var/lib/oem-setup/state && sudo bash setup.sh
 ```
-
-### Saved keyboard choice
-
-`prompt_keyboard` persists the user's answer to
-`/var/lib/oem-setup/state/kb_layout`. A resumed pipeline reads that file
-and doesn't re-prompt. Delete the file to be asked again — useful when the
-machine is being prepared for a different region than the previous one.
 
 ---
 
@@ -205,7 +197,7 @@ banner can name which step was running.
   command's failure should not abort the run.
 - `-u` — treat unset variables as errors. Modules guard with
   `${VAR:-default}` for optional inputs (`$SUDO_USER`, `$DISPLAY`,
-  `$KB_LAYOUT`, `$OEM_APT_FRESH`).
+  `$OEM_APT_FRESH`).
 - `-o pipefail` — a failure anywhere in a pipeline propagates.
 
 ---
@@ -243,7 +235,6 @@ restore via `restore_or_skip` (snapshots are stored as
   first wins the snapshot.
 - `/etc/initramfs-tools/modules` — Tiger/AlderLake Type-C modules (`hardware_fixes`).
 - `/etc/inputrc` — bracketed-paste tweak (`terminal`).
-- `/etc/default/keyboard` — XKB layout (`regional`).
 - `/etc/adduser.conf` — `EXTRA_GROUPS` gains `input` for libinput-gestures (`gestures`).
 
 Legacy Plank/dconf files are removed by `step_uninstall` when present; the
@@ -322,7 +313,7 @@ points worth noting:
 
 1. **`read … < /dev/tty`** — the read is bound to the terminal, not
    stdin, so the menu still works when the script was launched via
-   `curl … | sudo bash` (stdin is the curl pipe at that point).
+   `wget … | sudo bash` (stdin is the wget pipe at that point).
 2. **`set -e` works under a function returning non-zero** — `case` arms
    like `do_step cleanup; do_step updates` chain via `;` not `&&` so the
    second one is unaffected by a non-zero return from a function that

@@ -56,13 +56,14 @@ standard **`oem`** account from the OEM install workflow):
 3. Run the single bootstrap command:
 
    ```bash
-   curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
+   wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
    ```
 
-4. Pick **option 1** (Run entire pipeline). Answer the keyboard-layout
-   question, then watch the screen during *hardware fixes* — the
-   upstream audio and keyboard installers may ask which top-row layout
-   you want.  
+4. Pick **option 1** (Run entire pipeline). Watch the terminal during
+   *hardware fixes* — the upstream audio and keyboard installers may ask
+   which **top-row** layout you want. **Keyboard layout and timezone** stay
+   as set during **Xubuntu installation**; `step_regional` only adds Polish
+   language packs and switches the **system locale** (`LANG`).
    Boot optimisations run **automatically** as part of option **1** (after
    hardware fixes). **Menu option 2** only re-runs that step in isolation.
 5. When the pipeline finishes, **reboot**.

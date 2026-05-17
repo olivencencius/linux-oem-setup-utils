@@ -58,7 +58,7 @@ Headline buckets:
 7. Removes OEM wallpaper dir, `oem-first-run.sh`, `oem-add-workspace.sh`, handover + workspace-overview `.desktop`.
 8. Removes web-app `.desktop` files and icons.
 9. Reverts terminal `inputrc` changes.
-10. Reverts regional settings.
+10. Reverts regional settings (locale **`en_US.UTF-8`**, timezone **`UTC`**; **`/etc/default/keyboard`** from backup only when a legacy snapshot exists, else **`sed`** to **`us`** — current **`step_regional`** does not create that backup).
 11. Cleans `/etc/skel` toolkit files.
 12. Cleans per-user homes (Plank, markers, legacy panel launchers, panel-2 xfconf, `libinput-gestures` autostart copies).
 13. Clears `/var/lib/oem-setup/state/`.

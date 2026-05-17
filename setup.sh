@@ -5,7 +5,7 @@
 #   Xubuntu LTS machines optimised for resale. Run as root from the cloned repository.
 #
 #   Usage (recommended — single command, no pre-installed dependencies):
-#     curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
+#     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
 #
 #   Or if the repo is already cloned locally:
 #     sudo bash setup.sh
@@ -31,7 +31,7 @@ export REPO_DIR
 # ==============================================================================
 #   State + logging
 #   - LOG_FILE   : best-effort transcript (stdout/stderr through `tee`; see below)
-#   - STATE_DIR  : per-step "done" markers + saved keyboard layout
+#   - STATE_DIR  : per-step "done" markers
 #
 #   Priority: what you see in the terminal is authoritative. The log file
 #   captures whatever flows through the shell's tee'd stdout — it does NOT
@@ -192,7 +192,6 @@ step_gimp() {
 # ==============================================================================
 #   Full pipeline — uses run_step so completed steps are skipped on resume.
 #   Order is intentional:
-#     - prompt_keyboard FIRST so the rest can run unattended
 #     - chrome + zoom + apps + web_apps BEFORE themes so the .desktop files
 #       referenced by Plank already exist when /etc/skel is staged
 #     - xubuntu_boot AFTER hardware_fixes so GRUB merges HPET + silent-boot tokens cleanly
@@ -200,8 +199,6 @@ step_gimp() {
 #       and oem-workspace-overview.desktop exist before oem-first-run.sh seeds Plank
 # ==============================================================================
 run_full_pipeline() {
-    prompt_keyboard
-    oem_tty_say "    [.] Keyboard choice recorded — continuing (terminal is live; log: $LOG_FILE)…"
     run_step cleanup
     run_step updates
     run_step hardware_fixes
@@ -255,7 +252,7 @@ while true; do
         echo " 10) Apply touchpad calibration and scroll speed fix (libinput)"
         echo " 11) Libinput gestures + xfdashboard only (skips Plank / wallpaper)"
         echo " 12) Apply terminal paste fix"
-        echo " 13) Adjust region, language and keyboard layout"
+        echo " 13) Polish language packs and system locale"
         echo " 14) Install GIMP image editor (optional; saves ~100 MiB if skipped)"
         echo " 15) Run hardware diagnostics report"
         echo " 16) Undo all changes (full uninstall)"
