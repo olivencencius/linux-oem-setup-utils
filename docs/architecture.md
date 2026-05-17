@@ -116,11 +116,12 @@ run_step <name>  # Skips if /var/lib/oem-setup/state/<name>.done exists,
                  # otherwise calls do_step.
 ```
 
-- The **menu's individual options** (`2`–`13`) call `do_step` so a
-  technician can re-apply one step on demand even after a full pipeline.
-  Option **`14`** (Undo all changes) is the exception — it calls
-  `step_uninstall` directly (see [`modules/uninstall.md`](./modules/uninstall.md)).
-  Option **`15`** exits without invoking a step.
+- The **menu's individual options** (`3`–`14`) each invoke `do_step` for their
+  configured step(s). Option **`2`** runs only `do_step xubuntu_boot` — optional
+  boot optimisations **not** included in the full pipeline.
+  Option **`15`** (Undo all changes) calls `step_uninstall` directly (see
+  [`modules/uninstall.md`](./modules/uninstall.md)).
+  Option **`16`** exits without invoking a step.
 - The **full pipeline** (option `1`) calls `run_step` so a re-run after a
   failure resumes from the broken step.
 

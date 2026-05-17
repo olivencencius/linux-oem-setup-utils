@@ -14,7 +14,7 @@
 #   Docs:      docs/modules/uninstall.md   (this module)
 #              docs/uninstall.md            (cross-cutting reverted-items map)
 #
-#   NOTE: Invoked DIRECTLY from the menu (option 14), not via do_step.
+#   NOTE: Invoked DIRECTLY from the menu (option 15), not via do_step.
 #   Owns its own YES confirmation. Never writes an uninstall.done marker —
 #   re-runs always proceed (which is what you want for idempotent cleanup).
 # ==============================================================================
@@ -49,6 +49,7 @@ step_uninstall() {
     echo "          language packs,"
     echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
     echo "  - Remove Google Chrome apt repository and signing key"
+    echo "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)"
     echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
     echo "          /etc/inputrc, /etc/default/keyboard"
     echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
@@ -151,12 +152,27 @@ step_uninstall() {
     if ! restore_or_skip /etc/default/grub; then
         if [ -f /etc/default/grub ]; then
             sed -i 's/clocksource=hpet hpet=force //g' /etc/default/grub
-            echo "    [+] Removed 'clocksource=hpet hpet=force' from GRUB_CMDLINE_LINUX_DEFAULT."
+            sed -i -e 's/ vt\.global_cursor_default=0//g' \
+                -e 's/ loglevel=3//g' \
+                -e 's/ splash//g' \
+                -e 's/ quiet//g' \
+                /etc/default/grub
+            sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/[[:space:]]\{2,\}/ /g' /etc/default/grub
+            echo "    [+] Removed toolkit kernel params from GRUB_CMDLINE_LINUX_DEFAULT."
         fi
     fi
     if command -v update-grub &>/dev/null; then
         update-grub 2>/dev/null || true
     fi
+
+    echo "--> Reverting optional Xubuntu boot systemd tweaks..."
+    systemctl unmask NetworkManager-wait-online.service 2>/dev/null || true
+    systemctl enable NetworkManager-wait-online.service 2>/dev/null || true
+    systemctl enable ModemManager.service 2>/dev/null || true
+    systemctl start ModemManager.service 2>/dev/null || true
+    systemctl enable snapd.socket 2>/dev/null || true
+    systemctl enable snapd.service 2>/dev/null || true
+    echo "    [+] Best-effort restore of ModemManager, NM-wait-online, snapd defaults."
 
     echo "--> Reverting /etc/initramfs-tools/modules..."
     if ! restore_or_skip /etc/initramfs-tools/modules; then

@@ -16,7 +16,7 @@ Two related responsibilities:
   `run_full_pipeline`, and (defensively) by `step_regional` itself
   if `$KB_LAYOUT` isn't set.
 - `step_regional` — called by `run_step` as part of the pipeline,
-  and by `do_step` when menu option 12 is picked.
+  and by `do_step` when menu option 13 is picked.
 
 ## Inputs
 
@@ -85,7 +85,7 @@ prompt_keyboard() {
   stdin is the curl pipe, not the terminal.
 - **Invalid input falls back to `us`** rather than re-prompting in
   a loop. The technician sees a clear `[!] Invalid input — defaulting`
-  message and can re-run option 12 to change it if needed. This
+  message and can re-run option 13 to change it if needed. This
   prevents an infinite re-prompt loop in scripted setups.
 - Five layouts are offered because they cover ~99% of OEM machines
   for this seller's market (US, UK, DE, SE, PL).
@@ -118,7 +118,7 @@ step_regional() {
 Five sub-steps:
 
 1. **Defensive `prompt_keyboard`** if `$KB_LAYOUT` isn't set. This
-   matters when menu option 12 is picked stand-alone (no preceding
+   matters when menu option 13 is picked stand-alone (no preceding
    `prompt_keyboard` from `run_full_pipeline`).
 2. **Install language packs** for Polish (the deployment target) and
    English (the buyer's likely fallback). `language-pack-gnome-*`
@@ -143,7 +143,7 @@ Five sub-steps:
   Asking the layout at the *end* would mean the technician has to
   babysit. Asking up front means one answer, then walk away.
 - **`KB_LAYOUT` is exported** so a child `step_regional` (called
-  inside `do_step`'s subshell or via menu option 12) can read it.
+  inside `do_step`'s subshell or via menu option 13) can read it.
 - **Timezone is hard-coded** to `Europe/Warsaw`. The buyer changes it
   in the OEM welcome wizard if they want; this is just the default.
 - **`setupcon`** is the Ubuntu/Mint command that re-applies the

@@ -23,6 +23,7 @@ One file per script in `modules/`, all follow the same template
 - [`modules/cleanup.md`](./modules/cleanup.md)
 - [`modules/updates.md`](./modules/updates.md)
 - [`modules/hardware.md`](./modules/hardware.md)
+- [`modules/xubuntu_boot.md`](./modules/xubuntu_boot.md)
 - [`modules/chrome.md`](./modules/chrome.md)
 - [`modules/zoom.md`](./modules/zoom.md)
 - [`modules/apps.md`](./modules/apps.md)

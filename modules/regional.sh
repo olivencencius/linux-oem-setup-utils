@@ -65,7 +65,7 @@ prompt_keyboard() {
 step_regional() {
     # Prompt FIRST so the technician isn't left waiting on apt before being
     # asked. The full pipeline already calls prompt_keyboard at the very
-    # start, so this branch only fires when menu option 12 is picked alone.
+    # start, so this branch only fires when menu option 13 is picked alone.
     if [ -z "${KB_LAYOUT:-}" ]; then
         prompt_keyboard
     fi

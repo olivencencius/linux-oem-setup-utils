@@ -104,7 +104,7 @@ re-run will upgrade — which is desirable, not a problem.
 
 An **`apt upgrade`** of `google-chrome-stable` may reinstall an
 unmodified `google-chrome.desktop`, wiping the `Exec=` flags. If the
-keyring prompt returns, **re-run menu option 4** (or the full
+keyring prompt returns, **re-run menu option 5** (or the full
 pipeline); `patch_google_chrome_desktop` runs at the end of every
 `step_chrome` and restores the flags.
 

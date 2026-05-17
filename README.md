@@ -17,6 +17,9 @@ single-command bootstrap.
   packages from this toolkit).
 - **Performance defaults for 4 GB eMMC** — ZRAM memory compression and
   TLP power management.
+- **Optional Xubuntu/Ubuntu boot tweaks** — menu option **2** only (not part of
+  the default pipeline): systemd + GRUB changes for faster, quieter boot when
+  you choose to apply them.
 - **Apps and shortcuts** — Google Chrome (with self-updating Google apt
   repo), Zoom, VLC, GIMP, three games, 11 Chrome web-app launchers
   (Netflix, Prime Video, Disney+, Max, YouTube, Spotify, Gmail, Docs,
@@ -42,7 +45,10 @@ On a Chromebook freshly OEM-installed with Linux Mint XFCE or Xubuntu:
 4. Pick **option 1** (Run entire pipeline). Answer the keyboard-layout
    question, then watch the screen during *hardware fixes* — the
    upstream audio and keyboard installers may ask which top-row layout
-   you want.
+   you want.  
+   **Xubuntu only (optional):** **menu option 2** applies systemd + GRUB boot
+   tweaks when you want them — it is **never** run automatically as part of
+   option 1; choose it explicitly before or after the pipeline if desired.
 5. When the pipeline finishes, **reboot**.
 6. Run the per-machine [handover QA checklist](docs/handover-qa.md).
 7. Double-click the **Prepare for shipping to end user** icon on the
@@ -64,7 +70,7 @@ sudo rm -rf /var/lib/oem-setup/state && sudo bash setup.sh
 
 ### Reverting a deployment
 
-Run the script again and pick **option 14 — Undo all changes**. See
+Run the script again and pick **option 15 — Undo all changes**. See
 [`docs/uninstall.md`](docs/uninstall.md) for what gets reverted and the
 best-effort caveats.
 
@@ -97,7 +103,7 @@ Everything beyond the quickstart lives in **[`docs/`](docs/)**:
   inputs, outputs, walkthrough, idempotency, uninstall counterpart.
 - [`docs/assets.md`](docs/assets.md) — every file in `assets/` and
   `skel/` mapped to its install path and owning module.
-- [`docs/uninstall.md`](docs/uninstall.md) — what option 14 reverts,
+- [`docs/uninstall.md`](docs/uninstall.md) — what option 15 reverts,
   and the best-effort caveats.
 - [`docs/handover-qa.md`](docs/handover-qa.md) — the per-machine QA
   checklist to run before shipping.

@@ -170,13 +170,17 @@ Runs **`step_diagnostics`** (`modules/diagnostics.sh`): a read-only inventory an
 automated `[PASS]`/`[WARN]`/`[FAIL]` report so technicians see system state and
 common misconfiguration hints immediately after every other step has run.
 Keeping it last ensures the report reflects the deployed wallpaper, web apps,
-touchpad snippet, `touchegg`, ZRAM, TLP, and keyboard/audio
-stack as left by earlier steps. The script never prompts and never raises —
+touchpad snippet, `touchegg`, ZRAM, TLP, keyboard/audio stack, **and boot timing**
+(`systemd-analyze` excerpts under **Boot (systemd)**) as left by earlier steps. The script never prompts and never raises —
 manual QA remains in [`handover-qa.md`](./handover-qa.md).
 
 ## What is **not** in the pipeline
 
-- **`uninstall`** is only reachable via menu option `14`. It is sourced
+- **`step_xubuntu_boot`** (menu option **`2`**) — optional Xubuntu/Ubuntu boot
+  optimisations (systemd + GRUB). Deliberately **not** invoked from
+  `run_full_pipeline`; technicians opt in from the menu when building Xubuntu
+  images.
+- **`uninstall`** is only reachable via menu option `15`. It is sourced
   by `setup.sh` like every other module but never called from
   `run_full_pipeline`.
 - **`cleanup` is repeated**: `step_uninstall` calls `step_cleanup` near
@@ -187,7 +191,8 @@ manual QA remains in [`handover-qa.md`](./handover-qa.md).
 `print_reboot_reminder` (printed automatically) covers the user-visible
 case. The actual list:
 
-- GRUB kernel command line (CELES HPET fix) — needs reboot.
+- GRUB silent-boot parameters from **menu option `2`** (`step_xubuntu_boot`) —
+  need reboot after that step if GRUB was updated.
 - initramfs modules (Tiger/AlderLake Type-C fix) — needs reboot.
 - chromebook-linux-audio quirks — most are loaded on boot via udev/ALSA
   UCM, so they need a reboot to fully take effect.
@@ -202,13 +207,13 @@ case. The actual list:
 
 ## Menu vs full pipeline
 
-| Concern | Full pipeline (`1`) | Individual options (`2`–`13`) |
+| Concern | Full pipeline (`1`) | Individual options (`3`–`14`) |
 |---|---|---|
 | Step wrapper | `run_step` (skip if done) | `do_step` (always run) |
 | Resume after crash | yes — finished steps skipped | n/a (technician picks what to run) |
 | `apt-get update` | once, in `step_updates` | `ensure_apt_fresh` runs it once per session |
-| Keyboard prompt | once, at the start | only when option 12 is picked stand-alone |
+| Keyboard prompt | once, at the start | only when option 13 is picked stand-alone |
 | Reboot reminder | printed automatically | not printed |
-| `step_cleanup` | runs once, early | options 2, 3, 8 chain it before their main step |
+| `step_cleanup` | runs once, early | options 3, 4, 9 chain it before their main step |
 
-For the option-14 (uninstall) flow see [`uninstall.md`](./uninstall.md).
+For the option-15 (uninstall) flow see [`uninstall.md`](./uninstall.md).

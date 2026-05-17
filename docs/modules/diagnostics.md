@@ -22,7 +22,8 @@ that cannot be scripted.
   `pactl` can reach the logged-in session; same pattern as [`touchpad.md`](./touchpad.md)
   for `xinput` / `xrandr`.
 - Sysfs, `/proc`, `lscpu`, `lsblk`, `lsusb`, `lspci`, `pactl`, `nmcli`,
-  `systemctl`, `lsmod`, `dmidecode` (optional), `lsinitramfs` (optional).
+  `systemctl`, `systemd-analyze` (boot timing excerpts), `lsmod`, `dmidecode`
+  (optional), `lsinitramfs` (optional).
 
 ## Outputs
 
@@ -36,8 +37,9 @@ No packages installed, no config files modified.
 
 ### 1. Inventory sections
 
-Best-effort enumeration of vendor/product/BIOS, CPU, RAM (including `dmidecode`
-when available), disks, battery health from `BAT*` sysfs, GPU (`lspci`), USB
+Best-effort enumeration of vendor/product/BIOS, **`systemd-analyze`** timing /
+blame / critical-chain excerpts (**Boot (systemd)**), CPU, RAM (including
+`dmidecode` when available), disks, battery health from `BAT*` sysfs, GPU (`lspci`), USB
 device count, Type-C port count from `/sys/class/typec/port*/`, audio sinks /
 sources, headphone jack hints from codec dumps + `pactl`, V4L2 nodes, network
 devices (`nmcli`), Bluetooth, `xinput` summary, lid / IIO sensors.

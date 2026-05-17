@@ -53,7 +53,9 @@ Headline buckets:
 2. `apt purge` for all packages this toolkit installs; autoremove / autoclean.
 3. Removes the Google Chrome apt repository files and key.
 4. Best-effort audio quirk cleanup (note appended).
-5. Reverts GRUB and initramfs-modules mutations; regenerates boot assets.
+5. Reverts GRUB (HPET + optional silent-boot tokens), restores boot-related
+   systemd units (NM-wait-online, ModemManager, snapd), reverts
+   initramfs-modules; regenerates boot assets.
 6. Removes touchpad `xorg.conf.d` snippet and `touchegg.conf`.
 7. Removes OEM wallpaper dir, `oem-first-run.sh`, workspace-overview `.desktop`.
 8. Removes web-app `.desktop` files and icons.
@@ -72,7 +74,7 @@ purging packages** and **restore config files before `update-grub` /
 
 ## Notes
 
-- `step_uninstall` is invoked directly from the menu (option **14**), not
+- `step_uninstall` is invoked directly from the menu (option **15**), not
   via `do_step` / `run_step`. It owns its own confirmation
   (`read … YES`) and never writes a `uninstall.done` marker.
 - The `for svc in tlp touchegg keyd; do … done`

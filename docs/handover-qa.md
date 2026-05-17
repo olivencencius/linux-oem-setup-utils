@@ -1,6 +1,6 @@
 # Handover QA checklist
 
-Most checks below are partially automated by **`setup.sh` menu option 13**
+Most checks below are partially automated by **`setup.sh` menu option 14**
 (`step_diagnostics`) — see `/var/lib/oem-setup/diagnostics-report.txt`. This
 page remains the master checklist and lists everything that still requires a
 human.
@@ -10,6 +10,23 @@ fails, fix or re-apply the relevant step before shipping the machine.
 
 The order roughly matches the boot-to-shutdown flow a technician would
 go through anyway.
+
+---
+
+## Boot (optional — menu option 2)
+
+Use **menu option 2** only when you want Xubuntu/Ubuntu-style boot tweaks;
+it is **not** part of menu option 1 (full pipeline). After running it,
+**reboot**. To compare startup blocking units:
+
+```bash
+systemd-analyze time
+systemd-analyze blame --no-pager | head -25
+systemd-analyze critical-chain --no-pager | head -40
+```
+
+Menu option **14** writes excerpts under **Boot (systemd)** in
+`/var/lib/oem-setup/diagnostics-report.txt`.
 
 ---
 
@@ -27,7 +44,7 @@ go through anyway.
 - [ ] All USB-A ports detect a thumb drive (mount + show in Thunar).
 - [ ] On Intel 11th-gen and newer (TigerLake/AlderLake): USB-C port
       detects a thumb drive **after a reboot**. If not, re-run menu
-      option 3 (hardware fixes) and reboot.
+      option 4 (hardware fixes) and reboot.
 - [ ] Wi-Fi connects after suspend / resume:
   ```
   systemctl suspend
@@ -113,7 +130,7 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 - [ ] Chrome opens, logs in to a Google account, plays a YouTube video
       **without** a gnome-keyring / "new keyring password" dialog (`step_chrome`
       patches `google-chrome.desktop` with the same `OEM_CHROME_EXEC_FLAGS` as
-      web apps; re-run menu option 4 if a Chrome package upgrade restored the
+      web apps; re-run menu option 5 if a Chrome package upgrade restored the
       vendor desktop file).
 - [ ] All 13 web-app shortcuts (from the application menu, search for
       each):
@@ -137,8 +154,8 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 - [ ] Opening any web app does **not** prompt for a keyring password
       (`OEM_CHROME_EXEC_FLAGS` / `--password-store=basic`; same as main
       Chrome after `step_chrome`). If a "Choose password for new keyring" dialog
-      appears, the `Exec=` line lost the flag — re-run option 4 (Chrome) and/or
-      option 7 (web apps).
+      appears, the `Exec=` line lost the flag — re-run option 5 (Chrome) and/or
+      option 8 (web apps).
 - [ ] The web-app window uses the thin auto-hide overlay scrollbar,
       not the always-visible classic scrollbar (we pass
       `--enable-features=OverlayScrollbar`). Hover near the right
@@ -174,12 +191,12 @@ and every shortcut.
 
 | Check | Likely cause | Fix |
 |---|---|---|
-| Audio missing | `chromebook-linux-audio` setup did not detect the board | Re-run option 3 and read the installer's prompts carefully |
-| Top-row keys wrong | `cros-keyboard-map` picked the wrong layout | Re-run option 3 and answer the layout question correctly |
+| Audio missing | `chromebook-linux-audio` setup did not detect the board | Re-run option 4 and read the installer's prompts carefully |
+| Top-row keys wrong | `cros-keyboard-map` picked the wrong layout | Re-run option 4 and answer the layout question correctly |
 | USB-C dead on 11th-gen+ | initramfs not rebuilt | `sudo update-initramfs -u -k all`, reboot |
 | Wallpaper missing | First-run script didn't run | `ls ~/.config/.oem-first-run-done` — if present, delete it and log in/out |
 | Dock / Plank missing or short an icon | First-run script didn't run, or a `.desktop` was missing at first-run time | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login; ensure `step_gestures_and_workspaces` ran before `step_themes` when reprovisioning |
-| Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (4–7) then re-login or re-run option 8 |
+| Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5–8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
 
 Anything not in this table: read `/var/log/oem-setup.log`.

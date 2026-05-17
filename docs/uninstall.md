@@ -1,6 +1,6 @@
 # Uninstall — what `Undo all changes` reverts
 
-Menu option **14** runs `step_uninstall`, the best-effort reversal of
+Menu option **15** runs `step_uninstall`, the best-effort reversal of
 every change this toolkit makes. This page explains exactly what it
 does, in order, and where the inevitable "best-effort" caveats are.
 
@@ -11,7 +11,7 @@ cross-cutting summary.
 
 ## How it's invoked
 
-Menu option `14` calls `step_uninstall` directly (not via `do_step`).
+Menu option `15` calls `step_uninstall` directly (not via `do_step`).
 The function asks for a `YES` (uppercase) confirmation read from
 `/dev/tty`. Anything else aborts.
 
@@ -78,7 +78,7 @@ matches the inline section comments.
 | 2b | Google apt repo | Remove `/etc/apt/sources.list.d/google-chrome.list`, `…/google.list`, `/usr/share/keyrings/google-chrome.gpg`, `/etc/apt/trusted.gpg.d/google-chrome.gpg`. `apt-get update` once to drop the entries from the cache. |
 | 3 | *(reserved)* | Formerly Flathub remote removal; the toolkit no longer registers flatpak remotes. |
 | 4 | Audio quirks | Best-effort `rm` of `/usr/share/alsa/ucm2/codecs/cros-*`, `cros-*` UCM trees, `sof-*chrome*` config, related udev rules and systemd units. Adds a note that `chromebook-linux-audio` has no upstream uninstaller — a clean OS install is the only fully-deterministic reset. |
-| 5 | Hardware-fix config | `restore_or_skip /etc/default/grub` or sed-remove `clocksource=hpet hpet=force`. `restore_or_skip /etc/initramfs-tools/modules` or sed-remove `cros-ec-typec` / `intel-pmc-mux`. Then `update-grub` and `update-initramfs -u -k all`. |
+| 5 | Hardware-fix + optional boot tweaks | `restore_or_skip /etc/default/grub` or sed-remove `clocksource=hpet hpet=force` **and** optional silent-boot tokens (`quiet`, `splash`, `loglevel=3`, `vt.global_cursor_default=0`). **`update-grub`**. **Unmask + enable** `NetworkManager-wait-online`; **enable + start** `ModemManager`; **enable** `snapd.socket` / `snapd.service`. `restore_or_skip /etc/initramfs-tools/modules` or sed-remove Type-C module lines. **`update-initramfs -u -k all`**. |
 | 6 | Touchpad/gestures config | `rm /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf`, `rm /etc/touchegg/touchegg.conf`, attempt to `rmdir /etc/touchegg`. |
 | 7 | Wallpaper / first-run script | `rm -rf /usr/share/backgrounds/oem-setup`. `rm /usr/local/bin/oem-first-run.sh`. `rm /usr/share/applications/oem-workspace-overview.desktop`. Also cleans legacy artefacts from earlier revisions: `rm /etc/dconf/db/local.d/00-plank`, `dconf update`. |
 | 8 | Web-app shortcuts | `rm` thirteen `.desktop` entries (web apps) and matching icons. Refresh GTK icon cache. |
@@ -134,7 +134,7 @@ dpkg -l | grep -E 'google-chrome|zoom|plank|touchegg|tlp|zram-tools|imwheel'   #
 ls /etc/apt/sources.list.d/google-chrome.list 2>/dev/null                       # should not exist
 
 # 3. Kernel parameters gone?
-grep CMDLINE /etc/default/grub                                                 # no clocksource=hpet
+grep CMDLINE /etc/default/grub                                                 # no clocksource=hpet; no toolkit silent-boot tokens if sed fallback ran
 grep -E 'cros-ec-typec|intel-pmc-mux' /etc/initramfs-tools/modules             # no matches
 
 # 4. State cleared?

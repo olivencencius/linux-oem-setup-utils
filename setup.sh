@@ -131,6 +131,7 @@ trap on_int INT TERM
 source "$REPO_DIR/modules/cleanup.sh"
 source "$REPO_DIR/modules/updates.sh"
 source "$REPO_DIR/modules/hardware.sh"
+source "$REPO_DIR/modules/xubuntu_boot.sh"
 source "$REPO_DIR/modules/chrome.sh"
 source "$REPO_DIR/modules/zoom.sh"
 source "$REPO_DIR/modules/apps.sh"
@@ -192,41 +193,43 @@ while true; do
     echo "        CHROMEBOOK DEPLOYMENT ENGINE     "
     echo "========================================="
     echo " 1)  Run entire pipeline (recommended for fresh setup)"
-    echo " 2)  Run system updates and dependency installation"
-    echo " 3)  Run Chromebook hardware fixes and patches"
-    echo " 4)  Install Google Chrome"
-    echo " 5)  Install Zoom"
-    echo " 6)  Install standard apps (VLC + games)"
-    echo " 7)  Inject branded web-app shortcuts"
-    echo " 8)  Workspace overview, gestures, Plank dock and wallpaper"
-    echo " 9)  Apply touchpad calibration and scroll speed fix"
-    echo " 10) Apply touchpad gestures and install workspace overview"
-    echo " 11) Apply terminal paste fix"
-    echo " 12) Adjust region, language and keyboard layout"
-    echo " 13) Run hardware diagnostics report"
-    echo " 14) Undo all changes (full uninstall)"
-    echo " 15) Exit setup"
+    echo " 2)  Xubuntu/Ubuntu boot optimisations (optional — not in pipeline)"
+    echo " 3)  Run system updates and dependency installation"
+    echo " 4)  Run Chromebook hardware fixes and patches"
+    echo " 5)  Install Google Chrome"
+    echo " 6)  Install Zoom"
+    echo " 7)  Install standard apps (VLC + games)"
+    echo " 8)  Inject branded web-app shortcuts"
+    echo " 9)  Workspace overview, gestures, Plank dock and wallpaper"
+    echo " 10) Apply touchpad calibration and scroll speed fix"
+    echo " 11) Apply touchpad gestures and install workspace overview"
+    echo " 12) Apply terminal paste fix"
+    echo " 13) Adjust region, language and keyboard layout"
+    echo " 14) Run hardware diagnostics report"
+    echo " 15) Undo all changes (full uninstall)"
+    echo " 16) Exit setup"
     echo "========================================="
-    read -p "Select choice [1-15]: " main_choice < /dev/tty
+    read -p "Select choice [1-16]: " main_choice < /dev/tty
     echo ""
 
     case $main_choice in
         1)  run_full_pipeline; print_reboot_reminder; break ;;
-        2)  do_step cleanup; do_step updates ;;
-        3)  do_step cleanup; do_step hardware_fixes ;;
-        4)  do_step chrome ;;
-        5)  do_step zoom ;;
-        6)  do_step apps ;;
-        7)  do_step web_apps ;;
-        8)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
-        9)  do_step touchpad ;;
-        10) do_step gestures_and_workspaces ;;
-        11) do_step terminal ;;
-        12) do_step regional ;;
-        13) do_step diagnostics ;;
-        14) step_uninstall ;;
-        15) echo "Exiting configuration engine."; exit 0 ;;
-        *)  echo "Invalid option. Please choose 1-15." ;;
+        2)  do_step xubuntu_boot ;;
+        3)  do_step cleanup; do_step updates ;;
+        4)  do_step cleanup; do_step hardware_fixes ;;
+        5)  do_step chrome ;;
+        6)  do_step zoom ;;
+        7)  do_step apps ;;
+        8)  do_step web_apps ;;
+        9)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
+        10) do_step touchpad ;;
+        11) do_step gestures_and_workspaces ;;
+        12) do_step terminal ;;
+        13) do_step regional ;;
+        14) do_step diagnostics ;;
+        15) step_uninstall ;;
+        16) echo "Exiting configuration engine."; exit 0 ;;
+        *)  echo "Invalid option. Please choose 1-16." ;;
     esac
 done
 
