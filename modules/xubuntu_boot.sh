@@ -18,20 +18,20 @@
 # ==============================================================================
 
 step_xubuntu_boot() {
-    echo "--> Xubuntu / Ubuntu-family boot optimisations (standalone, machine-wide)..."
+    oem_tty_say "--> Xubuntu / Ubuntu-family boot optimisations (standalone, machine-wide)…"
 
     if systemctl list-unit-files 2>/dev/null | grep -q '^ModemManager\.service'; then
         systemctl disable --now ModemManager.service 2>/dev/null || true
-        echo "    [+] Disabled ModemManager.service."
+        oem_tty_say "    [+] Disabled ModemManager.service."
     else
-        echo "    [i] ModemManager.service not installed — skipping."
+        oem_tty_say "    [i] ModemManager.service not installed — skipping."
     fi
 
     if systemctl list-unit-files 2>/dev/null | grep -q '^NetworkManager-wait-online\.service'; then
         systemctl mask --now NetworkManager-wait-online.service 2>/dev/null || true
-        echo "    [+] Masked NetworkManager-wait-online.service."
+        oem_tty_say "    [+] Masked NetworkManager-wait-online.service."
     else
-        echo "    [i] NetworkManager-wait-online.service not found — skipping."
+        oem_tty_say "    [i] NetworkManager-wait-online.service not found — skipping."
     fi
 
     local snap_any=0
@@ -44,16 +44,15 @@ step_xubuntu_boot() {
         snap_any=1
     fi
     if [ "$snap_any" = "1" ]; then
-        echo "    [+] Disabled snapd.socket / snapd.service."
+        oem_tty_say "    [+] Disabled snapd.socket / snapd.service."
     else
-        echo "    [i] snapd units not found — skipping."
+        oem_tty_say "    [i] snapd units not found — skipping."
     fi
 
     local grub_changed=0
     if [ ! -f /etc/default/grub ]; then
-        echo "    [!] /etc/default/grub missing — GRUB tweaks skipped."
-        echo ""
-        echo "    [!] Reboot to apply systemd changes; GRUB was not modified."
+        oem_tty_say "    [!] /etc/default/grub missing — GRUB tweaks skipped."
+        oem_tty_say "    [!] Reboot to apply systemd changes; GRUB was not modified."
         return 0
     fi
 
@@ -68,17 +67,17 @@ step_xubuntu_boot() {
     done
 
     if [ "$grub_changed" = "1" ]; then
-        echo "    [+] Appended silent-boot kernel parameters to GRUB_CMDLINE_LINUX_DEFAULT."
+        oem_tty_say "    [+] Appended silent-boot kernel parameters to GRUB_CMDLINE_LINUX_DEFAULT."
         if command -v update-grub &>/dev/null; then
-            update-grub
+            oem_tty_say "--> Running update-grub…"
+            oem_run_log update-grub
         else
-            echo "    [!] update-grub not found — regenerate GRUB manually."
+            oem_tty_say "    [!] update-grub not found — regenerate GRUB manually."
         fi
     else
-        echo "    [i] Silent-boot GRUB parameters already present — leaving alone."
+        oem_tty_say "    [i] Silent-boot GRUB parameters already present — leaving alone."
     fi
 
-    echo ""
-    echo "    [i] Reboot to apply GRUB and systemd boot behaviour."
-    echo "    [i] Full uninstall (menu 15) reverses these changes."
+    oem_tty_say "" "    [i] Reboot to apply GRUB and systemd boot behaviour."
+    oem_tty_say "    [i] Full uninstall (menu 15) reverses these changes."
 }

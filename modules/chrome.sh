@@ -54,27 +54,28 @@ patch_google_chrome_desktop() {
 
     if [ "$changed" -eq 1 ]; then
         cat "$tmp" > "$desktop_file"
-        echo "    [+] Patched google-chrome.desktop (keyring + overlay scrollbar flags)."
+        oem_tty_say "    [+] Patched google-chrome.desktop (keyring + overlay scrollbar flags)."
     fi
     rm -f "$tmp"
 }
 
 step_chrome() {
-    echo "--> Downloading and installing Google Chrome..."
+    oem_tty_say "--> Downloading Google Chrome .deb (network)…"
     local deb=/tmp/google-chrome-stable_current_amd64.deb
 
     rm -f "$deb"
-    wget -q --show-progress -O "$deb" \
+    oem_run_log wget -q --show-progress -O "$deb" \
         https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 
     if [ ! -s "$deb" ]; then
-        echo "    [!] Chrome .deb download failed or empty — aborting step."
+        oem_tty_say "    [!] Chrome .deb download failed or empty — aborting step."
         rm -f "$deb"
         return 1
     fi
 
     ensure_apt_fresh
-    apt-get install -y "$deb"
+    oem_tty_say "--> Installing Google Chrome package…"
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y "$deb"
     rm -f "$deb"
 
     patch_google_chrome_desktop

@@ -27,24 +27,28 @@
 # ==============================================================================
 
 step_hardware_fixes() {
-    echo "--> Chromebook audio and keyboard optimisations..."
-    echo "    [i] The upstream installers below MAY ASK QUESTIONS."
-    echo "        Answer them at the prompt — they pick the correct config"
-    echo "        for your specific Chromebook board."
-    echo ""
+    oem_tty_say \
+        "--> Chromebook audio and keyboard optimisations..." \
+        "    [i] The upstream installers below MAY ASK QUESTIONS." \
+        "        Answer them at the prompt — they pick the correct config" \
+        "        for your specific Chromebook board." \
+        ""
 
     cd /tmp
 
+    oem_tty_say "--> Cloning chromebook-linux-audio (needs network)…"
     rm -rf /tmp/chromebook-linux-audio
-    git clone --depth 1 https://github.com/WeirdTreeThing/chromebook-linux-audio.git
-    # Line-buffer child stdio — stdout/stderr inherit the `tee` pipe (fully buffered).
-    ( cd /tmp/chromebook-linux-audio && stdbuf -oL -eL ./setup-audio ) < /dev/tty
+    oem_run_log git clone --depth 1 --progress https://github.com/WeirdTreeThing/chromebook-linux-audio.git
+    oem_tty_say "--> Running audio installer (interactive — answer any prompts on THIS terminal)…"
+    ( cd /tmp/chromebook-linux-audio && oem_run_interactive ./setup-audio )
 
+    oem_tty_say "--> Cloning cros-keyboard-map (needs network)…"
     rm -rf /tmp/cros-keyboard-map
-    git clone --depth 1 https://github.com/WeirdTreeThing/cros-keyboard-map.git
-    ( cd /tmp/cros-keyboard-map && stdbuf -oL -eL ./install.sh ) < /dev/tty
+    oem_run_log git clone --depth 1 --progress https://github.com/WeirdTreeThing/cros-keyboard-map.git
+    oem_tty_say "--> Running keyboard-map installer (interactive — answer any prompts on THIS terminal)…"
+    ( cd /tmp/cros-keyboard-map && oem_run_interactive ./install.sh )
 
-    echo "--> Analysing motherboard for specialised patches..."
+    oem_tty_say "--> Analysing motherboard for specialised patches..."
 
     # CELES (Samsung) — freeze mitigation via HPET clock source.
     # DMI is the authoritative source for the board name; dmesg is a noisy
@@ -54,22 +58,23 @@ step_hardware_fixes() {
         board=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
     fi
     if echo "$board" | grep -qi "celes" || dmesg | grep -qi "celes"; then
-        echo "    [!] CELES board detected (product_name='$board') — injecting HPET kernel params..."
+        oem_tty_say "    [!] CELES board detected (product_name='$board') — injecting HPET kernel params..."
         if ! grep -q "clocksource=hpet" /etc/default/grub; then
             backup_once /etc/default/grub
             sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="clocksource=hpet hpet=force /' \
                 /etc/default/grub
-            update-grub
+            oem_tty_say "--> update-grub (HPET change)…"
+            oem_run_log update-grub
         else
-            echo "    [i] HPET params already present in /etc/default/grub — leaving alone."
+            oem_tty_say "    [i] HPET params already present in /etc/default/grub — leaving alone."
         fi
     else
-        echo "    [i] CELES not detected — skipping HPET fix."
+        oem_tty_say "    [i] CELES not detected — skipping HPET fix."
     fi
 
     # TigerLake / AlderLake — USB-C module fix
     if lscpu | grep -qiE "tiger|alder"; then
-        echo "    [!] Tiger/AlderLake CPU detected — forcing Type-C driver stack..."
+        oem_tty_say "    [!] Tiger/AlderLake CPU detected — forcing Type-C driver stack..."
         local changed=0
         if ! grep -qx 'cros-ec-typec' /etc/initramfs-tools/modules; then
             backup_once /etc/initramfs-tools/modules
@@ -82,11 +87,12 @@ step_hardware_fixes() {
             changed=1
         fi
         if [ "$changed" = "1" ]; then
-            update-initramfs -u -k all
+            oem_tty_say "--> update-initramfs (Type-C modules — can take a few minutes)…"
+            oem_run_log update-initramfs -u -k all
         else
-            echo "    [i] Type-C modules already in initramfs — leaving alone."
+            oem_tty_say "    [i] Type-C modules already in initramfs — leaving alone."
         fi
     else
-        echo "    [i] Not a Tiger/AlderLake CPU — skipping Type-C fix."
+        oem_tty_say "    [i] Not a Tiger/AlderLake CPU — skipping Type-C fix."
     fi
 }

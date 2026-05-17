@@ -34,7 +34,7 @@
 OEM_SCROLL_PIXEL_DISTANCE=40
 
 step_touchpad() {
-    echo "--> Configuring touchpad (natural scroll, slower scroll, tap-to-click, clickfinger)..."
+    oem_tty_say "--> Configuring touchpad (natural scroll, slower scroll, tap-to-click, clickfinger)…"
 
     # -------------------------------------------------------------------------
     # 1. Persistent xorg.conf.d snippet (survives reboot, applies to all users
@@ -57,8 +57,8 @@ Section "InputClass"
     Option "ScrollPixelDistance"   "${OEM_SCROLL_PIXEL_DISTANCE}"
 EndSection
 EOF
-    echo "    [+] /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf written"
-    echo "        (ScrollPixelDistance=${OEM_SCROLL_PIXEL_DISTANCE} → slower than default)"
+    oem_tty_say "    [+] /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf written" \
+        "        (ScrollPixelDistance=${OEM_SCROLL_PIXEL_DISTANCE} → slower than default)"
 
     # -------------------------------------------------------------------------
     # 2. Live-session apply — find the touchpad and push the same values
@@ -71,19 +71,19 @@ EOF
         | grep -o 'id=[0-9]*' | head -1 | cut -d= -f2 || true)
 
     if [ -n "$TP_ID" ]; then
-        echo "    [i] Touchpad detected: id=$TP_ID — applying live"
+        oem_tty_say "    [i] Touchpad detected: id=$TP_ID — applying live"
         xinput set-prop "$TP_ID" "libinput Natural Scrolling Enabled" 1 \
             2>/dev/null || true
         xinput set-prop "$TP_ID" "libinput Tapping Enabled" 1 \
             2>/dev/null || true
         xinput set-prop "$TP_ID" "libinput Click Method Enabled" 0 1 \
             2>/dev/null \
-            || echo "    [!] 'libinput Click Method Enabled' not exposed by this driver"
+            || oem_tty_say "    [!] 'libinput Click Method Enabled' not exposed by this driver"
         xinput set-prop "$TP_ID" "libinput Scrolling Pixel Distance" \
             "$OEM_SCROLL_PIXEL_DISTANCE" 2>/dev/null \
-            || echo "    [!] 'libinput Scrolling Pixel Distance' not exposed by this driver"
-        echo "    [+] Live touchpad properties applied"
+            || oem_tty_say "    [!] 'libinput Scrolling Pixel Distance' not exposed by this driver"
+        oem_tty_say "    [+] Live touchpad properties applied"
     else
-        echo "    [!] No touchpad found via xinput — xorg.conf will apply on next login."
+        oem_tty_say "    [!] No touchpad found via xinput — xorg.conf will apply on next login."
     fi
 }

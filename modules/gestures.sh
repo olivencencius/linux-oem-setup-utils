@@ -31,20 +31,20 @@
 # ==============================================================================
 
 step_gestures_and_workspaces() {
-    echo "--> Installing touchpad gestures (touchegg) and workspace overview (xfdashboard)..."
+    oem_tty_say "--> Installing touchpad gestures (touchegg) and workspace overview (xfdashboard)…"
 
     ensure_apt_fresh
 
     # Required: one failed package blocks this step so QA never sees a silently
     # broken 3-finger-up or missing dock pin.
-    apt-get install -y wmctrl xdotool touchegg xfdashboard
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y wmctrl xdotool touchegg xfdashboard
 
     install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
         /usr/share/applications/oem-workspace-overview.desktop
-    echo "    [+] /usr/share/applications/oem-workspace-overview.desktop"
+    oem_tty_say "    [+] /usr/share/applications/oem-workspace-overview.desktop"
 
     if command -v update-desktop-database &>/dev/null; then
-        update-desktop-database /usr/share/applications 2>/dev/null || true
+        oem_run_log update-desktop-database /usr/share/applications 2>/dev/null || true
     fi
 
     # -------------------------------------------------------------------------
@@ -53,16 +53,16 @@ step_gestures_and_workspaces() {
     mkdir -p /etc/touchegg
     install -m 644 "$REPO_DIR/assets/configs/touchegg.conf" \
                    /etc/touchegg/touchegg.conf
-    echo "    [+] /etc/touchegg/touchegg.conf written."
+    oem_tty_say "    [+] /etc/touchegg/touchegg.conf written."
 
     # -------------------------------------------------------------------------
     # Enable the system daemon (per-user clients connect to it over D-Bus)
     # -------------------------------------------------------------------------
     systemctl enable --now touchegg.service 2>/dev/null || true
     if systemctl is-active --quiet touchegg.service; then
-        echo "    [+] touchegg.service is active."
+        oem_tty_say "    [+] touchegg.service is active."
     else
-        echo "    [!] touchegg.service is NOT active — gestures will not work until it starts."
+        oem_tty_say "    [!] touchegg.service is NOT active — gestures will not work until it starts."
     fi
 
     # -------------------------------------------------------------------------
@@ -80,9 +80,9 @@ step_gestures_and_workspaces() {
             XAUTHORITY="$USER_HOME/.Xauthority" \
             touchegg --client 2>/dev/null &
 
-        echo "    [+] touchegg client started for $SUDO_USER."
+        oem_tty_say "    [+] touchegg client started for $SUDO_USER."
     else
-        echo "    [i] \$SUDO_USER not set — client autostart on next login only."
+        oem_tty_say "    [i] \$SUDO_USER not set — client autostart on next login only."
     fi
 
     # Legacy step id was `gestures`; drop its marker so resume matches setup.sh.

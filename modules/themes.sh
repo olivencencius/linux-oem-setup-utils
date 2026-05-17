@@ -62,29 +62,29 @@ oem_user_xrun() {
 }
 
 step_themes() {
-    echo "--> Installing Plank (dock)..."
+    oem_tty_say "--> Installing Plank (dock)…"
 
     ensure_apt_fresh
-    apt-get install -y plank
-    echo "    [+] plank installed."
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y plank
+    oem_tty_say "    [+] plank installed."
 
-    echo "--> Installing wallpaper..."
+    oem_tty_say "--> Installing wallpaper…"
     mkdir -p /usr/share/backgrounds/oem-setup
     cp "$REPO_DIR/assets/wallpapers/malta.jpg" \
        /usr/share/backgrounds/oem-setup/malta.jpg
-    echo "    [+] /usr/share/backgrounds/oem-setup/malta.jpg deployed."
+    oem_tty_say "    [+] /usr/share/backgrounds/oem-setup/malta.jpg deployed."
 
     install -m 755 "$REPO_DIR/assets/scripts/oem-first-run.sh" \
                    /usr/local/bin/oem-first-run.sh
-    echo "    [+] /usr/local/bin/oem-first-run.sh deployed."
+    oem_tty_say "    [+] /usr/local/bin/oem-first-run.sh deployed."
 
-    echo "--> Staging defaults into /etc/skel..."
+    oem_tty_say "--> Staging defaults into /etc/skel…"
     cp -r "$REPO_DIR/skel/." /etc/skel/
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
         SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 
-        echo "--> Mirroring skel autostart into live user's home: $SUDO_USER"
+        oem_tty_say "--> Mirroring skel autostart into live user's home: $SUDO_USER"
 
         sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/.config/autostart"
 
@@ -97,10 +97,11 @@ step_themes() {
 
         chown -R "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/.config/autostart"
 
+        oem_tty_say "--> Running oem-first-run.sh once for the live session (Plank + wallpaper)…"
         oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true
 
-        echo "    [+] Wallpaper and Plank dock applied to live session for user: $SUDO_USER"
+        oem_tty_say "    [+] Wallpaper and Plank dock applied to live session for user: $SUDO_USER"
     else
-        echo "    [i] \$SUDO_USER not set — layout will apply on next login via skel."
+        oem_tty_say "    [i] \$SUDO_USER not set — layout will apply on next login via skel."
     fi
 }

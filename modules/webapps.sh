@@ -43,15 +43,14 @@
 source "$REPO_DIR/modules/chrome-exec-flags.sh"
 
 step_web_apps() {
-    echo "--> Installing branded web-app shortcuts..."
+    oem_tty_say "--> Installing branded web-app shortcuts (icons + .desktop files)…"
 
     local ICON_SRC="$REPO_DIR/assets/icons"
     local ICON_DST="/usr/share/icons/hicolor/scalable/apps"
     local APP_DST="/usr/share/applications"
 
     mkdir -p "$ICON_DST"
-
-    # Copy all bundled icons into the hicolor theme directory
+    oem_tty_say "--> Copying bundled icons and writing 13 Chrome web-app .desktop files…"
     cp "$ICON_SRC/netflix.svg"              "$ICON_DST/netflix.svg"
     cp "$ICON_SRC/googledocs.svg"           "$ICON_DST/googledocs.svg"
     cp "$ICON_SRC/googlesheets.svg"         "$ICON_DST/googlesheets.svg"
@@ -66,7 +65,7 @@ step_web_apps() {
     cp "$ICON_SRC/youtube.svg"              "$ICON_DST/youtube.svg"
     cp "$ICON_SRC/chromeremotedesktop.svg"  "$ICON_DST/chromeremotedesktop.svg"
 
-    gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
+    oem_run_log gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 
     # -------------------------------------------------------------------------
     # Helper — write a .desktop file for a Chrome web app
@@ -108,7 +107,7 @@ EOF
     write_webapp "Gemini"               "https://gemini.google.com"                 "gemini"              "Gemini"
     write_webapp "ChromeRemoteDesktop"  "https://remotedesktop.google.com/access"   "chromeremotedesktop" "Chrome Remote Desktop"
 
-    update-desktop-database "$APP_DST" 2>/dev/null || true
+    oem_run_log update-desktop-database "$APP_DST" 2>/dev/null || true
 
-    echo "    [+] Web app shortcuts created."
+    oem_tty_say "    [+] Web app shortcuts created."
 }

@@ -15,15 +15,15 @@
 # ==============================================================================
 
 step_updates() {
-    echo "--> Updating package manager and running system updates..."
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+    oem_tty_say "--> Updating package manager and running system upgrades…"
+    oem_run_log apt-get update
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
     export OEM_APT_FRESH=1   # other modules can skip apt-get update after this
 
-    echo "--> Installing base tools..."
-    apt-get install -y git wget curl xinput gimp
+    oem_tty_say "--> Installing base tools (git, wget, curl, xinput, gimp)…"
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y git wget curl xinput gimp
 
-    echo "--> Installing ZRAM (memory compression) and TLP (battery management)..."
-    apt-get install -y zram-tools tlp
-    systemctl enable --now tlp.service
+    oem_tty_say "--> Installing ZRAM (memory compression) and TLP (battery management)…"
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y zram-tools tlp
+    oem_run_log systemctl enable --now tlp.service
 }

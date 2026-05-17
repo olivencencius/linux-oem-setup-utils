@@ -57,8 +57,19 @@ oem_tty_say() {
 }
 export -f oem_tty_say
 
-echo ""
-echo "=== oem-setup run started: $(date -Iseconds) ==="
+# Long-running commands (apt, wget, git, …): line-buffer through the `tee` pipe.
+oem_run_log() {
+    stdbuf -oL -eL "$@"
+}
+export -f oem_run_log
+
+# Upstream installers that prompt: real TTY on stdin + line-buffered output.
+oem_run_interactive() {
+    oem_run_log "$@" < /dev/tty
+}
+export -f oem_run_interactive
+
+oem_tty_say "" "=== oem-setup run started: $(date -Iseconds) ==="
 
 # ==============================================================================
 #   backup_once — snapshot a system file before we mutate it for the first time
@@ -79,8 +90,8 @@ export -f backup_once
 # ==============================================================================
 ensure_apt_fresh() {
     if [ -z "${OEM_APT_FRESH:-}" ]; then
-        echo "    [.] Refreshing apt cache..."
-        apt-get update -qq || true
+        oem_tty_say "    [.] Refreshing apt package index (apt-get update)…"
+        oem_run_log apt-get update -qq || true
         export OEM_APT_FRESH=1
     fi
 }

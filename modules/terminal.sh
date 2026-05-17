@@ -15,7 +15,7 @@
 # ==============================================================================
 
 step_terminal() {
-    echo "--> Disabling bracketed paste mode in terminal..."
+    oem_tty_say "--> Disabling bracketed paste mode in terminal (system-wide inputrc)…"
 
     # System-wide default (active right now for any user)
     if ! grep -qxF 'set enable-bracketed-paste off' /etc/inputrc; then

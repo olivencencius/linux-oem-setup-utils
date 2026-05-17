@@ -16,7 +16,7 @@
 # ==============================================================================
 
 step_apps() {
-    echo "--> Installing default applications..."
+    oem_tty_say "--> Installing default applications (VLC + games)…"
     ensure_apt_fresh
-    apt-get install -y vlc supertuxkart aisleriot quadrapassel
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y vlc supertuxkart aisleriot quadrapassel
 }

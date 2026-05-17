@@ -38,6 +38,7 @@ step_diagnostics() {
         local plain="$1"
         local colour="$2"
         printf '%s\n' "$plain" >> "$REPORT"
+        printf '%s\n' "$plain" >&3
         if [ -n "$colour" ]; then
             printf '%b%s%b\n' "$colour" "$plain" "$C_RST"
         else
@@ -46,10 +47,9 @@ step_diagnostics() {
     }
 
     _diag_hdr() {
-        echo ""
-        echo "-- $1"
         printf '%s\n' "" >> "$REPORT"
         printf '%s\n' "-- $1" >> "$REPORT"
+        oem_tty_say "" "-- $1"
     }
 
     _oem_runtime_dir() {
@@ -114,7 +114,7 @@ step_diagnostics() {
 
     : > "$REPORT"
 
-    echo "--> OEM diagnostics report (automatic, non-interactive)..."
+    oem_tty_say "--> OEM diagnostics report (automatic, non-interactive; streaming to this terminal + file)…"
     _diag_line "=== OEM diagnostics === $(date -Iseconds)" ""
 
     # ----- Section A: Inventory -----
@@ -554,12 +554,10 @@ step_diagnostics() {
     _diag_line "  [MANUAL] Closing the lid suspends; opening resumes." ""
     _diag_line "  [MANUAL] Wi-Fi reconnects after suspend/resume cycle." ""
 
-    echo ""
     local summ="Summary: ${PASS_COUNT} PASS, ${WARN_COUNT} WARN, ${FAIL_COUNT} FAIL, ${MANUAL_COUNT} MANUAL"
     _diag_line "$summ" "$C_DIM"
     _diag_line "Report saved to: $REPORT" "$C_DIM"
 
-    echo ""
-    echo "    [+] Diagnostics complete (exit 0 by design — inspect [FAIL] lines above)."
+    oem_tty_say "" "    [+] Diagnostics complete (exit 0 by design — inspect [FAIL] lines above)."
     return 0
 }

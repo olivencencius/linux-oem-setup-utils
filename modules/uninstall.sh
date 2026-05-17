@@ -32,46 +32,44 @@ restore_or_skip() {
     local backup="$BACKUP_DIR/$(basename "$target")"
     if [ -e "$backup" ]; then
         cp -a "$backup" "$target"
-        echo "    [+] Restored $target from backup."
+        oem_tty_say "    [+] Restored $target from backup."
         return 0
     fi
     return 1
 }
 
 step_uninstall() {
-    # Banner + confirmation on fd 3 — stdout is buffered through setup.sh's `tee`.
-    {
-        echo ""
-        echo "========================================="
-        echo "         UNDO / FULL UNINSTALL           "
-        echo "========================================="
-        echo "This will remove every package and config change this toolkit made:"
-        echo "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools,"
-        echo "          imwheel (legacy), plank, touchegg, xfdashboard, keyd,"
-        echo "          language packs,"
-        echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
-        echo "  - Remove Google Chrome apt repository and signing key"
-        echo "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)"
-        echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
-        echo "          /etc/inputrc, /etc/default/keyboard"
-        echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
-        echo "  - Clean /etc/skel and every user's home of toolkit artefacts"
-        echo "  - Reset locale to en_US.UTF-8 and timezone to UTC"
-        echo "  - Clear the oem-setup state markers and saved keyboard layout"
-        echo "========================================="
-        printf "Type 'YES' (uppercase) to proceed, anything else to abort: "
-    } >&3
+    oem_tty_say \
+        "" \
+        "=========================================" \
+        "         UNDO / FULL UNINSTALL           " \
+        "=========================================" \
+        "This will remove every package and config change this toolkit made:" \
+        "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools," \
+        "          imwheel (legacy), plank, touchegg, xfdashboard, keyd," \
+        "          language packs," \
+        "          games (SuperTuxKart, Aisleriot, Quadrapassel)" \
+        "  - Remove Google Chrome apt repository and signing key" \
+        "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)" \
+        "  - Revert /etc/default/grub, /etc/initramfs-tools/modules," \
+        "          /etc/inputrc, /etc/default/keyboard" \
+        "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run" \
+        "  - Clean /etc/skel and every user's home of toolkit artefacts" \
+        "  - Reset locale to en_US.UTF-8 and timezone to UTC" \
+        "  - Clear the oem-setup state markers and saved keyboard layout" \
+        "========================================="
+    printf "Type 'YES' (uppercase) to proceed, anything else to abort: " >&3
     read -r confirm < /dev/tty || true
     if [ "$confirm" != "YES" ]; then
-        echo "Uninstall aborted." >&3
+        oem_tty_say "Uninstall aborted."
         return 0
     fi
-    echo ""
+    oem_tty_say ""
 
     # -------------------------------------------------------------------------
     # 1. Stop running services & user helpers BEFORE purging their packages
     # -------------------------------------------------------------------------
-    echo "--> Stopping services..."
+    oem_tty_say "--> Stopping services…"
     for svc in tlp touchegg keyd; do
         if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.service"; then
             systemctl disable --now "$svc" 2>/dev/null || true
@@ -91,8 +89,8 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 2. Apt purge — full scope (every package this toolkit installs)
     # -------------------------------------------------------------------------
-    echo "--> Purging installed packages..."
-    apt-get purge -y \
+    oem_tty_say "--> Purging installed packages (apt may take several minutes)…"
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get purge -y \
         google-chrome-stable \
         zoom \
         vlc \
@@ -113,10 +111,10 @@ step_uninstall() {
         wmctrl \
         xdotool \
         keyd \
-        2>/dev/null || true
+        || true
 
-    apt-get autoremove --purge -y 2>/dev/null || true
-    apt-get autoclean -y          2>/dev/null || true
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y 2>/dev/null || true
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get autoclean -y          2>/dev/null || true
 
     # -------------------------------------------------------------------------
     # 2b. Remove the Google Chrome apt repository and signing key that the
@@ -124,12 +122,12 @@ step_uninstall() {
     #     not remove these, and a future `apt update` will keep talking to
     #     Google.
     # -------------------------------------------------------------------------
-    echo "--> Removing Google Chrome apt repository and signing key..."
+    oem_tty_say "--> Removing Google Chrome apt repository and signing key…"
     rm -f /etc/apt/sources.list.d/google-chrome.list \
           /etc/apt/sources.list.d/google.list \
           /etc/apt/trusted.gpg.d/google-chrome.gpg \
           /usr/share/keyrings/google-chrome.gpg
-    apt-get update -qq 2>/dev/null || true
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get update -qq 2>/dev/null || true
 
     # -------------------------------------------------------------------------
     # 3. (Formerly Flathub — toolkit no longer adds flatpak remotes.)
@@ -138,7 +136,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 4. Chromebook-linux-audio quirks (best-effort; upstream has no uninstaller)
     # -------------------------------------------------------------------------
-    echo "--> Cleaning chromebook-linux-audio quirks (best-effort)..."
+    oem_tty_say "--> Cleaning chromebook-linux-audio quirks (best-effort)…"
     rm -rf  /usr/share/alsa/ucm2/codecs/cros-* \
             /usr/share/alsa/ucm2/cros-* \
             /usr/share/alsa/ucm2/conf.d/sof-*chrome* \
@@ -152,7 +150,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 5. Hardware-fix config: GRUB + initramfs-tools/modules
     # -------------------------------------------------------------------------
-    echo "--> Reverting /etc/default/grub..."
+    oem_tty_say "--> Reverting /etc/default/grub…"
     if ! restore_or_skip /etc/default/grub; then
         if [ -f /etc/default/grub ]; then
             sed -i 's/clocksource=hpet hpet=force //g' /etc/default/grub
@@ -162,38 +160,38 @@ step_uninstall() {
                 -e 's/ quiet//g' \
                 /etc/default/grub
             sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/[[:space:]]\{2,\}/ /g' /etc/default/grub
-            echo "    [+] Removed toolkit kernel params from GRUB_CMDLINE_LINUX_DEFAULT."
+            oem_tty_say "    [+] Removed toolkit kernel params from GRUB_CMDLINE_LINUX_DEFAULT."
         fi
     fi
     if command -v update-grub &>/dev/null; then
-        update-grub 2>/dev/null || true
+        oem_run_log update-grub 2>/dev/null || true
     fi
 
-    echo "--> Reverting optional Xubuntu boot systemd tweaks..."
+    oem_tty_say "--> Reverting optional Xubuntu boot systemd tweaks…"
     systemctl unmask NetworkManager-wait-online.service 2>/dev/null || true
     systemctl enable NetworkManager-wait-online.service 2>/dev/null || true
     systemctl enable ModemManager.service 2>/dev/null || true
     systemctl start ModemManager.service 2>/dev/null || true
     systemctl enable snapd.socket 2>/dev/null || true
     systemctl enable snapd.service 2>/dev/null || true
-    echo "    [+] Best-effort restore of ModemManager, NM-wait-online, snapd defaults."
+    oem_tty_say "    [+] Best-effort restore of ModemManager, NM-wait-online, snapd defaults."
 
-    echo "--> Reverting /etc/initramfs-tools/modules..."
+    oem_tty_say "--> Reverting /etc/initramfs-tools/modules…"
     if ! restore_or_skip /etc/initramfs-tools/modules; then
         if [ -f /etc/initramfs-tools/modules ]; then
             sed -i -e '/^cros-ec-typec$/d' -e '/^intel-pmc-mux$/d' \
                 /etc/initramfs-tools/modules
-            echo "    [+] Removed 'cros-ec-typec' / 'intel-pmc-mux' lines."
+            oem_tty_say "    [+] Removed 'cros-ec-typec' / 'intel-pmc-mux' lines."
         fi
     fi
     if command -v update-initramfs &>/dev/null; then
-        update-initramfs -u -k all 2>/dev/null || true
+        oem_run_log update-initramfs -u -k all 2>/dev/null || true
     fi
 
     # -------------------------------------------------------------------------
     # 6. Touchpad / gestures config
     # -------------------------------------------------------------------------
-    echo "--> Removing touchpad and gestures config..."
+    oem_tty_say "--> Removing touchpad and gestures config…"
     rm -f /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf
     rm -f /etc/touchegg/touchegg.conf
     rmdir --ignore-fail-on-non-empty /etc/touchegg 2>/dev/null || true
@@ -202,7 +200,7 @@ step_uninstall() {
     # 7. Wallpaper / first-run script
     #    (no Plank dconf override to remove — we never wrote one)
     # -------------------------------------------------------------------------
-    echo "--> Removing wallpaper and first-run script..."
+    oem_tty_say "--> Removing wallpaper and first-run script…"
     rm -rf /usr/share/backgrounds/oem-setup
     rm -f  /usr/local/bin/oem-first-run.sh
     rm -f  /usr/share/applications/oem-workspace-overview.desktop
@@ -217,7 +215,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 8. Web-app shortcuts (.desktop + icons)
     # -------------------------------------------------------------------------
-    echo "--> Removing web-app shortcuts and icons..."
+    oem_tty_say "--> Removing web-app shortcuts and icons…"
     local WEBAPP_NAMES=(
         Netflix PrimeVideo DisneyPlus HBOMax Spotify YouTube
         Gmail GoogleDocs GoogleSheets GoogleSlides GoogleDrive Gemini ChromeRemoteDesktop
@@ -239,7 +237,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 9. Terminal — bracketed paste fix
     # -------------------------------------------------------------------------
-    echo "--> Reverting terminal paste fix..."
+    oem_tty_say "--> Reverting terminal paste fix…"
     if ! restore_or_skip /etc/inputrc; then
         if [ -f /etc/inputrc ]; then
             sed -i '/^set enable-bracketed-paste off$/d' /etc/inputrc
@@ -253,7 +251,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 10. Regional — keyboard, locale, timezone
     # -------------------------------------------------------------------------
-    echo "--> Reverting regional settings..."
+    oem_tty_say "--> Reverting regional settings…"
     if ! restore_or_skip /etc/default/keyboard; then
         if [ -f /etc/default/keyboard ]; then
             sed -i 's/XKBLAYOUT=".*"/XKBLAYOUT="us"/' /etc/default/keyboard
@@ -268,7 +266,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 11. /etc/skel cleanup — files this toolkit placed there
     # -------------------------------------------------------------------------
-    echo "--> Cleaning /etc/skel artefacts..."
+    oem_tty_say "--> Cleaning /etc/skel artefacts…"
     # Current artefacts
     rm -f  /etc/skel/.config/autostart/oem-first-run.desktop
     rm -f  /etc/skel/.config/autostart/touchegg-client.desktop
@@ -292,7 +290,7 @@ step_uninstall() {
     # -------------------------------------------------------------------------
     # 12. Per-user cleanup (every uid >= 1000 plus $SUDO_USER, deduped)
     # -------------------------------------------------------------------------
-    echo "--> Cleaning per-user artefacts..."
+    oem_tty_say "--> Cleaning per-user artefacts…"
 
     # Helper that removes all toolkit artefacts from a single home directory.
     # Accepts the home path as its first argument.
@@ -377,7 +375,7 @@ step_uninstall() {
     # 13. Clear oem-setup state markers so a future `setup.sh` doesn't think
     #     the toolkit is already applied.
     # -------------------------------------------------------------------------
-    echo "--> Clearing oem-setup state markers..."
+    oem_tty_say "--> Clearing oem-setup state markers…"
     rm -rf /var/lib/oem-setup/state
     rm -f /var/lib/oem-setup/diagnostics-report.txt
 
@@ -385,23 +383,25 @@ step_uninstall() {
     # 14. /tmp residue + final autoremove
     # -------------------------------------------------------------------------
     step_cleanup
-    apt-get autoremove --purge -y 2>/dev/null || true
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y 2>/dev/null || true
 
     # -------------------------------------------------------------------------
     # 15. Closing summary
     # -------------------------------------------------------------------------
-    echo ""
-    echo "========================================="
-    echo "         UNINSTALL COMPLETE              "
-    echo "========================================="
+    oem_tty_say \
+        "" \
+        "=========================================" \
+        "         UNINSTALL COMPLETE              " \
+        "========================================="
     if [ ${#UNINSTALL_NOTES[@]} -gt 0 ]; then
-        echo "Best-effort caveats (items the toolkit cannot fully reverse):"
+        oem_tty_say "Best-effort caveats (items the toolkit cannot fully reverse):"
         for n in "${UNINSTALL_NOTES[@]}"; do
-            echo "  - $n"
+            oem_tty_say "  - $n"
         done
-        echo ""
+        oem_tty_say ""
     fi
-    echo "Backups (if present) remain at: $BACKUP_DIR"
-    echo "Reboot is recommended to pick up grub/initramfs and keyboard changes."
-    echo "========================================="
+    oem_tty_say \
+        "Backups (if present) remain at: $BACKUP_DIR" \
+        "Reboot is recommended to pick up grub/initramfs and keyboard changes." \
+        "========================================="
 }

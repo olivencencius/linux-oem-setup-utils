@@ -77,23 +77,24 @@ step_regional() {
         prompt_keyboard
     fi
 
-    echo "--> Configuring regional settings..."
+    oem_tty_say "--> Configuring regional settings (language packs, locale, timezone)…"
     ensure_apt_fresh
-    apt-get install -y language-pack-pl language-pack-gnome-pl \
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y language-pack-pl language-pack-gnome-pl \
                        language-pack-en language-pack-gnome-en \
                        locales
 
     # Belt-and-braces: language-pack-pl normally enables pl_PL.UTF-8 in
     # /etc/locale.gen, but on a fresh OEM image it's not always rebuilt
     # until the next boot. Generate explicitly so localectl can switch.
-    locale-gen pl_PL.UTF-8 en_US.UTF-8 || true
+    oem_tty_say "--> Running locale-gen, localectl, timedatectl…"
+    oem_run_log locale-gen pl_PL.UTF-8 en_US.UTF-8 || true
 
-    localectl set-locale LANG=pl_PL.UTF-8
-    timedatectl set-timezone Europe/Warsaw
+    oem_run_log localectl set-locale LANG=pl_PL.UTF-8
+    oem_run_log timedatectl set-timezone Europe/Warsaw
 
-    echo "--> Applying $KB_LAYOUT physical keyboard layout..."
+    oem_tty_say "--> Applying $KB_LAYOUT physical keyboard layout (setupcon)…"
     backup_once /etc/default/keyboard
     sed -i "s/XKBLAYOUT=.*/XKBLAYOUT=\"$KB_LAYOUT\"/g" /etc/default/keyboard
     sed -i 's/^XKBVARIANT=.*/XKBVARIANT=""/g'           /etc/default/keyboard
-    setupcon
+    oem_run_log setupcon
 }
