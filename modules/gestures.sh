@@ -9,7 +9,7 @@
 #              REPO_DIR/assets/configs/oem-workspace-overview.desktop
 #              SUDO_USER (optional, for live-session client)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: wmctrl, xdotool, touchegg, xfdashboard
+#   Writes:    apt: wmctrl, xdotool, touchegg (repo, PPA, or GitHub .deb), xfdashboard
 #              /usr/share/applications/oem-workspace-overview.desktop
 #              /etc/touchegg/touchegg.conf
 #              systemd: enables + starts touchegg.service
@@ -32,9 +32,67 @@
 
 # Touchegg lives in Ubuntu “universe”; minimal / OEM images sometimes ship with
 # only main, which yields: “package touchegg is not available but is referred
-# to by another package”. Fall back to the upstream Touchégg PPA if needed.
+# to by another package”. Fall back to ppa:touchegg/stable, then to the official
+# GitHub .deb (same bits upstream publishes)—works when mirrors/Launchpad are broken.
 _gestures_touchegg_candidate() {
     apt-cache policy touchegg 2>/dev/null | sed -n 's/^[[:space:]]*Candidate:[[:space:]]*//p' | head -n1
+}
+
+# Pin occasionally for reproducible OEM runs. Override full URL with TOUCHEGG_DEB_URL.
+_gestures_install_touchegg_from_github_deb() {
+    local ver td url deb arch
+    ver="${TOUCHEGG_DEB_VERSION:-2.0.18}"
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64) deb="touchegg_${ver}_amd64.deb" ;;
+        *)
+            oem_tty_say \
+                "    [!] GitHub .deb fallback is only published for x86_64 (this system is ${arch})."
+            return 1
+            ;;
+    esac
+
+    if [ -n "${TOUCHEGG_DEB_URL:-}" ]; then
+        url="$TOUCHEGG_DEB_URL"
+    else
+        url="https://github.com/JoseExposito/touchegg/releases/download/${ver}/${deb}"
+    fi
+
+    td=$(mktemp -d "${TMPDIR:-/tmp}/oem-touchegg.XXXXXX") || return 1
+
+    # GNU wget: --show-progress needs stderr on a real TTY (see modules/chrome.sh).
+    oem_tty_say "--> Downloading touchegg .deb…" "    [.] ${url}"
+    oem_tty_say "    [.] Starting wget…"
+    if ! wget \
+        --continue \
+        --show-progress \
+        --timeout=30 \
+        --tries=3 \
+        -O "$td/$deb" \
+        "$url" \
+        2>&3
+    then
+        oem_tty_say \
+            "    [!] wget failed — check network or set TOUCHEGG_DEB_URL to a local copy (supports file:///…)."
+        rm -rf "$td"
+        return 1
+    fi
+
+    if [ ! -s "$td/$deb" ]; then
+        oem_tty_say "    [!] Downloaded .deb is missing or empty."
+        rm -rf "$td"
+        return 1
+    fi
+
+    oem_tty_say "--> Installing touchegg from downloaded .deb (apt resolves dependencies)…"
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y "$td/$deb" </dev/null >&3 2>&3
+    local ec=$?
+    rm -rf "$td"
+    return "$ec"
+}
+
+_gestures_touchegg_pkg_installed() {
+    dpkg-query -W -f='${Status}' touchegg 2>/dev/null | grep -q 'install ok installed'
 }
 
 _gestures_ensure_touchegg_apt_source() {
@@ -63,17 +121,25 @@ _gestures_ensure_touchegg_apt_source() {
 
     oem_tty_say "--> touchegg still unavailable; adding ppa:touchegg/stable…"
     env DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:touchegg/stable \
-        </dev/null >&3 2>&3
+        </dev/null >&3 2>&3 || true
     unset OEM_APT_FRESH 2>/dev/null || true
     ensure_apt_fresh
 
     cand="$(_gestures_touchegg_candidate)"
-    if [[ -z "$cand" || "$cand" == "(none)" ]]; then
-        oem_tty_say \
-            "    [!] touchegg still has no apt Candidate — check sources.list, offline mirror, or install touchegg manually."
-        return 1
+    if [[ -n "$cand" && "$cand" != "(none)" ]]; then
+        return 0
     fi
-    return 0
+
+    oem_tty_say "--> touchegg still not in apt; installing official .deb from GitHub…"
+    if _gestures_install_touchegg_from_github_deb && _gestures_touchegg_pkg_installed; then
+        unset OEM_APT_FRESH 2>/dev/null || true
+        ensure_apt_fresh
+        return 0
+    fi
+
+    oem_tty_say \
+        "    [!] touchegg could not be installed. Fix apt/network or pre-stage a .deb and set TOUCHEGG_DEB_URL."
+    return 1
 }
 
 step_gestures_and_workspaces() {

@@ -16,6 +16,10 @@ the full pipeline so `oem-first-run.sh` can create that dockitem.
 ## Inputs
 
 - `ensure_apt_fresh` (helper from `setup.sh`).
+- Optional environment overrides for the GitHub `.deb` fallback:
+  **`TOUCHEGG_DEB_URL`** — full URL or `file:///…` to a `.deb` when GitHub is unreachable;
+  **`TOUCHEGG_DEB_VERSION`** — release tag used to build the default download URL
+  (default `2.0.18`; bump when pinning a newer upstream release).
 - `$REPO_DIR/assets/configs/touchegg.conf` — the system-wide binding
   profile.
 - `$REPO_DIR/assets/configs/oem-workspace-overview.desktop` — menu / Plank
@@ -74,12 +78,18 @@ will silently no-op the 4-finger gestures.
 If `apt-cache policy touchegg` shows **Candidate: (none)** (common on minimal
 Xubuntu when **universe** is not enabled), the module enables `universe`,
 runs `apt-get update` again, and if `touchegg` is still missing adds
-**`ppa:touchegg/stable`**, then updates again. It may install
+**`ppa:touchegg/stable`** (failure tolerated), updates again, and if `touchegg`
+is **still** not installable, downloads the official **`touchegg_*_amd64.deb`**
+from **JoseExposito/touchegg** on GitHub and runs **`apt-get install` on that
+file** so dependencies resolve from the working distro mirrors. It may install
 **`software-properties-common`** when `add-apt-repository` is not present.
+
+If GitHub must not be used, set **`TOUCHEGG_DEB_URL=file:///path/to/touchegg_*_amd64.deb`**
+before `setup.sh`.
 
 ```bash
 ensure_apt_fresh
-# _gestures_ensure_touchegg_apt_source — universe, then ppa:touchegg/stable if needed
+# _gestures_ensure_touchegg_apt_source — universe, PPA, then GitHub .deb if needed
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   wmctrl xdotool touchegg xfdashboard </dev/null >&3 2>&3
 install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
