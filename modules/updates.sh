@@ -2,7 +2,7 @@
 # ==============================================================================
 #   Module:    updates.sh
 #   Purpose:   Bring the base system up to date and install universal
-#              prerequisites (codecs, base tools, ZRAM, TLP). Exports
+#              prerequisites (base tools, ZRAM, TLP). Exports
 #              OEM_APT_FRESH=1 so later modules' ensure_apt_fresh calls no-op.
 #   Reads:     (nothing — runs the real apt-get update itself)
 #   Writes:    apt: git, wget, curl, xinput, gimp, zram-tools, tlp

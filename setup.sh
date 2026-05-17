@@ -2,7 +2,7 @@
 # ==============================================================================
 #   Chromebook OEM Deployment Engine
 #   Converts MrChromebox-flashed x86 Chromebooks into market-ready Linux
-#   Mint XFCE or Xubuntu machines optimised for resale. Run as root from the cloned repository.
+#   Xubuntu LTS machines optimised for resale. Run as root from the cloned repository.
 #
 #   Usage (recommended — single command, no pre-installed dependencies):
 #     curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
@@ -183,6 +183,7 @@ source "$REPO_DIR/modules/uninstall.sh"
 #     - prompt_keyboard FIRST so the rest can run unattended
 #     - chrome + zoom + apps + web_apps BEFORE themes so the .desktop files
 #       referenced by Plank already exist when /etc/skel is staged
+#     - xubuntu_boot AFTER hardware_fixes so GRUB merges HPET + silent-boot tokens cleanly
 #     - gestures_and_workspaces AFTER web_apps and BEFORE themes so xfdashboard
 #       and oem-workspace-overview.desktop exist before oem-first-run.sh seeds Plank
 # ==============================================================================
@@ -192,6 +193,7 @@ run_full_pipeline() {
     run_step cleanup
     run_step updates
     run_step hardware_fixes
+    run_step xubuntu_boot
     run_step chrome
     run_step zoom
     run_step apps
@@ -230,16 +232,16 @@ while true; do
         echo "        CHROMEBOOK DEPLOYMENT ENGINE     "
         echo "========================================="
         echo " 1)  Run entire pipeline (recommended for fresh setup)"
-        echo " 2)  Xubuntu/Ubuntu boot optimisations (optional — not in pipeline)"
+        echo " 2)  Boot optimisations only (re-apply; also runs in option 1 pipeline)"
         echo " 3)  Run system updates and dependency installation"
         echo " 4)  Run Chromebook hardware fixes and patches"
         echo " 5)  Install Google Chrome"
         echo " 6)  Install Zoom"
         echo " 7)  Install standard apps (VLC + games)"
         echo " 8)  Inject branded web-app shortcuts"
-        echo " 9)  Workspace overview, gestures, Plank dock and wallpaper"
-        echo " 10) Apply touchpad calibration and scroll speed fix"
-        echo " 11) Apply touchpad gestures and install workspace overview"
+        echo " 9)  Workspace overview, libinput-gestures, Plank dock and wallpaper"
+        echo " 10) Apply touchpad calibration and scroll speed fix (libinput)"
+        echo " 11) Libinput gestures + xfdashboard only (skips Plank / wallpaper)"
         echo " 12) Apply terminal paste fix"
         echo " 13) Adjust region, language and keyboard layout"
         echo " 14) Run hardware diagnostics report"
@@ -280,6 +282,6 @@ oem_tty_say \
     "=========================================" \
     "" \
     "REMINDER: Once you have rebooted and verified the setup, double-click" \
-    "  the 'Prepare for shipping to end user' icon on the desktop," \
-    "  enter the OEM password, then shut down the machine." \
+    "  'Prepare for shipping to end user' on the desktop (or run" \
+    "  sudo oem-prepare-shipping), then shut down when the tool says you may." \
     "========================================="

@@ -46,7 +46,7 @@ fi
 `grep -qxF` (-x exact line, -F fixed string) protects against
 appending duplicate lines on a re-run.
 
-`/etc/skel/.inputrc` may not exist on a fresh Mint install. The
+`/etc/skel/.inputrc` may not exist on a fresh Xubuntu install. The
 `grep … 2>/dev/null` suppresses the error so the `if !` simply
 evaluates true, and we append the line, creating the file if needed.
 

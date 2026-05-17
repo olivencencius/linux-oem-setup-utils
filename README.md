@@ -1,7 +1,7 @@
 # Chromebook Linux OEM deployment
 
 A modular, automated deployment toolkit that converts MrChromebox-flashed
-x86 / Intel Chromebooks into market-ready **Linux Mint XFCE** or **Xubuntu**
+x86 / Intel Chromebooks into market-ready **Xubuntu LTS**
 machines with a ChromeOS-like layout. Built for resale velocity on 4 GB RAM
 hardware: hardware fixes, sensible defaults, dock-pinned apps, and a
 single-command bootstrap.
@@ -12,18 +12,18 @@ single-command bootstrap.
   parameters (CELES HPET, Tiger/AlderLake USB-C), all detected
   automatically.
 - **ChromeOS-like UX** — Plank dock with pinned apps, Malta wallpaper, top
-  panel layout, natural scrolling, multi-finger gestures (touchegg +
+  panel layout, natural scrolling, multi-finger gestures (libinput-gestures +
   xfdashboard). GTK/icon themes follow **distro defaults** (no custom theme
   packages from this toolkit).
 - **Performance defaults for 4 GB eMMC** — ZRAM memory compression and
   TLP power management.
-- **Optional Xubuntu/Ubuntu boot tweaks** — menu option **2** only (not part of
-  the default pipeline): systemd + GRUB changes for faster, quieter boot when
-  you choose to apply them.
+- **Boot polish** — systemd + GRUB + Plymouth for faster, quieter boot and
+  less TTY flicker; applied automatically in the full pipeline (menu **2**
+  re-applies the same step if needed).
 - **Apps and shortcuts** — Google Chrome (with self-updating Google apt
-  repo), Zoom, VLC, GIMP, three games, 11 Chrome web-app launchers
-  (Netflix, Prime Video, Disney+, Max, YouTube, Spotify, Gmail, Docs,
-  Drive, Gemini, Chrome Remote Desktop).
+  repo), Zoom, VLC, GIMP, three games, 13 Chrome web-app launchers
+  (Netflix, Prime Video, Disney+, Max, YouTube, Spotify, Gmail, Google Docs,
+  Sheets, Slides, Drive, Gemini, Chrome Remote Desktop).
 - **Full undo** — a single menu option reverses every change the toolkit
   makes.
 
@@ -32,7 +32,8 @@ OS installer or image if you need them.
 
 ## How to run it
 
-On a Chromebook freshly OEM-installed with Linux Mint XFCE or Xubuntu:
+On a Chromebook running **Xubuntu LTS** with a technician account (ideally the
+standard **`oem`** account from the OEM install workflow):
 
 1. Log into the temporary `oem` desktop and connect to Wi-Fi.
 2. Open a terminal.
@@ -46,13 +47,13 @@ On a Chromebook freshly OEM-installed with Linux Mint XFCE or Xubuntu:
    question, then watch the screen during *hardware fixes* — the
    upstream audio and keyboard installers may ask which top-row layout
    you want.  
-   **Xubuntu only (optional):** **menu option 2** applies systemd + GRUB boot
-   tweaks when you want them — it is **never** run automatically as part of
-   option 1; choose it explicitly before or after the pipeline if desired.
+   Boot optimisations run **automatically** as part of option **1** (after
+   hardware fixes). **Menu option 2** only re-runs that step in isolation.
 5. When the pipeline finishes, **reboot**.
 6. Run the per-machine [handover QA checklist](docs/handover-qa.md).
-7. Double-click the **Prepare for shipping to end user** icon on the
-   desktop, enter the OEM password, then shut down.
+7. Double-click **Prepare for shipping to end user** on the desktop (or run
+   `sudo oem-prepare-shipping` in a terminal), complete the prompts, then shut
+   down when ready.
 
 The buyer creates their own user account on first boot.
 
@@ -91,11 +92,11 @@ linux-oem-setup-utils/
 ├── setup.sh           entry point: helpers, menu, full pipeline orchestrator
 ├── modules/           one .sh file per pipeline step
 ├── assets/            files installed onto the deployed machine
-│   ├── configs/       touchegg, workspace overview .desktop
-│   ├── icons/         11 web-app icons
-│   ├── scripts/       oem-first-run.sh (per-user wallpaper + dock)
+│   ├── configs/       libinput-gestures, workspace overview, OEM handover .desktop
+│   ├── icons/         13 web-app icons (SVG)
+│   ├── scripts/       oem-first-run.sh, oem-add-workspace.sh, oem-prepare-shipping.sh
 │   └── wallpapers/    malta.jpg
-├── skel/              copied verbatim to /etc/skel (user defaults)
+├── skel/              copied to /etc/skel; step_themes adds Desktop launcher
 ├── docs/              full technical documentation — start at docs/README.md
 └── LICENSE
 ```

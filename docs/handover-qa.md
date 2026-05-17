@@ -13,17 +13,26 @@ go through anyway.
 
 ---
 
-## Boot (optional — menu option 2)
+## Boot (after full pipeline)
 
-Use **menu option 2** only when you want Xubuntu/Ubuntu-style boot tweaks;
-it is **not** part of menu option 1 (full pipeline). After running it,
-**reboot**. To compare startup blocking units:
+**`step_xubuntu_boot`** runs automatically **after `hardware_fixes`** in menu
+option **1** (Plymouth, systemd tuning, GRUB quiet / splash / `systemd.show_status=no`,
+and **`vt.handoff=7`** only when stock GRUB does not already inject **`vt_handoff`**).
+Use **menu option 2** to re-apply the same step in isolation (for example after
+manually clearing state markers).
+
+After deployment, **reboot** once before subjective QA. Quick checks:
 
 ```bash
+grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub
+grep -E 'linux.*/vmlinuz' /boot/grub/grub.cfg | head -1    # confirm no duplicate vt.handoff if Ubuntu injects $vt_handoff
+plymouth-set-default-theme -l 2>/dev/null | head -5
 systemd-analyze time
 systemd-analyze blame --no-pager | head -25
-systemd-analyze critical-chain --no-pager | head -40
 ```
+
+Goal: Plymouth / splash where possible, minimal **TTY1** **login:** visibility before
+LightDM. A brief flash can still be GPU/driver-specific.
 
 Menu option **14** writes excerpts under **Boot (systemd)** in
 `/var/lib/oem-setup/diagnostics-report.txt`.
@@ -105,7 +114,7 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 - [ ] Malta wallpaper is shown on every connected display (the
       first-run script applies it to every detected monitor).
 - [ ] GTK and icon themes match **distro defaults** (this toolkit does
-      not force Mint-Y, Papirus, or other theme packages). Optional sanity:
+      not force custom theme packages). Optional sanity:
   ```
   xfconf-query -c xsettings -p /Net/ThemeName
   xfconf-query -c xsettings -p /Net/IconThemeName
@@ -114,11 +123,20 @@ work; the 4-finger ones silently no-op on unsupported hardware.
       whose `.desktop` exists. Order: App Finder, workspace overview
       (`xfdashboard`), Chrome, Settings, **Files** (Thunar — `thunar` or
       `org.xfce.thunar` .desktop), **software centre** (first match among
-      Mint/Ubuntu `.desktop` names), VLC, Zoom, then web apps (Gmail, Docs,
+      Ubuntu `.desktop` names), VLC, Zoom, then web apps (Gmail, Docs,
       Sheets, Slides, Drive, Gemini, YouTube, Spotify) when those shortcuts
       exist. If an installer failed (e.g. Zoom), that icon is simply absent.
+- [ ] **Top panel:** a **workspace pager** (numbered workspace buttons) is
+      visible; **xfwm4** has at least **four** virtual desktops with named
+      desks **Web / Work / Media / Misc** when the count is exactly four after
+      first-run (buyers who add desks later keep xfwm’s default naming).
+- [ ] **Window switcher:** **Super+Tab** opens **rofi** window mode (icons on)
+      for quick window picking — complementary to **3-finger swipe up**
+      → **`xfdashboard`** spatial overview.
+- [ ] **Add workspace:** **Super+Insert** increments the xfwm workspace count
+      (via `/usr/local/bin/oem-add-workspace.sh`), capped at 32.
 - [ ] **Workspace overview:** the workspace-overview item opens `xfdashboard`;
-      the same action is bound to **3-finger swipe up** (Touchegg).
+      the same action is bound to **3-finger swipe up** (**libinput-gestures**, after reboot or fresh login once **group input** applies).
 - [ ] **Chromebook top-row overview key** (often the “scale” icon next to
       brightness): should launch the same **`xfdashboard`** view. If it does
       nothing on your board, note the keysym with `xev` and extend
@@ -166,17 +184,23 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 - [ ] `systemctl status tlp.service` → `active (exited)` (TLP is a
       oneshot at boot).
-- [ ] `systemctl status touchegg.service` → `active (running)`.
+- [ ] Gestures helpers: **`/etc/xdg/autostart/libinput-gestures.desktop`** exists;
+      **`groups $(whoami)`** includes **`input`** for the QA account (`id -nG`).
+- [ ] `pgrep -af libinput-gestures` shows a process once you are logged into the graphical session (not a systemd unit).
 - [ ] Closing the lid suspends; opening it resumes.
 
 ## Final OEM hand-off
 
 - [ ] Reboot one more time.
-- [ ] Double-click the **Prepare for shipping to end user** desktop
-      icon (this triggers `oem-config-prepare` on the live oem
-      session — the distro OEM handover step, not part of this
-      toolkit).
-- [ ] Enter the OEM password.
+- [ ] **`oem-config` installed:** `command -v oem-config-prepare` succeeds;
+      `dpkg -l oem-config oem-config-gtk` shows both packages (after `step_themes`).
+- [ ] Double-click **Prepare for shipping to end user** on the desktop
+      (installed by this toolkit) **or** run `sudo oem-prepare-shipping` in a
+      terminal. This invokes **`oem-config-prepare`** (Ubuntu OEM handover).
+      A dedicated technician **`oem`** account (Canonical OEM workflow) is
+      **recommended** so first-boot cleanup matches OEM expectations; other
+      admin accounts may still work but are less tested.
+- [ ] Complete the prompts / authentication (e.g. polkit password) as requested.
 - [ ] Wait for the *Ready for shipping* / shutdown screen, then power
       the machine off.
 
@@ -198,6 +222,7 @@ and every shortcut.
 | Dock / Plank missing or short an icon | First-run script didn't run, or a `.desktop` was missing at first-run time | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login; ensure `step_gestures_and_workspaces` ran before `step_themes` when reprovisioning |
 | Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5–8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
+| Handover icon missing | `step_themes` did not run or XFCE Desktop dir differs | Re-run option **1** or **9**; or run `sudo oem-prepare-shipping`; check `~/Desktop/oem-prepare-shipping.desktop` |
 
 Anything not in this table: read `/var/log/oem-setup.log` (best-effort transcript
 — upstream hardware installers are terminal-only).

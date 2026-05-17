@@ -22,7 +22,9 @@ Two related responsibilities:
 
 - `$STATE_DIR/kb_layout` (persisted choice from a previous run).
 - `ensure_apt_fresh` and `backup_once` (helpers from `setup.sh`).
-- `/dev/tty` (the keyboard prompt reads from it).
+- `/dev/tty` — the keyboard prompt reads the answer from it (menu text is
+  printed to **fd 3** via `oem_tty_say`-style output so it stays visible
+  under the `tee` pipeline).
 
 ## Outputs
 
@@ -38,7 +40,7 @@ System files:
   pipeline doesn't re-ask.
 - `/etc/default/keyboard` — `XKBLAYOUT="$KB_LAYOUT"` and
   `XKBVARIANT=""` (any non-empty variant is cleared to avoid carrying
-  forward a wrong one from the Mint installer).
+  forward a wrong one from the OS installer).
 - `/etc/locale.gen` (touched by `locale-gen`) — `pl_PL.UTF-8` and
   `en_US.UTF-8` ensured enabled.
 - `/etc/default/locale` (via `localectl`) — `LANG=pl_PL.UTF-8`.
@@ -61,16 +63,16 @@ prompt_keyboard() {
         return
     fi
 
-    # ... print menu ...
-    read -p "Enter number [1-5]: " kb_choice < /dev/tty
+    # Menu echoed to fd 3; answer read from /dev/tty (see source).
+    read -r kb_choice < /dev/tty || true
 
-    case $kb_choice in
+    case "${kb_choice:-}" in
         1) KB_LAYOUT="us" ;;
         2) KB_LAYOUT="gb" ;;
         3) KB_LAYOUT="de" ;;
         4) KB_LAYOUT="se" ;;
         5) KB_LAYOUT="pl" ;;
-        *) KB_LAYOUT="us" ;;
+        *) KB_LAYOUT="us" ;;   # invalid → US, with a tty message
     esac
     export KB_LAYOUT
     echo "$KB_LAYOUT" > "$STATE_DIR/kb_layout"
@@ -81,12 +83,12 @@ prompt_keyboard() {
   `/var/lib/oem-setup/state/kb_layout`. A resumed pipeline reads it
   and skips the prompt. To re-prompt: delete that file (or `rm -rf`
   the whole state dir).
-- **`< /dev/tty`** is required because under `curl … | sudo bash`
-  stdin is the curl pipe, not the terminal.
-- **Invalid input falls back to `us`** rather than re-prompting in
-  a loop. The technician sees a clear `[!] Invalid input — defaulting`
-  message and can re-run option 13 to change it if needed. This
-  prevents an infinite re-prompt loop in scripted setups.
+- **TTY split**: the menu must not print only to stdout (it is fully
+  buffered when piped through `tee`). **`prompt_keyboard`** writes the
+  menu to **fd 3** and reads the answer from **`/dev/tty`**, matching
+  the `setup.sh` menu pattern.
+- **Invalid input** falls back to **`us`** with an **`oem_tty_say`** message
+  (no re-prompt loop — safer for scripted / `curl | bash` runs).
 - Five layouts are offered because they cover ~99% of OEM machines
   for this seller's market (US, UK, DE, SE, PL).
 
@@ -123,7 +125,7 @@ Five sub-steps:
 2. **Install language packs** for Polish (the deployment target) and
    English (the buyer's likely fallback). `language-pack-gnome-*`
    pulls in GNOME app translations even though XFCE is the desktop —
-   many apps in Mint are GNOME-derived.
+   many apps on Xubuntu are GNOME-derived.
 3. **`locale-gen pl_PL.UTF-8 en_US.UTF-8 || true`** — belt and
    braces. `language-pack-pl` normally enables `pl_PL.UTF-8` in
    `/etc/locale.gen`, but on a fresh OEM image the locale isn't
@@ -133,7 +135,7 @@ Five sub-steps:
 4. **`localectl` + `timedatectl`** apply locale and timezone.
 5. **Keyboard layout** via two `sed` operations on
    `/etc/default/keyboard` followed by `setupcon`. The `XKBVARIANT=""`
-   wipe is critical: if the Mint installer left a variant set (e.g.
+   wipe is critical: if the installer left a variant set (e.g.
    `XKBVARIANT="winkeys"` for a non-existent winkeys variant), `setupcon`
    would fail to apply the layout.
 
@@ -146,7 +148,7 @@ Five sub-steps:
   inside `do_step`'s subshell or via menu option 13) can read it.
 - **Timezone is hard-coded** to `Europe/Warsaw`. The buyer changes it
   in the OEM welcome wizard if they want; this is just the default.
-- **`setupcon`** is the Ubuntu/Mint command that re-applies the
+- **`setupcon`** is the Ubuntu command that re-applies the
   `/etc/default/keyboard` config to the running session's console and
   X server. Without it the file change wouldn't take effect until the
   next boot.

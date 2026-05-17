@@ -52,7 +52,7 @@ devices (`nmcli`), Bluetooth, `xinput` summary, lid / IIO sensors.
 Examples: default PipeWire/Pulse sink/source not null and not muted; `keyd`
 active with `/etc/keyd/*.conf`; touchpad snippet + `xinput` detection; webcam
 nodes + kernel module heuristic; CELES HPET cmdline; Tiger/AlderLake USB-C
-modules + initramfs listing; TLP enabled; ZRAM present; `touchegg` active; all
+modules + initramfs listing; TLP enabled; ZRAM present; **`libinput-gestures`** install/live-process heuristic; all
 13 web-app `.desktop` files; OEM wallpaper; suspend capability; writable backlight.
 
 Each `[FAIL]` includes a one-line hint naming the relevant **`setup.sh`** menu

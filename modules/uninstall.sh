@@ -46,11 +46,11 @@ step_uninstall() {
         "=========================================" \
         "This will remove every package and config change this toolkit made:" \
         "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools," \
-        "          imwheel (legacy), plank, touchegg, xfdashboard, keyd," \
+        "          imwheel (legacy), legacy Debian touchegg (if present), plank, xfdashboard, rofi, keyd," \
         "          language packs," \
-        "          games (SuperTuxKart, Aisleriot, Quadrapassel)" \
+        "          OEM handover helpers (oem-config), games (SuperTuxKart, Aisleriot, Quadrapassel)," \
         "  - Remove Google Chrome apt repository and signing key" \
-        "  - Revert optional Xubuntu boot optimisations (systemd + GRUB silent-boot tokens)" \
+        "  - Revert boot optimisations (systemd + GRUB silent-boot tokens + Plymouth-related kernel params)" \
         "  - Revert /etc/default/grub, /etc/initramfs-tools/modules," \
         "          /etc/inputrc, /etc/default/keyboard" \
         "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run" \
@@ -70,6 +70,7 @@ step_uninstall() {
     # 1. Stop running services & user helpers BEFORE purging their packages
     # -------------------------------------------------------------------------
     oem_tty_say "--> Stopping services…"
+    pkill -f '/usr/bin/libinput-gestures'                       2>/dev/null || true
     for svc in tlp touchegg keyd; do
         if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.service"; then
             systemctl disable --now "$svc" 2>/dev/null || true
@@ -79,7 +80,7 @@ step_uninstall() {
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
         # Legacy: imwheel was removed from the toolkit; kill it on old installs.
         sudo -u "$SUDO_USER" pkill -x imwheel              2>/dev/null || true
-        sudo -u "$SUDO_USER" pkill -f 'touchegg --client'  2>/dev/null || true
+        sudo -u "$SUDO_USER" pkill -f '/usr/bin/libinput-gestures'  2>/dev/null || true
         # Plank is the active ChromeOS-style dock — stop it before purging so
         # the running process does not hold open dbus / file handles.
         sudo -u "$SUDO_USER" pkill -x plank                2>/dev/null || true
@@ -93,6 +94,8 @@ step_uninstall() {
     oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get purge -y \
         google-chrome-stable \
         zoom \
+        oem-config \
+        oem-config-gtk \
         vlc \
         supertuxkart \
         aisleriot \
@@ -109,6 +112,7 @@ step_uninstall() {
         touchegg \
         xfdashboard \
         wmctrl \
+        rofi \
         xdotool \
         keyd \
         || true
@@ -155,6 +159,9 @@ step_uninstall() {
         if [ -f /etc/default/grub ]; then
             sed -i 's/clocksource=hpet hpet=force //g' /etc/default/grub
             sed -i -e 's/ vt\.global_cursor_default=0//g' \
+                -e 's/ rd\.systemd\.show_status=no//g' \
+                -e 's/ systemd\.show_status=no//g' \
+                -e 's/ vt\.handoff=7//g' \
                 -e 's/ loglevel=3//g' \
                 -e 's/ splash//g' \
                 -e 's/ quiet//g' \
@@ -192,9 +199,21 @@ step_uninstall() {
     # 6. Touchpad / gestures config
     # -------------------------------------------------------------------------
     oem_tty_say "--> Removing touchpad and gestures config…"
+    if [ -x /usr/bin/libinput-gestures-setup ]; then
+        env DEBIAN_FRONTEND=noninteractive \
+            /usr/bin/libinput-gestures-setup uninstall </dev/null >&3 2>/dev/null || true
+    fi
+    rm -f /etc/xdg/autostart/libinput-gestures.desktop
+    rm -f /etc/libinput-gestures.conf
+    rm -rf /var/cache/oem-setup/libinput-gestures-src
+    rm -rf /usr/share/doc/libinput-gestures
+    rm -rf /etc/touchegg
+
     rm -f /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf
-    rm -f /etc/touchegg/touchegg.conf
-    rmdir --ignore-fail-on-non-empty /etc/touchegg 2>/dev/null || true
+    if ! restore_or_skip /etc/adduser.conf; then
+        note "Could not restore /etc/adduser.conf from backup — check EXTRA_GROUPS (input)."
+    fi
+    note "User accounts keep supplemental group \"input\" after uninstall (best-effort; harmless on typical desktops)."
 
     # -------------------------------------------------------------------------
     # 7. Wallpaper / first-run script
@@ -203,6 +222,9 @@ step_uninstall() {
     oem_tty_say "--> Removing wallpaper and first-run script…"
     rm -rf /usr/share/backgrounds/oem-setup
     rm -f  /usr/local/bin/oem-first-run.sh
+    rm -f  /usr/local/bin/oem-prepare-shipping
+    rm -f  /usr/local/bin/oem-add-workspace.sh
+    rm -f  /usr/share/applications/oem-prepare-shipping.desktop
     rm -f  /usr/share/applications/oem-workspace-overview.desktop
 
     # Legacy: clean up any dconf/Plank artefacts left by earlier toolkit revisions.
@@ -270,6 +292,9 @@ step_uninstall() {
     # Current artefacts
     rm -f  /etc/skel/.config/autostart/oem-first-run.desktop
     rm -f  /etc/skel/.config/autostart/touchegg-client.desktop
+    rm -f  /etc/skel/.config/autostart/libinput-gestures.desktop
+    rm -f  /etc/skel/Desktop/oem-prepare-shipping.desktop
+    rmdir --ignore-fail-on-non-empty /etc/skel/Desktop 2>/dev/null || true
     rm -f  /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
     # Legacy artefacts (imwheel, plank, gtk-4.0 symlinks from earlier revisions)
     rm -f  /etc/skel/.imwheelrc
@@ -302,7 +327,9 @@ step_uninstall() {
         rm -f  "$home/.config/.oem-first-run-done"
         rm -f  "$home/.config/autostart/oem-first-run.desktop"
         rm -f  "$home/.config/autostart/touchegg-client.desktop"
+        rm -f  "$home/.config/autostart/libinput-gestures.desktop"
         rm -f  "$home/.config/autostart/plank.desktop"
+        rm -f  "$home/Desktop/oem-prepare-shipping.desktop"
         rm -f  "$home/.config/autostart/imwheel.desktop"      # legacy
         rm -f  "$home/.imwheelrc"                             # legacy
         rm -f  "$home/.config/gtk-4.0/"{assets,gtk.css,gtk-dark.css}  # legacy

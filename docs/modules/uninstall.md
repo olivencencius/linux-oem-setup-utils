@@ -3,8 +3,8 @@
 ## Purpose
 
 Best-effort reversal of every change this toolkit makes. Returns the
-machine toward a stock OEM-installed **Linux Mint XFCE** or **Xubuntu**
-state (minus packages the toolkit intentionally leaves installed).
+machine toward a stock **Xubuntu LTS** image state (minus non-apt artefacts and
+supplemental **`input`** group memberships the uninstall does not strip).
 
 For the full step-by-step breakdown of *what* gets reverted and the
 best-effort caveats, see [`../uninstall.md`](../uninstall.md). This
@@ -38,7 +38,7 @@ inside the function.
   - `inputrc`
   - `keyboard`
 - `$SUDO_USER` (optional) — used to kill the user's helpers
-  (touchegg client, xfdashboard,
+  (libinput-gestures, xfdashboard, rofi,
   plus legacy imwheel from old
   installs) and to dedupe the per-user cleanup loop.
 - `/dev/tty` — the `YES` confirmation prompt reads from it.
@@ -49,20 +49,18 @@ Reverts every system-level change the toolkit makes. The ordered list is in [`..
 
 Headline buckets:
 
-1. Stops services (`tlp`, `touchegg`, `keyd`) and user-session processes.
-2. `apt purge` for all packages this toolkit installs; autoremove / autoclean.
+1. Stops services (`tlp`, `touchegg` legacy unit if present, `keyd`) and kills `libinput-gestures`.
+2. `apt purge` every Debian package this toolkit installs; autoremove / autoclean (includes legacy **`touchegg`** if apt-installed).
 3. Removes the Google Chrome apt repository files and key.
 4. Best-effort audio quirk cleanup (note appended).
-5. Reverts GRUB (HPET + optional silent-boot tokens), restores boot-related
-   systemd units (NM-wait-online, ModemManager, snapd), reverts
-   initramfs-modules; regenerates boot assets.
-6. Removes touchpad `xorg.conf.d` snippet and `touchegg.conf`.
-7. Removes OEM wallpaper dir, `oem-first-run.sh`, workspace-overview `.desktop`.
+5. Reverts GRUB (HPET + optional silent-boot tokens), restores boot-related systemd units (NM-wait-online, ModemManager, snapd), reverts initramfs-modules; regenerates boot assets.
+6. **`libinput-gestures-setup uninstall`** (when present), remove `/etc/xdg/autostart/libinput-gestures.desktop` + OEM **`/etc/libinput-gestures.conf`**, wipe clone cache, legacy **`/etc/touchegg/`**, touchpad xorg snippet; **`restore_or_skip /etc/adduser.conf`** when snapshots exist.
+7. Removes OEM wallpaper dir, `oem-first-run.sh`, `oem-add-workspace.sh`, handover + workspace-overview `.desktop`.
 8. Removes web-app `.desktop` files and icons.
 9. Reverts terminal `inputrc` changes.
 10. Reverts regional settings.
 11. Cleans `/etc/skel` toolkit files.
-12. Cleans per-user homes (Plank, markers, legacy panel launchers, panel-2 xfconf).
+12. Cleans per-user homes (Plank, markers, legacy panel launchers, panel-2 xfconf, `libinput-gestures` autostart copies).
 13. Clears `/var/lib/oem-setup/state/`.
 14. `step_cleanup` + final autoremove + summary.
 

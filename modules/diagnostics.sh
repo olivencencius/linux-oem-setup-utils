@@ -485,7 +485,7 @@ step_diagnostics() {
         fi
     fi
 
-    # TLP / ZRAM / touchegg  (TLP is typically Type=oneshot — "enabled" is the meaningful signal)
+    # TLP / ZRAM / libinput-gestures  (TLP is typically Type=oneshot — "enabled" is the meaningful signal)
     if systemctl is-enabled --quiet tlp.service 2>/dev/null; then
         _result PASS "TLP unit is enabled" ""
     else
@@ -498,10 +498,16 @@ step_diagnostics() {
         _result WARN "zramctl empty or missing" "check zram-tools / reboot"
     fi
 
-    if systemctl is-active --quiet touchegg.service 2>/dev/null; then
-        _result PASS "touchegg.service active" ""
+    if [ ! -x /usr/bin/libinput-gestures ]; then
+        _result FAIL "libinput-gestures not installed on PATH" "re-run menu option 9 or 11 (gestures)"
+    elif [ ! -f /etc/libinput-gestures.conf ] \
+        || [ ! -f /etc/xdg/autostart/libinput-gestures.desktop ]; then
+        _result FAIL "libinput-gestures autostart/conf incomplete" "re-run menu option 9 or 11 (gestures)"
+    elif pgrep -f '/usr/bin/libinput-gestures' >/dev/null 2>&1; then
+        _result PASS "libinput-gestures running in at least one session" ""
     else
-        _result FAIL "touchegg.service not active" "re-run menu option 11"
+        _result WARN "libinput-gestures not running yet (often normal before first X login after install)" \
+            "log in as a desktop user in group input, or reboot"
     fi
 
     # Web apps — 13 desktop files

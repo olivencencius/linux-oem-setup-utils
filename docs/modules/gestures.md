@@ -2,199 +2,74 @@
 
 ## Purpose
 
-Installs and configures `touchegg` for ChromeOS-like multi-finger
-touchpad gestures (pinch zoom, 3-finger swipes for back/forward and
-overview, 4-finger swipes for workspace and launcher). Also installs
-`xfdashboard`, deploys `/usr/share/applications/oem-workspace-overview.desktop`
-for the Plank “workspace overview” pin, and runs **before** `step_themes` in
-the full pipeline so `oem-first-run.sh` can create that dockitem.
+Installs **`libinput-gestures`** (bulletmark/upstream Git clone →
+`./libinput-gestures-setup install`), deploys **`/etc/libinput-gestures.conf`**
+from **`$REPO_DIR/assets/configs/libinput-gestures.conf`** (ChromeOS-like
+bindings: pinch zoom, 3- and 4-finger swipes, `xfdashboard` / Whisker /
+workspaces). Also installs **`xfdashboard`**, **`rofi`**, **`oem-add-workspace.sh`**
+(**`/usr/local/bin`**), publishes
+**`/usr/share/applications/oem-workspace-overview.desktop`** for Plank.
+
+Runs **before** `step_themes` so `oem-first-run.sh` can seed a dock item for
+workspace overview while `xfdashboard` is already installed.
 
 ## Function exported
 
 `step_gestures_and_workspaces`
 
-## Inputs
+## Inputs / environment
 
-- `ensure_apt_fresh` (helper from `setup.sh`).
-- Optional environment overrides for the GitHub `.deb` fallback:
-  **`TOUCHEGG_DEB_URL`** — full URL or `file:///…` to a `.deb` when GitHub is unreachable;
-  **`TOUCHEGG_DEB_VERSION`** — release tag used to build the default download URL
-  (default `2.0.18`; bump when pinning a newer upstream release).
-- `$REPO_DIR/assets/configs/touchegg.conf` — the system-wide binding
-  profile.
-- `$REPO_DIR/assets/configs/oem-workspace-overview.desktop` — menu / Plank
-  launcher for `xfdashboard`.
-- `$SUDO_USER` (optional) — if set, the live oem session gets the
-  touchegg client started for QA.
+- `ensure_apt_fresh`, `backup_once` (from `setup.sh`).
+- `LIBINPUT_GESTURES_GIT_REF` — optional; default clones
+  **`https://github.com/bulletmark/libinput-gestures.git`** (`master`).
+- `$REPO_DIR/assets/configs/libinput-gestures.conf`.
+- `$REPO_DIR/assets/configs/oem-workspace-overview.desktop`.
+- `$REPO_DIR/assets/scripts/oem-add-workspace.sh`.
+- `$SUDO_USER` — when set, tries to spawn `/usr/bin/libinput-gestures`
+  for the running X session once the **`input`** group is effective.
 
 ## Outputs
 
-Installed packages:
+APT packages:`python3`, `libinput-tools`, `wmctrl`, `xdotool`, `xfdashboard`, `rofi`, `git`.
 
-- `wmctrl`, `xdotool` — used by gesture commands (`wmctrl -k on` for
-  show-desktop, `xdotool` for some key-send fallbacks).
-- `touchegg` — the gesture daemon and client.
-- `xfdashboard` — Xfce window/workspace overview (3-finger swipe up and dock
-  launcher); install failure fails the whole step.
+Upstream installs (paths from `libinput-gestures-setup install`):
 
-System files placed:
+- `/usr/bin/libinput-gestures`, `/usr/bin/libinput-gestures-setup`
+- `/usr/share/applications/libinput-gestures.desktop` (upstream)
 
-- `/etc/touchegg/touchegg.conf` — copied from
-  `$REPO_DIR/assets/configs/touchegg.conf` with mode `644`.
-- `/usr/share/applications/oem-workspace-overview.desktop` — copied from
-  assets with mode `644`.
+OEM overlays:
 
-Services enabled:
+- `/etc/libinput-gestures.conf` — toolkit binding profile (`install -m 644`).
+- **`/usr/local/bin/oem-add-workspace.sh`** — increments **`xfwm4`** workspace count
+  (bound **Super+Insert** on first login by **`oem-first-run.sh`**).
+- **`/etc/xdg/autostart/libinput-gestures.desktop`** — copy of upstream’s desktop
+  file so **every XFCE user session** autostarts gestures (buyer accounts
+  included).
 
-- `touchegg.service` — system daemon, `enable --now`.
+Group policy (needed because libinput-gestures must read the touchpad device):
 
-Live session changes (only if `$SUDO_USER`):
+1. **`/etc/adduser.conf`** — the **last** `EXTRA_GROUPS="…"` line gains a
+   trailing **`input`** membership for **future** `adduser` accounts.
+2. **`usermod -a -G input`** for existing human users (**uid ≥ 1000**, **< 65534**).
 
-- `touchegg --client` started for that user.
+Installer also **purges legacy `touchegg`** (Debian/apt package), disables
+ **`touchegg.service`** if present, and deletes **`/etc/touchegg/`** so older
+profiles cannot collide.
 
-## The gesture set
+## Uninstall alignment
 
-The conf file binds:
+Handled in `step_uninstall`: `libinput-gestures-setup uninstall`, remove OEM
+`/etc/xdg/autostart` copy + clone cache under `/var/cache/oem-setup/`,
+`restore_or_skip /etc/adduser.conf` when a first-run backup exists, scrub
+`/etc/libinput-gestures.conf` leftovers, **`apt purge`** **`rofi`** with other
+gesture-related packages, **`rm /usr/local/bin/oem-add-workspace.sh`**, **`apt purge touchegg`** (legacy).
 
-| Gesture | Action | Mechanism |
-|---|---|---|
-| 2-finger pinch in | Zoom out (`Ctrl+-`) | `SEND_KEYS Control_L+minus` |
-| 2-finger pinch out | Zoom in (`Ctrl+=`) | `SEND_KEYS Control_L+equal` |
-| 3-finger swipe left | Browser back (`Alt+Left`) | `SEND_KEYS Alt_L+Left` |
-| 3-finger swipe right | Browser forward (`Alt+Right`) | `SEND_KEYS Alt_L+Right` |
-| 3-finger swipe up | Window overview | `RUN_COMMAND xfdashboard` |
-| 3-finger swipe down | Show desktop | `RUN_COMMAND wmctrl -k on` |
-| 4-finger swipe left | Previous workspace (`Ctrl+Alt+Left`) | `SEND_KEYS Control_L+Alt_L+Left` |
-| 4-finger swipe right | Next workspace (`Ctrl+Alt+Right`) | `SEND_KEYS Control_L+Alt_L+Right` |
-| 4-finger swipe up | Whisker menu launcher | `RUN_COMMAND xfce4-popup-whiskermenu` |
+Supplemental group **`input`** on existing user accounts is **not** stripped
+(best-effort note in uninstall summary).
 
-Touchpads that report only up to 3 fingers (older or low-end models)
-will silently no-op the 4-finger gestures.
+## Idempotency / upgrades
 
-## Walkthrough
-
-### 1. Apt install and overview launcher
-
-If `apt-cache policy touchegg` shows **Candidate: (none)** (common on minimal
-Xubuntu when **universe** is not enabled), the module enables `universe`,
-runs `apt-get update` again, and if `touchegg` is still missing adds
-**`ppa:touchegg/stable`** (failure tolerated), updates again, and if `touchegg`
-is **still** not installable, downloads the official **`touchegg_*_amd64.deb`**
-from **JoseExposito/touchegg** on GitHub and runs **`apt-get install` on that
-file** so dependencies resolve from the working distro mirrors. It may install
-**`software-properties-common`** when `add-apt-repository` is not present.
-
-If GitHub must not be used, set **`TOUCHEGG_DEB_URL=file:///path/to/touchegg_*_amd64.deb`**
-before `setup.sh`.
-
-```bash
-ensure_apt_fresh
-# _gestures_ensure_touchegg_apt_source — universe, PPA, then GitHub .deb if needed
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  wmctrl xdotool touchegg xfdashboard </dev/null >&3 2>&3
-install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
-    /usr/share/applications/oem-workspace-overview.desktop
-```
-
-`apt-get` returns **exit 100** on install failure. Stdout/stderr are attached to
-the real TTY (`>&3 2>&3`) so the resolver error is visible — not lost in the `tee` pipe.
-
-If `xfdashboard` is not in the distro repos, this step fails (no silent
-overview pin or gesture).
-
-### 2. Deploy bindings
-
-```bash
-mkdir -p /etc/touchegg
-install -m 644 "$REPO_DIR/assets/configs/touchegg.conf" /etc/touchegg/touchegg.conf
-```
-
-`/etc/touchegg/touchegg.conf` is the system-wide profile. There is
-also a per-user override location under `~/.config/touchegg/`, which
-this toolkit does **not** use — the buyer is free to add one later if
-they want different bindings.
-
-### 3. Enable the Touchegg daemon
-
-```bash
-systemctl enable --now touchegg.service 2>/dev/null || true
-```
-
-`touchegg`'s systemd unit comes with the apt package. `--now` starts
-it immediately. The system daemon reads libinput and dispatches
-gestures to per-user clients via D-Bus.
-
-A `systemctl is-active --quiet touchegg.service` check is printed
-afterwards so the technician sees green/red in the log.
-
-### 4. Live-session client
-
-```bash
-if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
-    sudo -u "$SUDO_USER" pkill -f 'touchegg --client' 2>/dev/null || true
-    sudo -u "$SUDO_USER" \
-        DISPLAY="${DISPLAY:-:0}" \
-        XAUTHORITY="$USER_HOME/.Xauthority" \
-        touchegg --client 2>/dev/null &
-fi
-```
-
-Same shape as `step_themes`'s live-session `xfsettingsd --replace` and
-inline `oem-first-run.sh` call: kill any pre-existing client, start a
-fresh one for the live session. Without this the technician can't QA
-gestures until a re-login.
-
-## Why touchegg, not libinput-gestures?
-
-`libinput-gestures` reads `/dev/input/event*` directly and requires
-its user to be in the `input` group. For the OEM workflow this is a
-problem: every buyer's user account would need to be added to `input`
-post-handover, and the buyer doesn't have a route to do that without
-the technician walking them through `usermod -aG input`.
-
-`touchegg`'s split architecture (system daemon reads libinput, per-user
-clients receive over D-Bus) means **no group changes are needed** for
-the buyer. They just log in and gestures work.
-
-## Notes
-
-- Full pipeline order is `… web_apps → gestures_and_workspaces → themes →
-  touchpad …` so `oem-workspace-overview.desktop` exists before
-  `oem-first-run.sh` writes Plank dockitems.
-- The system-wide config is deployed *before* the daemon is enabled.
-  Order matters: if the daemon starts and reads an empty config first,
-  it ignores future config changes until restart. Starting after the
-  file is in place avoids that race.
-- The skel autostart entry that starts `touchegg --client` for every
-  user (`/etc/skel/.config/autostart/touchegg-client.desktop`) is
-  staged by `step_themes`.
-- On success, any legacy state file `gestures.done` is removed so only
-  `gestures_and_workspaces.done` tracks completion.
-- `wmctrl -k on` is the GNOME / Compiz "show desktop" toggle, which
-  XFCE understands. Replacing it with `xdotool key super+d` works on
-  Wayland but not consistently on XFCE/X11.
-
-## Idempotency
-
-Fully idempotent:
-
-- `apt-get install -y` is a no-op for installed packages.
-- `install -m 644` overwrites with identical content.
-- `systemctl enable --now` is a no-op if already enabled and
-  running.
-- The `pkill` + restart of the client is the same as the first
-  start.
-
-## Uninstall counterpart
-
-`step_uninstall`:
-
-- `systemctl disable --now touchegg` (sub-step 1).
-- `pkill 'touchegg --client'` (sub-step 1).
-- `apt purge touchegg xfdashboard wmctrl xdotool` (sub-step 2).
-- `rm /usr/share/applications/oem-workspace-overview.desktop` (sub-step 8).
-- `rm /etc/touchegg/touchegg.conf`, `rmdir /etc/touchegg`
-  (sub-step 7).
-- Per-user `~/.config/autostart/touchegg-client.desktop` removed for
-  every uid≥1000 (sub-step 13) and `/etc/skel/.config/autostart/
-  touchegg-client.desktop` (sub-step 12).
+If **`/usr/bin/libinput-gestures`** is missing (fresh image or failed prior
+run) but a stale **`gestures_and_workspaces.done`** marker exists, the step
+**deletes** that marker (and legacy **`gestures.done`**) so the pipeline cannot
+skip the upstream install — older releases used Touchegg instead.

@@ -21,7 +21,7 @@ echo "========================================="
 echo "      CHROMEBOOK DEPLOYMENT BOOTSTRAP    "
 echo "========================================="
 
-# Ensure git is available — it is not pre-installed on Linux Mint XFCE
+# Ensure git is available — minimal Xubuntu images may omit it
 if ! command -v git &>/dev/null; then
     echo "--> git not found — installing..."
     apt-get update -qq

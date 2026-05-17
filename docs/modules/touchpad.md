@@ -17,7 +17,7 @@ Three touchpad concerns in one module:
    with `Tapping on`, a one-finger tap is left click and a two-finger
    tap is right click (libinput default `TappingButtonMap` lrm).
 
-### Mint XFCE GUI (buyer or technician)
+### XFCE GUI (buyer or technician)
 
 After install, confirm **Settings → Mouse and Touchpad → Touchpad**:
 **Tap to click** is on (and enable two-finger tap / context menu if

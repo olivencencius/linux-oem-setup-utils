@@ -4,31 +4,36 @@
 #   Purpose:   ChromeOS-like layout polish: Plank dock (bottom-centre) seeded
 #              per-user by oem-first-run.sh, Malta wallpaper, and /etc/skel
 #              staging (autostart). Does not override GTK/icon themes — distro
-#              defaults apply (Linux Mint XFCE and Xubuntu compatible).
+#              defaults apply (Xubuntu LTS compatible).
 #   Reads:     REPO_DIR/assets/wallpapers/malta.jpg
 #              REPO_DIR/assets/scripts/oem-first-run.sh
+#              REPO_DIR/assets/scripts/oem-prepare-shipping.sh
+#              REPO_DIR/assets/configs/oem-prepare-shipping.desktop
 #              REPO_DIR/skel/...
 #              SUDO_USER (optional, for live-session apply)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: plank
+#   Writes:    apt: plank, oem-config, oem-config-gtk
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
-#              /etc/skel/...                         (full skel tree copy)
+#              /usr/local/bin/oem-prepare-shipping   (mode 755)
+#              /usr/share/applications/oem-prepare-shipping.desktop
+#              /etc/skel/...                         (full skel tree copy + Desktop launcher)
 #              ~SUDO_USER/.config/autostart          (mirrored from skel)
+#              ~SUDO_USER/Desktop/oem-prepare-shipping.desktop
 #              ~SUDO_USER/.config/plank/dock1/...    (written by inline
 #                                                     oem-first-run.sh call)
 #   Step fn:   step_themes
 #   Helpers:   oem_user_xrun (file-scope)
 #   Docs:      docs/modules/themes.md
-#   Uninstall: step_uninstall purges plank (sub-step 2),
+#   Uninstall: step_uninstall purges plank + oem-config packages (sub-step 2),
 #              removes wallpaper + first-run script (sub-step 7), scrubs
 #              /etc/skel (sub-step 11), and cleans per-user plank config +
 #              marker (sub-step 12).
 #
-#   NOTE — why Plank (not a 2nd XFCE panel). Mint XFCE ships panel-1 along the
-#   bottom (menu + window list + tray). A second centred XFCE panel at the same
-#   edge collides with panel-1. Plank is a separate floating window so it
-#   co-exists cleanly. It is one apt package in main/Ubuntu repos.
+#   NOTE — why Plank (not a 2nd XFCE panel). Xubuntu's primary panel often runs
+#   along one long edge; a second centred XFCE panel on that edge collides.
+#   Plank is a separate floating window so it co-exists cleanly. It is one apt
+#   package in main/Ubuntu repos.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -62,11 +67,26 @@ oem_user_xrun() {
 }
 
 step_themes() {
+    local SUDO_HOME
+
     oem_tty_say "--> Installing Plank (dock)…"
 
     ensure_apt_fresh
     oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y plank
     oem_tty_say "    [+] plank installed."
+
+    oem_tty_say "--> Installing Ubuntu OEM handover packages (oem-config)…"
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        oem-config oem-config-gtk
+    oem_tty_say "    [+] oem-config packages installed."
+
+    install -m 755 "$REPO_DIR/assets/scripts/oem-prepare-shipping.sh" \
+                   /usr/local/bin/oem-prepare-shipping
+    oem_tty_say "    [+] /usr/local/bin/oem-prepare-shipping deployed."
+
+    install -m 644 "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
+                   /usr/share/applications/oem-prepare-shipping.desktop
+    oem_tty_say "    [+] /usr/share/applications/oem-prepare-shipping.desktop deployed."
 
     oem_tty_say "--> Installing wallpaper…"
     mkdir -p /usr/share/backgrounds/oem-setup
@@ -80,6 +100,10 @@ step_themes() {
 
     oem_tty_say "--> Staging defaults into /etc/skel…"
     cp -r "$REPO_DIR/skel/." /etc/skel/
+    mkdir -p /etc/skel/Desktop
+    cp -f "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
+       /etc/skel/Desktop/oem-prepare-shipping.desktop
+    chmod 644 /etc/skel/Desktop/oem-prepare-shipping.desktop
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
         SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -88,7 +112,7 @@ step_themes() {
 
         sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/.config/autostart"
 
-        for f in oem-first-run.desktop touchegg-client.desktop; do
+        for f in oem-first-run.desktop; do
             if [ -f "/etc/skel/.config/autostart/$f" ]; then
                 cp "/etc/skel/.config/autostart/$f" \
                    "$SUDO_HOME/.config/autostart/$f"
@@ -96,6 +120,12 @@ step_themes() {
         done
 
         chown -R "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/.config/autostart"
+
+        oem_tty_say "--> Mirroring OEM handover desktop launcher into ~$SUDO_USER/Desktop…"
+        sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/Desktop"
+        cp -f /etc/skel/Desktop/oem-prepare-shipping.desktop \
+           "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
+        chown "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
 
         oem_tty_say "--> Running oem-first-run.sh once for the live session (Plank + wallpaper)…"
         oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true

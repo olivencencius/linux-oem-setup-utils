@@ -21,16 +21,15 @@ Removes — `rm -rf` for directories, `rm -f` for files, both ignore
 
 - `/tmp/chromebook-linux-audio`
 - `/tmp/cros-keyboard-map`
+- `/tmp/libinput-gestures` *(upstream clone leftovers in /tmp — rare defensively cleared)*
 - `/tmp/ChromeOS-theme` *(legacy — old `themes.sh` git-cloned this; current revision doesn't, but the entry is kept defensively for upgrades)*
 - `/tmp/Tela-icon-theme` *(legacy — same reason as `ChromeOS-theme`)*
 - `/tmp/google-chrome-stable_current_amd64.deb`
 - `/tmp/zoom_amd64.deb`
-- `/tmp/touchegg.deb`
+- `/tmp/touchegg.deb` *(historical filenames from older revisions — harmless `rm -f`)*
+- `/var/cache/oem-setup/libinput-gestures-src` *(cloned before `libinput-gestures-setup install`)*
 
-The `touchegg.deb` entry is a historical artefact from when touchegg was
-sideloaded from a GitHub release; the current `modules/gestures.sh`
-installs it from apt and never produces this file. It's listed
-anyway, harmlessly, because some old QA machines may still have one.
+Older revisions sideloaded `touchegg` from apt/PPA/deb paths; gestures now use **`libinput-gestures`** and may still wipe stale `/tmp/*.deb` names listed above.
 
 ## Walkthrough
 

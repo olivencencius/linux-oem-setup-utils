@@ -3,7 +3,7 @@
 ## Purpose
 
 The most board-specific module. Applies three families of fix that
-together turn a generic Linux Mint install on a Chromebook into one
+together turn a generic **Xubuntu** install on a Chromebook into one
 where the speakers, microphone, top-row keys, and (on
 TigerLake/AlderLake) USB-C ports all work.
 
@@ -47,21 +47,21 @@ backups/`:
 ### 1. Audio — `chromebook-linux-audio`
 
 ```bash
+cd /tmp
 rm -rf /tmp/chromebook-linux-audio
 git clone --depth 1 https://github.com/WeirdTreeThing/chromebook-linux-audio.git
-( cd /tmp/chromebook-linux-audio && ./setup-audio < /dev/tty )
+( cd /tmp/chromebook-linux-audio && oem_run_interactive ./setup-audio )
 ```
 
-The `< /dev/tty` redirection is the critical part. When `setup.sh` is
-launched via `curl … | sudo bash`, the script's stdin is the curl pipe.
-The upstream installer's `read` would consume nothing (or the next
-piece of the curl payload, depending on timing) and silently default.
-Redirecting `< /dev/tty` reattaches the installer's stdin to the
-physical terminal so the technician can answer prompts.
+`oem_run_interactive` runs the installer with **stdin, stdout, and stderr on
+the real TTY** (fd 3 in `setup.sh`). That matters when `setup.sh` was started
+with `curl … | sudo bash`: the script’s stdin is still the curl pipe, but the
+installer’s prompts must attach to the physical terminal.
 
 ### 2. Keyboard — `cros-keyboard-map`
 
-Same shape as audio. Clones, runs `install.sh` with `< /dev/tty`.
+Same shape as audio: clone under `/tmp`, then
+`oem_run_interactive ./install.sh` inside the repo directory.
 
 ### 3. CELES (Samsung) — HPET clock source fix
 

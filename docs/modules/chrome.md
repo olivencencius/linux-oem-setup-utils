@@ -29,7 +29,7 @@ Chrome stays current via the system's normal `apt update` cycle.
   `--enable-features=OverlayScrollbar` values used for web-app
   launchers — so the main browser does **not** show the "choose a
   password for the new keyring" dialog the way an unmodified vendor
-  desktop file does on XFCE/Mint. This trades OS-keyring-backed secret storage for
+  desktop file does on XFCE. This trades OS-keyring-backed secret storage for
   Chrome’s basic (profile-directory) store; see
   [`docs/modules/webapps.md`](webapps.md) for the rationale.
 - Dock / menu entries (including the Plank launcher from

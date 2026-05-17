@@ -5,7 +5,10 @@
 #                   1. Applies the Malta wallpaper to every detected monitor.
 #                   2. Moves panel-1 to the top edge, slims it to 24 px,
 #                      removes the window-buttons / tasklist plugin (redundant
-#                      with Plank's running-app indicators), and strips default
+#                      with Plank's running-app indicators), adds a compact
+#                      workspace pager when missing, seeds xfwm4 workspace
+#                      defaults (min 4 desks; friendly names when count is 4),
+#                      binds Super+Tab (rofi) and Super+Insert (add desk), and strips default
 #                      panel launchers (Firefox, XFCE Terminal, Thunar)
 #                      so the top bar stays status-only.
 #                   3. Seeds a Plank dock at the bottom-centre with pinned
@@ -33,11 +36,18 @@
 #                 xfconf-query: xfce4-panel     /panels/panel-1/position,
 #                                               /panels/panel-1/size,
 #                                               /panels/panel-1/plugin-ids
+#                                               (+ workspace pager + its prefs),
 #                                               (tasklist removed; default launchers
 #                                               stripped; empty launcher plugins
 #                                               removed + pruned from xfconf)
+#                 xfconf-query: xfwm4          /general/workspace_count,
+#                                               /general/workspace_names
 #                 xfconf-query: xfce4-keyboard-shortcuts  /commands/custom/XF86*
 #                                               -> xfdashboard (Chromebook overview)
+#                                               /commands/custom/<Super>Insert
+#                                               -> oem-add-workspace.sh;
+#                                               /commands/custom/<Super>Tab -> rofi
+#                                               (if rofi installed)
 #                 ~/.config/plank/dock1/settings
 #                 ~/.config/plank/dock1/launchers/NN-<name>.dockitem
 #                 ~/.config/autostart/plank.desktop
@@ -47,18 +57,17 @@
 #                 the ~/.config/plank tree, and this script (sub-steps 8, 13).
 #
 #   NOTE: monitor discovery enumerates every `last-image` property xfconf
-#   already knows about, falling back to /backdrop/screen0/monitor0/
-#   workspace0/last-image when xfdesktop has not yet registered any monitor.
-#   This avoids hardcoding monitor names (eDP-1, monitorVirtual1, …) which
-#   vary across Chromebook hardware.
+#   already knows about. If xfdesktop has not written `last-image` yet (common
+#   right after login), we derive /backdrop/screen*/monitor*/workspace* bases
+#   from other xfconf keys, then fall back to xrandr output names — not
+#   `monitor0`, which xfdesktop no longer uses on current Xubuntu (paths look
+#   like .../monitoreDP-1/workspace0/last-image).
 #
-#   NOTE — dock = Plank (NOT a second XFCE panel). Mint XFCE already owns the
-#   bottom screen edge with panel-1 (mint-menu + window list + tray), so
-#   trying to add a second "centred" XFCE panel at the same edge fails or
-#   collides. Plank floats above the screen as its own window, so it
-#   co-exists with Mint's panel-1 cleanly. Plank is a one-package apt
-#   dependency installed by step_themes and is the simplest reliable way to
-#   render a ChromeOS-style centred dock on Mint XFCE.
+#   NOTE — dock = Plank (NOT a second XFCE panel at the same edge). Xubuntu's
+#   primary XFCE panel often occupies one long edge; a second centered XFCE
+#   panel on that same edge fights for space. Plank floats as its own
+#   composited strip, so it co-exists cleanly with panel-1 while giving a
+#   ChromeOS-style centred dock (installed by step_themes).
 #
 #   NOTE — idempotency. We deliberately do NOT short-circuit if the plank
 #   config dir already exists: if a previous run failed half-way (e.g.
@@ -73,7 +82,7 @@ MARKER="$HOME/.config/.oem-first-run-done"
 WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 
 # Ordered list of pinned dock apps (.desktop basename without extension).
-# File manager + app store entries are resolved below so Mint and Xubuntu match.
+# File manager + app store entries are resolved below (Xubuntu/Ubuntu .desktop names).
 DOCK_LAUNCHERS=(
     xfce4-appfinder
     oem-workspace-overview
@@ -89,19 +98,10 @@ for _oem_fm in thunar org.xfce.thunar; do
     fi
 done
 
-# Software centre — distro-prioritised candidates (skip if none installed)
-if [ -r /etc/os-release ]; then
-    # shellcheck source=/dev/null
-    . /etc/os-release
-fi
-case "${ID:-}" in
-    linuxmint)
-        _oem_store_candidates=( mintinstall org.gnome.Software snap-store ubuntu-software software-manager )
-        ;;
-    *)
-        _oem_store_candidates=( snap-store ubuntu-software org.gnome.Software mintinstall gnome-software synaptic )
-        ;;
-esac
+# Software centre — Xubuntu/Ubuntu-prioritised candidates (skip if none installed)
+_oem_store_candidates=(
+    snap-store ubuntu-software org.gnome.Software gnome-software synaptic software-properties-gtk
+)
 for _oem_store in "${_oem_store_candidates[@]}"; do
     if [ -f "/usr/share/applications/${_oem_store}.desktop" ]; then
         DOCK_LAUNCHERS+=( "$_oem_store" )
@@ -125,37 +125,63 @@ DOCK_LAUNCHERS+=(
 # ------------------------------------------------------------------------------
 # 1. Wallpaper
 # Detect every monitor xfdesktop already knows about and overwrite its
-# wallpaper. Falls back to a known-good default path when xfdesktop has not
-# yet registered any monitor (brand-new session).
+# wallpaper. When `last-image` keys do not exist yet, discover real monitor
+# paths (RandR names) — not legacy `monitor0`, which xfdesktop ignores.
 # ------------------------------------------------------------------------------
 if [ -f "$WALLPAPER" ] && command -v xfconf-query >/dev/null; then
-    props=$(xfconf-query -c xfce4-desktop -lv 2>/dev/null \
-            | awk '/last-image/ {print $1}')
-
-    if [ -z "$props" ]; then
-        props="/backdrop/screen0/monitor0/workspace0/last-image"
-    fi
-
-    while read -r prop; do
-        [ -z "$prop" ] && continue
+    _oem_xfce_set_backdrop_last_image() {
+        local prop="$1" style_prop="${1%/last-image}/image-style"
         xfconf-query -c xfce4-desktop -p "$prop" \
                      -n -t string -s "$WALLPAPER" 2>/dev/null || \
         xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null
-        style_prop="${prop%/last-image}/image-style"
         xfconf-query -c xfce4-desktop -p "$style_prop" \
                      -n -t int -s 5 2>/dev/null || \
         xfconf-query -c xfce4-desktop -p "$style_prop" -s 5 2>/dev/null
-    done <<< "$props"
+    }
+
+    props=$(xfconf-query -c xfce4-desktop -lv 2>/dev/null \
+            | awk '/last-image/ {print $1}')
+
+    if [ -n "$props" ]; then
+        while read -r prop; do
+            [ -z "$prop" ] && continue
+            _oem_xfce_set_backdrop_last_image "$prop"
+        done <<< "$props"
+    else
+        # xfdesktop registered backdrop prefs but no last-image yet — reuse
+        # monitor/workspace paths from other channel keys.
+        backdrop_bases=$(xfconf-query -c xfce4-desktop -l 2>/dev/null \
+            | grep -oE '^/backdrop/screen[0-9]+/monitor[^/]+/workspace[0-9]+' \
+            | sort -u)
+        if [ -n "$backdrop_bases" ]; then
+            while read -r base; do
+                [ -z "$base" ] && continue
+                _oem_xfce_set_backdrop_last_image "${base}/last-image"
+            done <<< "$backdrop_bases"
+        elif command -v xrandr >/dev/null && [ -n "${DISPLAY:-}" ]; then
+            while read -r out; do
+                [ -z "$out" ] && continue
+                _oem_xfce_set_backdrop_last_image \
+                    "/backdrop/screen0/monitor${out}/workspace0/last-image"
+            done < <(xrandr --query 2>/dev/null | awk '$2 == "connected" {print $1}')
+        else
+            _oem_xfce_set_backdrop_last_image \
+                "/backdrop/screen0/monitor0/workspace0/last-image"
+        fi
+    fi
+    unset -f _oem_xfce_set_backdrop_last_image
 fi
 
 # ------------------------------------------------------------------------------
-# 2. Panel-1 — move to top, slim to 24 px, strip tasklist + default launchers.
+# 2. Panel-1 — move to top, slim to 24 px, strip tasklist + default launchers,
+#    ensure a workspace pager.
 #
-# Mint XFCE often ships panel-1 at the bottom; Xubuntu may already use the top.
-# We move panel-1 to the top edge so it acts as a slim status bar (Whisker Menu,
+# Xubuntu may ship panel-1 at top or bottom. We move panel-1 to the top edge so
+# it acts as a slim status bar (Whisker Menu,
 # clock, tray, volume, power) while Plank owns the bottom as the dock. The
 # window-buttons / tasklist plugin is removed because Plank already shows
-# running-app indicators.
+# running-app indicators. A missing **pager** plugin is inserted after the first
+# panel item so users always see workspace dots on the top bar.
 #
 # Default quick-launch icons (Firefox, XFCE Terminal, Thunar) are stored by XFCE
 # as .desktop files under ~/.config/xfce4/panel/launcher-<plugin-id>/. Those
@@ -164,9 +190,9 @@ fi
 # and pruned from xfconf (/plugins/plugin-<id>).
 #
 # Position string encoding (XFCE GravityType):
-#   p=6  = top-left (NW_H) — default for a top horizontal panel on Mint.
+#   p=6  = top-left (NW_H) — default for a top horizontal panel.
 #   p=2  = top-center (N)  — fallback if the panel appears off-screen.
-# The exact value varies slightly between Mint releases; both are tried.
+# Both are tried for robustness across Xfce versions.
 #
 # Plugin discovery: XFCE allocates plugin IDs at install time and they differ
 # across machines, so we enumerate /panels/panel-1/plugin-ids, look up each
@@ -196,11 +222,97 @@ panel_launcher_desktop_should_strip() {
         firefox|firefox-esr|thunar|xfce4-terminal) return 0 ;;
     esac
 
-    # Non-standard filenames: Mint targets as argv0 (optional path prefix).
+    # Non-standard filenames: distro .desktop may use argv0 (optional path prefix).
     if echo "$line" | grep -Eiq '^Exec=([^[:space:]]*/)?(firefox-esr|firefox|thunar|xfce4-terminal)([[:space:]]|%|$)' ; then
         return 0
     fi
     return 1
+}
+
+# ------------------------------------------------------------------------------
+# Workspace defaults — minimum desk count + friendly names (xfwm4).
+# ------------------------------------------------------------------------------
+setup_workspace_defaults() {
+    command -v xfconf-query >/dev/null || return 0
+
+    local cur
+    cur=$(xfconf-query -c xfwm4 -p /general/workspace_count -v 2>/dev/null || echo "")
+    if ! [[ "${cur:-0}" =~ ^[0-9]+$ ]]; then cur=1; fi
+
+    if [ "$cur" -lt 4 ]; then
+        xfconf-query -c xfwm4 -p /general/workspace_count -n -t int -s 4 2>/dev/null || \
+        xfconf-query -c xfwm4 -p /general/workspace_count -s 4 2>/dev/null || true
+        cur=4
+    fi
+
+    cur=$(xfconf-query -c xfwm4 -p /general/workspace_count -v 2>/dev/null || echo 4)
+    [[ "$cur" =~ ^[0-9]+$ ]] || cur=4
+
+    if [ "$cur" -eq 4 ]; then
+        xfconf-query -c xfwm4 -p /general/workspace_names -r 2>/dev/null || true
+        xfconf-query -c xfwm4 -p /general/workspace_names -n \
+            -t string -s "Web" -t string -s "Work" -t string -s "Media" -t string -s "Misc" \
+            2>/dev/null || \
+        xfconf-query -c xfwm4 -p /general/workspace_names \
+            -t string -s "Web" -t string -s "Work" -t string -s "Media" -t string -s "Misc" \
+            2>/dev/null || true
+    fi
+}
+
+# Largest numeric xfce4-panel plugin-* id (for allocating a new plugin id).
+_oem_panel_max_plugin_id() {
+    xfconf-query -c xfce4-panel -lv 2>/dev/null \
+        | grep -o '/plugins/plugin-[0-9][0-9]*' \
+        | grep -o '[0-9][0-9]*' \
+        | sort -n | tail -1
+}
+
+# Compact pager settings for a 24 px panel (numbered workspaces, single row).
+_oem_configure_panel_pager() {
+    local pid="$1"
+    xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/rows" -n -t uint -s 1 2>/dev/null || \
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/rows" -s 1 2>/dev/null || true
+    xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/wrap-workspaces" \
+        -n -t bool -s true 2>/dev/null || \
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/wrap-workspaces" -s true 2>/dev/null || true
+    xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/workspace-scrolling" \
+        -n -t bool -s true 2>/dev/null || \
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/workspace-scrolling" -s true 2>/dev/null || true
+    xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/miniature-view" \
+        -n -t bool -s false 2>/dev/null || \
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}/miniature-view" -s false 2>/dev/null || true
+}
+
+# Ensure panel-1 has a workspace pager; insert after first plugin if added.
+_oem_ensure_panel_pager() {
+    local ids=( "$@" ) pid has_pager="" pager_id=""
+    for pid in "${ids[@]}"; do
+        [ "$(xfconf-query -c xfce4-panel -p "/plugins/plugin-${pid}" 2>/dev/null)" = pager ] \
+            || continue
+        has_pager=1
+        pager_id=$pid
+        break
+    done
+    if [ -n "$has_pager" ]; then
+        _oem_configure_panel_pager "$pager_id"
+        return 0
+    fi
+
+    local max new_id
+    max=$(_oem_panel_max_plugin_id)
+    max=${max:-0}
+    new_id=$((max + 1))
+
+    xfconf-query -c xfce4-panel -p "/plugins/plugin-${new_id}" -n -t string -s pager 2>/dev/null || \
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-${new_id}" -s pager 2>/dev/null || true
+    _oem_configure_panel_pager "$new_id"
+
+    local out=()
+    out=( "${ids[0]}" "$new_id" "${ids[@]:1}" )
+    local id_args=()
+    for pid in "${out[@]}"; do id_args+=( -t int -s "$pid" ); done
+    xfconf-query -c xfce4-panel \
+        -p /panels/panel-1/plugin-ids -a "${id_args[@]}" 2>/dev/null || true
 }
 
 setup_top_panel() {
@@ -210,7 +322,7 @@ setup_top_panel() {
     xfconf-query -c xfce4-panel -p /panels/panel-1/position \
         -s "p=6;x=0;y=0" 2>/dev/null || true
 
-    # Slim the height to 24 px (Mint default is ~38 px).
+    # Slim the height to 24 px (stock Xubuntu panel is often taller).
     xfconf-query -c xfce4-panel -p /panels/panel-1/size \
         -t uint -s 24 2>/dev/null || true
 
@@ -292,6 +404,14 @@ setup_top_panel() {
         done
     fi
 
+    mapfile -t panel_plugins < <(
+        xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids 2>/dev/null \
+        | grep -E '^[0-9]+$' || true
+    )
+    if [ ${#panel_plugins[@]} -gt 0 ]; then
+        _oem_ensure_panel_pager "${panel_plugins[@]}"
+    fi
+
     xfce4-panel --restart 2>/dev/null || true
 }
 
@@ -300,7 +420,7 @@ setup_top_panel() {
 #
 # cros-keyboard-map (keyd) leaves the Vivaldi “scale” key as XF86Scale (and
 # similar XF86* codes on some boards). XFCE does not map those to an overview
-# by default — bind common keys to the same binary as Plank + touchegg.
+# by default — bind common keys to the same binary as Plank + libinput-gestures.
 # If a device uses a different keysym, run `xev`, note the KeyPress name, and
 # add a /commands/custom/<keysym> line below.
 # ------------------------------------------------------------------------------
@@ -320,6 +440,36 @@ setup_workspace_overview_keys() {
     bind_xfdashboard_keysym "XF86Scale"
     bind_xfdashboard_keysym "XF86LaunchA"
     bind_xfdashboard_keysym "XF86Explorer"
+}
+
+# ------------------------------------------------------------------------------
+# 2c. Super+Insert → add virtual workspace (oem-add-workspace.sh from gestures).
+# ------------------------------------------------------------------------------
+setup_add_workspace_key() {
+    command -v xfconf-query >/dev/null || return 0
+    [ -x /usr/local/bin/oem-add-workspace.sh ] || return 0
+
+    local prop="/commands/custom/<Super>Insert"
+    # Full path: libinput-gestures invokes binaries with no shell.
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "$prop" -n -t string -s "/usr/local/bin/oem-add-workspace.sh" 2>/dev/null || \
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "$prop" -s "/usr/local/bin/oem-add-workspace.sh" 2>/dev/null || true
+}
+
+# ------------------------------------------------------------------------------
+# 2d. Super+Tab → rofi window list (if installed).
+# ------------------------------------------------------------------------------
+setup_rofi_window_switcher() {
+    command -v xfconf-query >/dev/null || return 0
+    command -v rofi >/dev/null 2>&1 || return 0
+
+    local prop="/commands/custom/<Super>Tab"
+    local cmd='/bin/sh -c "/usr/bin/rofi -show window -show-icons"'
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "$prop" -n -t string -s "$cmd" 2>/dev/null || \
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "$prop" -s "$cmd" 2>/dev/null || true
 }
 
 # ------------------------------------------------------------------------------
@@ -405,8 +555,11 @@ EOF
     fi
 }
 
+setup_workspace_defaults
 setup_top_panel
 setup_workspace_overview_keys
+setup_add_workspace_key
+setup_rofi_window_switcher
 setup_plank_dock
 
 # ------------------------------------------------------------------------------

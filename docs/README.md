@@ -50,7 +50,7 @@ One file per script in `modules/`, all follow the same template
 - **`$REPO_DIR`** — the absolute path to the cloned repository, exported by
   `setup.sh`. Modules use it to reach `assets/`, `skel/`, etc. regardless of
   where the script was invoked from.
-- **Live oem session** — the temporary `oem` user account created by Mint's
-  OEM installer. Some modules apply changes to this session immediately so
+- **Live tech session** — the technician account (typically **`oem`** in the
+  Ubuntu OEM workflow). Some modules apply changes to this session immediately so
   the technician can QA before handover; the same changes are also staged
   into `/etc/skel` so every future user inherits them.

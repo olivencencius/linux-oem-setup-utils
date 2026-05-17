@@ -62,7 +62,7 @@ cp "$ICON_SRC/chromeremotedesktop.svg" "$ICON_DST/chromeremotedesktop.svg"
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 ```
 
-The icon-cache refresh's `|| true` is defensive: some Mint installs
+The icon-cache refresh's `|| true` is defensive: some images
 have already-up-to-date caches and `gtk-update-icon-cache` returns
 non-zero. We don't care.
 

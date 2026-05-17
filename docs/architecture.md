@@ -19,6 +19,7 @@ linux-oem-setup-utils/
 │   ├── cleanup.sh
 │   ├── updates.sh
 │   ├── hardware.sh
+│   ├── xubuntu_boot.sh
 │   ├── chrome.sh
 │   ├── zoom.sh
 │   ├── apps.sh
@@ -48,7 +49,7 @@ and owning module) lives in [`assets.md`](./assets.md).
 
 ### `bootstrap.sh` — for a fresh OEM install
 
-A buyer's machine just out of the Mint OEM installer doesn't have `git`. The
+A technician machine freshly imaged for OEM prep may not have `git`. The
 bootstrap exists to make the very first command be a single `curl | sudo bash`:
 
 1. Refuses to run as non-root (`EUID != 0`).
@@ -104,11 +105,11 @@ flat directory of empty marker files.
 │   ├── …                     ← one per successfully-completed step
 │   └── kb_layout             ← persisted choice from prompt_keyboard
 └── backups/                  ← snapshots taken by backup_once before mutation
-    ├── grub
-    ├── initramfs-tools-modules
+    ├── grub                    ← /etc/default/grub (basename)
+    ├── modules                 ← /etc/initramfs-tools/modules
     ├── inputrc
-    ├── keyboard
-    └── user                  ← /etc/dconf/profile/user
+    ├── keyboard                ← /etc/default/keyboard
+    └── adduser.conf            ← /etc/adduser.conf (gestures / EXTRA_GROUPS)
 ```
 
 ### `do_step` vs `run_step`
@@ -120,8 +121,9 @@ run_step <name>  # Skips if /var/lib/oem-setup/state/<name>.done exists,
 ```
 
 - The **menu's individual options** (`3`–`14`) each invoke `do_step` for their
-  configured step(s). Option **`2`** runs only `do_step xubuntu_boot` — optional
-  boot optimisations **not** included in the full pipeline.
+  configured step(s). Option **`2`** runs only `do_step xubuntu_boot` — the same
+  boot optimisations now also run from **option `1`** via `run_step`; option **`2`**
+  remains for re-applying without repeating the full pipeline.
   Option **`15`** (Undo all changes) calls `step_uninstall` directly (see
   [`modules/uninstall.md`](./modules/uninstall.md)).
   Option **`16`** exits without invoking a step.
@@ -198,9 +200,8 @@ banner can name which step was running.
 - `-E` — `ERR` traps are inherited by functions. Without this, a failure
   inside a module function would not trigger the trap.
 - `-e` — exit on any unhandled non-zero. Modules use `|| true` (zoom
-  download, dconf update, theme reverse-install,
-  every cleanup `rm`) when a single command's failure should not abort
-  the run.
+  download, uninstall cleanups, every intentional `rm`) when a single
+  command's failure should not abort the run.
 - `-u` — treat unset variables as errors. Modules guard with
   `${VAR:-default}` for optional inputs (`$SUDO_USER`, `$DISPLAY`,
   `$KB_LAYOUT`, `$OEM_APT_FRESH`).
@@ -232,15 +233,20 @@ the first call** — if the destination already exists, it is left alone.
 This means `step_uninstall` can restore the file the toolkit *first*
 saw, not whatever state it was in after a partial install.
 
-Modules use it before every mutation of a system file that has a
-counterpart in `step_uninstall`'s `restore_or_skip`:
+Modules use it before mutating a system file that `step_uninstall` may
+restore via `restore_or_skip` (snapshots are stored as
+`/var/lib/oem-setup/backups/<basename>`):
 
-- `/etc/default/grub`            (hardware HPET fix)
-- `/etc/initramfs-tools/modules` (Type-C fix)
-- `/etc/inputrc`                 (bracketed-paste fix)
-- `/etc/default/keyboard`        (XKB layout)
-- `/etc/dconf/profile/user`      (legacy — Plank dconf system db; only
-  touched by `step_uninstall` to clean up older revisions)
+- `/etc/default/grub` — CELES HPET tokens (`hardware_fixes`), silent-boot
+  and related kernel parameters (`xubuntu_boot`); whichever step mutates
+  first wins the snapshot.
+- `/etc/initramfs-tools/modules` — Tiger/AlderLake Type-C modules (`hardware_fixes`).
+- `/etc/inputrc` — bracketed-paste tweak (`terminal`).
+- `/etc/default/keyboard` — XKB layout (`regional`).
+- `/etc/adduser.conf` — `EXTRA_GROUPS` gains `input` for libinput-gestures (`gestures`).
+
+Legacy Plank/dconf files are removed by `step_uninstall` when present; the
+current pipeline does **not** snapshot `/etc/dconf/profile/user`.
 
 If no backup exists at uninstall time, `restore_or_skip` falls back to a
 sed-based removal of only the lines this toolkit added. Both paths are

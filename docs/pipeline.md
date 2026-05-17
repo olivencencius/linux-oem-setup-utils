@@ -12,6 +12,7 @@ run_full_pipeline() {
     run_step cleanup
     run_step updates
     run_step hardware_fixes
+    run_step xubuntu_boot
     run_step chrome
     run_step zoom
     run_step apps
@@ -68,11 +69,11 @@ Three concerns, all board-specific:
 
 - **Audio** — clones and runs
   `WeirdTreeThing/chromebook-linux-audio`. **This installer may ask
-  questions.** Its stdin is wired to `/dev/tty` so the technician can
-  answer even when launched via `curl … | sudo bash`.
+  questions.** It is run under **`oem_run_interactive`** (real TTY on fd 3)
+  so the technician can answer even when launched via `curl … | sudo bash`.
 - **Top-row keys** — clones and runs
-  `WeirdTreeThing/cros-keyboard-map`. Same `/dev/tty` plumbing; same
-  "answer the prompts" expectation.
+  `WeirdTreeThing/cros-keyboard-map`. Same **`oem_run_interactive`**
+  plumbing; same "answer the prompts" expectation.
 - **Board patches** — DMI-detected:
   - CELES (Samsung Celes-based boards) → inject
     `clocksource=hpet hpet=force` into `GRUB_CMDLINE_LINUX_DEFAULT`,
@@ -83,6 +84,15 @@ Three concerns, all board-specific:
 
   Both mutations call `backup_once` first so the originals are
   restored cleanly by `step_uninstall`.
+
+### 4b. `xubuntu_boot` — immediately after hardware (boot polish)
+
+Applies **systemd** tuning (ModemManager off, `NetworkManager-wait-online`
+masked, snapd units disabled when present) and **GRUB** silent-boot kernel
+parameters, installs/configures **Plymouth** when available, and documents reboot for
+full effect. This follows `hardware_fixes` so **CELES HPET** edits and boot-time
+kernel tokens land on the same `GRUB_CMDLINE_LINUX_DEFAULT` line without needing
+manual ordering.
 
 ### 5–8. `chrome`, `zoom`, `apps`, `web_apps` — *before* `themes`
 
@@ -116,25 +126,35 @@ the log.
 
 ### 9. `gestures_and_workspaces` — after web apps, before themes
 
-Installs **`wmctrl`**, **`xdotool`**, **`touchegg`**, and **`xfdashboard`**;
-deploys **`/usr/share/applications/oem-workspace-overview.desktop`** (Plank /
-menu launcher for the overview); copies **`/etc/touchegg/touchegg.conf`** from
-assets; enables **`touchegg.service`**; and starts **`touchegg --client`** for
-the live oem user when `$SUDO_USER` is set.
+Installs **`wmctrl`**, **`xdotool`**, **`libinput-tools`**, **`python3`**, **`git`**,
+then clones **bulletmark/libinput-gestures** under `/var/cache/oem-setup/` and runs
+**`libinput-gestures-setup install`**. Overwrites **`/etc/libinput-gestures.conf`**
+with the bundled ChromeOS-like profile from **`assets/`**, installs
+**`/etc/xdg/autostart/libinput-gestures.desktop`** so **every graphical user session**
+runs gestures, merges **`input`** into the last **`EXTRA_GROUPS=`** line in
+`/etc/adduser.conf`, and attaches existing normal users (**uid ≥ 1000**) to the
+ **`input`** group. Deploys **`/usr/share/applications/oem-workspace-overview.desktop`**;
+installs **`xfdashboard`**, **`rofi`**, and **`/usr/local/bin/oem-add-workspace.sh`**.
+Attempts **`libinput-gestures`** in the running session
+when `$SUDO_USER` is set and already in **`input`** (otherwise a full re-login /
+reboot is required). Legacy **`touchegg`** Debian packages/services are disabled
+and purged during this step.
 
 This step is deliberately **before** `themes` so `oem-first-run.sh` can pin the
 overview icon when it seeds Plank.
 
-### 10. `themes` — wallpaper, Plank, panel layout
+### 10. `themes` — wallpaper, Plank, panel layout, OEM handover
 
-Installs **`plank`**, deploys the Malta wallpaper, deploys and stages the
+Installs **`plank`**, **`oem-config`**, **`oem-config-gtk`**, deploys the Malta
+wallpaper, **`oem-prepare-shipping`**, the **`oem-prepare-shipping.desktop`**
+launcher (system menu + `/etc/skel/Desktop/`), deploys and stages the
 per-user first-run script, and copies the **`skel/`** tree (autostart entries
-only — no forced GTK/icon themes). For the live oem session it mirrors
-autostart into the oem user's home and runs `oem-first-run.sh` inline to
-apply the wallpaper, top panel layout, and bottom Plank dock immediately.
+only — no forced GTK/icon themes). For the live technician session it mirrors
+autostart and **Desktop** into that user's home and runs `oem-first-run.sh` inline to
+apply the wallpaper, top panel layout (including workspace **pager** when missing), **xfwm4** workspace defaults, keyboard bindings for **rofi** / **add workspace**, and bottom Plank dock immediately.
 See [`modules/themes.md`](./modules/themes.md) for the detail.
 
-GTK and icon themes stay at **distro defaults** (Linux Mint XFCE or Xubuntu).
+GTK and icon themes stay at **distro defaults** (**Xubuntu**).
 
 ### 11. `touchpad` — after themes
 
@@ -170,16 +190,12 @@ Runs **`step_diagnostics`** (`modules/diagnostics.sh`): a read-only inventory an
 automated `[PASS]`/`[WARN]`/`[FAIL]` report so technicians see system state and
 common misconfiguration hints immediately after every other step has run.
 Keeping it last ensures the report reflects the deployed wallpaper, web apps,
-touchpad snippet, `touchegg`, ZRAM, TLP, keyboard/audio stack, **and boot timing**
+touchpad snippet, `libinput-gestures`, ZRAM, TLP, keyboard/audio stack, **and boot timing**
 (`systemd-analyze` excerpts under **Boot (systemd)**) as left by earlier steps. The script never prompts and never raises —
 manual QA remains in [`handover-qa.md`](./handover-qa.md).
 
 ## What is **not** in the pipeline
 
-- **`step_xubuntu_boot`** (menu option **`2`**) — optional Xubuntu/Ubuntu boot
-  optimisations (systemd + GRUB). Deliberately **not** invoked from
-  `run_full_pipeline`; technicians opt in from the menu when building Xubuntu
-  images.
 - **`uninstall`** is only reachable via menu option `15`. It is sourced
   by `setup.sh` like every other module but never called from
   `run_full_pipeline`.
@@ -191,8 +207,8 @@ manual QA remains in [`handover-qa.md`](./handover-qa.md).
 `print_reboot_reminder` (printed automatically) covers the user-visible
 case. The actual list:
 
-- GRUB silent-boot parameters from **menu option `2`** (`step_xubuntu_boot`) —
-  need reboot after that step if GRUB was updated.
+- GRUB boot parameters and Plymouth from **`step_xubuntu_boot`** (also in the
+  default pipeline, and re-runnable via **menu option `2`**) — reboot recommended.
 - initramfs modules (Tiger/AlderLake Type-C fix) — needs reboot.
 - chromebook-linux-audio quirks — most are loaded on boot via udev/ALSA
   UCM, so they need a reboot to fully take effect.
