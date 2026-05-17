@@ -193,7 +193,8 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 
 - [ ] Reboot one more time.
 - [ ] **`oem-config` installed:** `command -v oem-config-prepare` succeeds;
-      `dpkg -l oem-config oem-config-gtk` shows both packages (after `step_themes`).
+      `dpkg -l oem-config oem-config-gtk` shows both packages (after the full
+      pipeline or `step_oem_handover`).
 - [ ] Double-click **Prepare for shipping to end user** on the desktop
       (installed by this toolkit) **or** run `sudo oem-prepare-shipping` in a
       terminal. This invokes **`oem-config-prepare`** (Ubuntu OEM handover).

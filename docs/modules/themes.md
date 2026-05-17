@@ -3,8 +3,10 @@
 ## Purpose
 
 Deploys **Plank**, the **Malta** OEM wallpaper, the per-user **`oem-first-run.sh`**
-helper, Ubuntu **OEM handover** assets (`oem-config` packages, desktop launcher,
-`/usr/local/bin/oem-prepare-shipping`), and the **`skel/`** autostart entries.
+helper, Ubuntu **OEM handover launcher** assets (desktop launcher,
+`/usr/local/bin/oem-prepare-shipping` — packages **`oem-config`** /
+**`oem-config-gtk`** are installed later by **`step_oem_handover`**), and the
+**`skel/`** autostart entries.
 **Does not** install theme or icon packages or override GTK / icon / xfwm themes
 — distro defaults apply (**Xubuntu**).
 
@@ -33,7 +35,7 @@ for the OS).
 
 ## Outputs
 
-- **apt:** `plank`, `oem-config`, `oem-config-gtk`
+- **apt:** `plank` (`oem-config` / `oem-config-gtk`: see **`modules/oem_handover.sh`**)
 - **`/usr/share/backgrounds/oem-setup/malta.jpg`**
 - **`/usr/local/bin/oem-first-run.sh`** (mode `755`)
 - **`/usr/local/bin/oem-prepare-shipping`** (mode `755`)
@@ -45,18 +47,18 @@ for the OS).
 ## Walkthrough
 
 1. `ensure_apt_fresh` then `apt-get install -y plank`.
-2. `apt-get install -y oem-config oem-config-gtk`.
-3. Install `oem-prepare-shipping.sh` and `oem-prepare-shipping.desktop` system-wide.
-4. Copy wallpaper into `/usr/share/backgrounds/oem-setup/`.
-5. Install `oem-first-run.sh` to `/usr/local/bin/`.
-6. `cp -r "$REPO_DIR/skel/." /etc/skel/`; create `/etc/skel/Desktop/` and copy the
+2. Install `oem-prepare-shipping.sh` and `oem-prepare-shipping.desktop` system-wide.
+3. Copy wallpaper into `/usr/share/backgrounds/oem-setup/`.
+4. Install `oem-first-run.sh` to `/usr/local/bin/`.
+5. `cp -r "$REPO_DIR/skel/." /etc/skel/`; create `/etc/skel/Desktop/` and copy the
    handover `.desktop` there.
-7. If `$SUDO_USER` is set: mirror autostart + Desktop, `chown`, run `oem-first-run.sh`.
+6. If `$SUDO_USER` is set: mirror autostart + Desktop, `chown`, run `oem-first-run.sh`.
 
 ## Uninstall counterpart
 
 `step_uninstall` purges **`plank`**, removes **`/usr/share/backgrounds/oem-setup`**
 and **`oem-first-run.sh`**, **`oem-prepare-shipping`**, the handover `.desktop`
 files, cleans **`/etc/skel`** and per-user Plank / marker / Desktop launcher
-files. It does **not** purge `oem-config` packages by default.
+files. **`oem-config` / `oem-config-gtk`** are purged together with the other
+toolkit packages in the apt purge list.
 See [`uninstall.md`](../uninstall.md).

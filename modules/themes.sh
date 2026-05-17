@@ -12,7 +12,7 @@
 #              REPO_DIR/skel/...
 #              SUDO_USER (optional, for live-session apply)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: plank, oem-config, oem-config-gtk
+#   Writes:    apt: plank (oem-config packages: see modules/oem_handover.sh)
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
 #              /usr/local/bin/oem-prepare-shipping   (mode 755)
@@ -74,11 +74,6 @@ step_themes() {
     ensure_apt_fresh
     oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y plank
     oem_tty_say "    [+] plank installed."
-
-    oem_tty_say "--> Installing Ubuntu OEM handover packages (oem-config)…"
-    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        oem-config oem-config-gtk
-    oem_tty_say "    [+] oem-config packages installed."
 
     install -m 755 "$REPO_DIR/assets/scripts/oem-prepare-shipping.sh" \
                    /usr/local/bin/oem-prepare-shipping

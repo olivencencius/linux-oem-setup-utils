@@ -22,6 +22,7 @@ run_full_pipeline() {
     run_step terminal
     run_step regional
     run_step diagnostics
+    run_step oem_handover
 }
 ```
 
@@ -130,16 +131,19 @@ and purged during this step.
 This step is deliberately **before** `themes` so `oem-first-run.sh` can pin the
 overview icon when it seeds Plank.
 
-### 10. `themes` — wallpaper, Plank, panel layout, OEM handover
+### 10. `themes` — wallpaper, Plank, panel layout, OEM launcher assets
 
-Installs **`plank`**, **`oem-config`**, **`oem-config-gtk`**, deploys the Malta
-wallpaper, **`oem-prepare-shipping`**, the **`oem-prepare-shipping.desktop`**
-launcher (system menu + `/etc/skel/Desktop/`), deploys and stages the
-per-user first-run script, and copies the **`skel/`** tree (autostart entries
+Installs **`plank`**, deploys the Malta wallpaper, **`oem-prepare-shipping`**, the
+**`oem-prepare-shipping.desktop`** launcher (system menu + `/etc/skel/Desktop/`),
+the per-user first-run script, and copies the **`skel/`** tree (autostart entries
 only — no forced GTK/icon themes). For the live technician session it mirrors
 autostart and **Desktop** into that user's home and runs `oem-first-run.sh` inline to
 apply the wallpaper, top panel layout (including workspace **pager** when missing), **xfwm4** workspace defaults, keyboard bindings for **rofi** / **add workspace**, and bottom Plank dock immediately.
 See [`modules/themes.md`](./modules/themes.md) for the detail.
+
+The **`oem-config`** / **`oem-config-gtk`** apt install is **not** here — it runs in
+**`oem_handover`** (after **`diagnostics`**) so a slow handover dependency set does
+not block the rest of the pipeline.
 
 GTK and icon themes stay at **distro defaults** (**Xubuntu**).
 
@@ -172,15 +176,22 @@ timezone** are left as configured during OS installation (`step_regional`
 does not run `timedatectl` or edit `/etc/default/keyboard`). Because this runs
 late, the language packs do not slow apt during earlier package-heavy steps.
 
-### 14. `diagnostics` — last
+### 14. `diagnostics` — before OEM handover apt
 
 Runs **`step_diagnostics`** (`modules/diagnostics.sh`): a read-only inventory and
 automated `[PASS]`/`[WARN]`/`[FAIL]` report so technicians see system state and
-common misconfiguration hints immediately after every other step has run.
-Keeping it last ensures the report reflects the deployed wallpaper, web apps,
+common misconfiguration hints after every other non-handover step has run.
+The report reflects the deployed wallpaper, web apps,
 touchpad snippet, `libinput-gestures`, ZRAM, TLP, keyboard/audio stack, **and boot timing**
 (`systemd-analyze` excerpts under **Boot (systemd)**) as left by earlier steps. The script never prompts and never raises —
 manual QA remains in [`handover-qa.md`](./handover-qa.md).
+
+### 15. `oem_handover` — Ubuntu OEM packages (last)
+
+Runs **`step_oem_handover`** (`modules/oem_handover.sh`): **`apt-get install`**
+**`oem-config oem-config-gtk`** with verbose apt output and a heartbeat, so slow
+or quiet phases are easier to see in the log. This step is **last** so it cannot
+block **`touchpad`**, **`terminal`**, **`regional`**, or **`diagnostics`**.
 
 ## What is **not** in the pipeline
 
