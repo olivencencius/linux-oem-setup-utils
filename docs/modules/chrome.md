@@ -45,7 +45,7 @@ Chrome stays current via the system's normal `apt update` cycle.
 ```bash
 local deb=/tmp/google-chrome-stable_current_amd64.deb
 rm -f "$deb"
-wget -q --show-progress -O "$deb" \
+wget --continue --show-progress -O "$deb" \
     https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 
 if [ ! -s "$deb" ]; then
@@ -64,8 +64,11 @@ Linear and conservative:
 
 1. Remove any leftover `.deb` from a previous partial run (also done
    by `step_cleanup`, but cheap to repeat).
-2. `wget -q --show-progress` keeps the run logs readable (no chatty
-   HTTP headers) while still showing a percentage bar.
+2. `wget` **without** `-q`: quiet mode hides the progress bar, so a
+   ~100 MiB download looks “frozen” for many minutes on OEM Wi‑Fi.
+   `--continue` allows resuming a partial `.deb`. `--show-progress`
+   draws an updating bar on stderr (wrapped by `oem_run_log` for line
+   buffering through `tee`).
 3. `[ ! -s ]` checks that the `.deb` is non-empty. `wget` can return
    `0` with a zero-byte file on certain CDN failures; this catches
    that.

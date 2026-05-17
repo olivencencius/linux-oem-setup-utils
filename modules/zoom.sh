@@ -21,14 +21,16 @@
 # ==============================================================================
 
 step_zoom() {
-    oem_tty_say "--> Downloading Zoom .deb (network; optional step)…"
+    oem_tty_say \
+        "--> Downloading Zoom .deb (network; optional step)…" \
+        "    [.] If the download runs, progress appears below (can take a few minutes)."
     local deb=/tmp/zoom_amd64.deb
 
     rm -f "$deb"
     # Zoom is "nice to have" — we explicitly tolerate a download failure
     # (e.g. flaky CDN) and just skip the install, instead of aborting the
     # whole pipeline. `|| true` keeps `set -e` from biting us.
-    oem_run_log wget -q --show-progress -O "$deb" https://zoom.us/client/latest/zoom_amd64.deb || true
+    oem_run_log wget --continue --show-progress -O "$deb" https://zoom.us/client/latest/zoom_amd64.deb || true
 
     if [ ! -s "$deb" ]; then
         oem_tty_say "    [!] Zoom .deb download failed — skipping."

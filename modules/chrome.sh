@@ -60,11 +60,16 @@ patch_google_chrome_desktop() {
 }
 
 step_chrome() {
-    oem_tty_say "--> Downloading Google Chrome .deb (network)…"
+    # Do NOT use wget -q here: it suppresses output and a ~100 MiB download looks
+    # frozen for many minutes on slow Wi-Fi. --show-progress needs non-quiet mode.
+    oem_tty_say \
+        "--> Downloading Google Chrome .deb (network)…" \
+        "    [.] Package is large (~100 MiB from dl.google.com). On slow Wi-Fi this" \
+        "        often takes 5–20+ minutes — watch the progress bar below, not only this line."
     local deb=/tmp/google-chrome-stable_current_amd64.deb
 
     rm -f "$deb"
-    oem_run_log wget -q --show-progress -O "$deb" \
+    oem_run_log wget --continue --show-progress -O "$deb" \
         https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 
     if [ ! -s "$deb" ]; then
