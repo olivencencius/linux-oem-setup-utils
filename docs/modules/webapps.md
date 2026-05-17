@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Creates 11 Chrome `--app=` launchers and bundles their SVG icons so the
+Creates 13 Chrome `--app=` launchers and bundles their SVG icons so the
 final desktop has "real" looking shortcuts for streaming, productivity,
 and Google services without depending on remote icon URLs.
 
@@ -12,13 +12,13 @@ and Google services without depending on remote icon URLs.
 
 ## Inputs
 
-- `$REPO_DIR/assets/icons/*.svg` (11 SVG files).
+- `$REPO_DIR/assets/icons/*.svg` (13 SVG files).
 - `$REPO_DIR/modules/chrome-exec-flags.sh` (`OEM_CHROME_EXEC_FLAGS`; shared with `chrome.sh`).
 - `$REPO_DIR` (exported by `setup.sh`).
 
 ## Outputs
 
-For each of the 11 web apps, two files are placed on the system:
+For each of the 13 web apps, two files are placed on the system:
 
 - `/usr/share/applications/<Name>.desktop`
 - `/usr/share/icons/hicolor/scalable/apps/<icon>.svg`
@@ -26,7 +26,7 @@ For each of the 11 web apps, two files are placed on the system:
 Plus a refreshed GTK icon cache (`gtk-update-icon-cache`) and a
 refreshed desktop database (`update-desktop-database`).
 
-## The 11 web apps
+## The 13 web apps
 
 | `.desktop` filename | URL | Icon (basename) | Display name |
 |---|---|---|---|
@@ -38,6 +38,8 @@ refreshed desktop database (`update-desktop-database`).
 | `YouTube.desktop` | `https://www.youtube.com` | `youtube` | YouTube |
 | `Gmail.desktop` | `https://mail.google.com` | `gmail` | Gmail |
 | `GoogleDocs.desktop` | `https://docs.google.com` | `googledocs` | Google Docs |
+| `GoogleSheets.desktop` | `https://sheets.google.com` | `googlesheets` | Google Sheets |
+| `GoogleSlides.desktop` | `https://slides.google.com` | `googleslides` | Google Slides |
 | `GoogleDrive.desktop` | `https://drive.google.com` | `googledrive` | Google Drive |
 | `Gemini.desktop` | `https://gemini.google.com` | `gemini` | Gemini |
 | `ChromeRemoteDesktop.desktop` | `https://remotedesktop.google.com/access` | `chromeremotedesktop` | Chrome Remote Desktop |
@@ -156,10 +158,9 @@ results in byte-for-byte identical files.
 
 ## Uninstall counterpart
 
-`step_uninstall` (sub-step 9):
+`step_uninstall` (sub-step 8):
 
-- `rm` 11 `.desktop` files from `/usr/share/applications/`.
-- `rm` 11 SVG icons from `/usr/share/icons/hicolor/scalable/apps/`.
+- `rm` thirteen `.desktop` files from `/usr/share/applications/`.
+- `rm` thirteen SVG icons from `/usr/share/icons/hicolor/scalable/apps/`.
 - `gtk-update-icon-cache -f` to drop the icons from the cache.
-- (The `update-desktop-database` refresh happens implicitly in
-  sub-step 8b when the Powerwash desktop entry is removed.)
+- `update-desktop-database` is refreshed where needed during uninstall cleanup.

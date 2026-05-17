@@ -11,7 +11,6 @@ run_full_pipeline() {
     prompt_keyboard
     run_step cleanup
     run_step updates
-    run_step flathub
     run_step hardware_fixes
     run_step chrome
     run_step zoom
@@ -22,7 +21,6 @@ run_full_pipeline() {
     run_step touchpad
     run_step terminal
     run_step regional
-    run_step powerwash
     run_step diagnostics
 }
 ```
@@ -49,34 +47,22 @@ single answer.
 
 Removes leftover `/tmp/*.deb` and `/tmp/Chrome*` / `/tmp/Tela*` /
 `/tmp/cros-*` directories from a previous partial run. Without this, a
-half-extracted theme tree from a failed run can confuse the installer's
+half-extracted tree from a failed run can confuse the installer's
 overwrite logic; a `wget` to an already-existing `.deb` path is
 harmless but a leftover unzipped tree is not.
 
 ### 3. `updates` — before anything depends on apt
 
-Runs `apt-get update`, `apt-get upgrade`, then installs `mint-meta-codecs`,
-`git`, `wget`, `curl`, `xinput`, `gimp`, `gtk2-engines-murrine`,
-`zram-tools`, `tlp`. Crucially, `step_updates` exports `OEM_APT_FRESH=1`
-so later modules' `ensure_apt_fresh` calls become no-ops — one
-`apt-get update` per pipeline.
+Runs `apt-get update`, `apt-get upgrade`, then installs `git`, `wget`,
+`curl`, `xinput`, `gimp`, `zram-tools`, `tlp`. Multimedia codecs are
+**not** installed here — use the OS installer / image options for that.
+`step_updates` exports `OEM_APT_FRESH=1` so later modules'
+`ensure_apt_fresh` calls become no-ops — one `apt-get update` per pipeline.
 
 `xinput` is installed here so `step_touchpad` can push live values via
-`xinput set-prop` without needing its own apt install. `gtk2-engines-
-murrine` is needed by the ChromeOS GTK theme to render GTK2 widgets
-(XFCE panel plugins, older apps); without it the theme is "selected"
-but visually inert on those widgets. `gimp` is in the base-tools group
-rather than `step_apps` because it's a productivity tool, not a
-media-player / game.
+`xinput set-prop` without needing its own apt install.
 
-### 4. `flathub` — early, low-risk
-
-Adds the Flathub remote. No flatpak app is installed by the toolkit
-(apt is preferred to save the ~1.5 GB GNOME/freedesktop runtime on a
-4 GB eMMC). The remote is added so the *buyer* can install flatpak apps
-later without having to know how to add the remote.
-
-### 5. `hardware_fixes` — before themes/touchpad so a reboot affects everything
+### 4. `hardware_fixes` — before themes/touchpad so a reboot affects everything
 
 Three concerns, all board-specific:
 
@@ -98,10 +84,10 @@ Three concerns, all board-specific:
   Both mutations call `backup_once` first so the originals are
   restored cleanly by `step_uninstall`.
 
-### 6–9. `chrome`, `zoom`, `apps`, `web_apps` — *before* `themes`
+### 5–8. `chrome`, `zoom`, `apps`, `web_apps` — *before* `themes`
 
 Order is critical. `step_themes` deploys `oem-first-run.sh`, which on
-first XFCE login walks a fixed `DOCK_LAUNCHERS` list and adds one Plank
+first XFCE login walks a fixed launcher list and adds one Plank
 launcher (dockitem) per `/usr/share/applications/NAME.desktop` that
 exists. Anything missing at first-login time is silently skipped — the
 dock is just short by that icon. So:
@@ -109,7 +95,7 @@ dock is just short by that icon. So:
 - Chrome's `.deb` ships `/usr/share/applications/google-chrome.desktop`.
 - Zoom's `.deb` ships `/usr/share/applications/Zoom.desktop`.
 - VLC (from `step_apps`) ships `/usr/share/applications/vlc.desktop`.
-- The 11 web-app `.desktop` files are created by `step_web_apps`.
+- The 13 web-app `.desktop` files are created by `step_web_apps`.
 
 If any of those is missing when `oem-first-run.sh` runs, the Plank dock for
 that user is short by an icon. (For the live oem user, `step_themes`
@@ -128,7 +114,7 @@ Zoom is allowed to fail. Its CDN is occasionally flaky and Zoom is
 technician sees a `[!] Zoom .deb download failed — skipping.` line in
 the log.
 
-### 10. `gestures_and_workspaces` — after web apps, before themes
+### 9. `gestures_and_workspaces` — after web apps, before themes
 
 Installs **`wmctrl`**, **`xdotool`**, **`touchegg`**, and **`xfdashboard`**;
 deploys **`/usr/share/applications/oem-workspace-overview.desktop`** (Plank /
@@ -139,22 +125,18 @@ the live oem user when `$SUDO_USER` is set.
 This step is deliberately **before** `themes` so `oem-first-run.sh` can pin the
 overview icon when it seeds Plank.
 
-### 11. `themes` — the big one
+### 10. `themes` — wallpaper, Plank, panel layout
 
-Installs `papirus-icon-theme` and `gtk2-engines-murrine`, deploys the
-Malta wallpaper, deploys and stages the per-user first-run script, and
-copies the entire `/etc/skel` tree. For the live oem session it also
-mirrors the autostart entries and `xsettings.xml` into the oem user's
-home, sets `Mint-Y-Aqua` via xsettings + xfwm4, restarts xfsettingsd,
-and runs `oem-first-run.sh` inline to apply the wallpaper and create
-the bottom Plank dock immediately. See
-[`modules/themes.md`](./modules/themes.md) for the detail.
+Installs **`plank`**, deploys the Malta wallpaper, deploys and stages the
+per-user first-run script, and copies the **`skel/`** tree (autostart entries
+only — no forced GTK/icon themes). For the live oem session it mirrors
+autostart into the oem user's home and runs `oem-first-run.sh` inline to
+apply the wallpaper, top panel layout, and bottom Plank dock immediately.
+See [`modules/themes.md`](./modules/themes.md) for the detail.
 
-This is the step that turns a "Mint XFCE with some apps installed"
-into "looks and feels like ChromeOS". No git clones required — all
-components ship in apt or are part of a standard Mint install.
+GTK and icon themes stay at **distro defaults** (Linux Mint XFCE or Xubuntu).
 
-### 12. `touchpad` — after themes
+### 11. `touchpad` — after themes
 
 Writes `/etc/X11/xorg.conf.d/40-chromebook-touchpad.conf` with
 `NaturalScrolling`, `Tapping`, `TappingDrag`, `ClickMethod clickfinger`,
@@ -170,39 +152,31 @@ The previous revision wired up an `imwheel`-based 3x scroll
 `step_uninstall` still purges `imwheel` and the per-user `.imwheelrc`
 to clean up legacy installs.
 
-### 13. `terminal` — tiny, before regional
+### 12. `terminal` — tiny, before regional
 
 Disables bracketed paste mode in `/etc/inputrc` and `/etc/skel/.inputrc`.
 Cheap.
 
-### 14. `regional` — after the apt-fresh modules are done
+### 13. `regional` — after the apt-fresh modules are done
 
 Installs language packs (`-pl`, `-gnome-pl`, `-en`, `-gnome-en`),
 generates locales, sets `LANG=pl_PL.UTF-8`, timezone `Europe/Warsaw`,
 and the chosen `XKBLAYOUT`. Because this runs late, the language packs
 do not slow down apt during the earlier package-heavy steps.
 
-### 15. `powerwash`
-
-Installs the buyer-facing factory-reset tool: scripts, systemd unit,
-polkit policy, menu entry, icon. Positioned late because it's a feature for the
-*buyer*, not part of the visible deployment, and only depends on
-`zenity` / `policykit-1` / `oem-config-gtk` which it brings in
-itself.
-
-### 16. `diagnostics` — last
+### 14. `diagnostics` — last
 
 Runs **`step_diagnostics`** (`modules/diagnostics.sh`): a read-only inventory and
 automated `[PASS]`/`[WARN]`/`[FAIL]` report so technicians see system state and
 common misconfiguration hints immediately after every other step has run.
 Keeping it last ensures the report reflects the deployed wallpaper, web apps,
-Powerwash files, touchpad snippet, `touchegg`, ZRAM, TLP, and keyboard/audio
+touchpad snippet, `touchegg`, ZRAM, TLP, and keyboard/audio
 stack as left by earlier steps. The script never prompts and never raises —
 manual QA remains in [`handover-qa.md`](./handover-qa.md).
 
 ## What is **not** in the pipeline
 
-- **`uninstall`** is only reachable via menu option `16`. It is sourced
+- **`uninstall`** is only reachable via menu option `14`. It is sourced
   by `setup.sh` like every other module but never called from
   `run_full_pipeline`.
 - **`cleanup` is repeated**: `step_uninstall` calls `step_cleanup` near
@@ -228,13 +202,13 @@ case. The actual list:
 
 ## Menu vs full pipeline
 
-| Concern | Full pipeline (`1`) | Individual options (`2`–`15`) |
+| Concern | Full pipeline (`1`) | Individual options (`2`–`13`) |
 |---|---|---|
 | Step wrapper | `run_step` (skip if done) | `do_step` (always run) |
 | Resume after crash | yes — finished steps skipped | n/a (technician picks what to run) |
 | `apt-get update` | once, in `step_updates` | `ensure_apt_fresh` runs it once per session |
-| Keyboard prompt | once, at the start | only when option 13 is picked stand-alone |
+| Keyboard prompt | once, at the start | only when option 12 is picked stand-alone |
 | Reboot reminder | printed automatically | not printed |
-| `step_cleanup` | runs once, early | options 2, 4, 9 chain it before their main step |
+| `step_cleanup` | runs once, early | options 2, 3, 8 chain it before their main step |
 
-For the option-16 (uninstall) flow see [`uninstall.md`](./uninstall.md).
+For the option-14 (uninstall) flow see [`uninstall.md`](./uninstall.md).

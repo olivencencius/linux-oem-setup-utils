@@ -2,9 +2,8 @@
 # ==============================================================================
 #   Module:    apps.sh
 #   Purpose:   Install default user-facing apt apps: VLC + three games
-#              (supertuxkart, aisleriot, quadrapassel). Native apt is used
-#              over flatpak to save the ~1.5 GB GNOME/freedesktop runtime on
-#              4 GB eMMC.
+#              (supertuxkart, aisleriot, quadrapassel). Native apt keeps disk
+#              use low on 4 GB eMMC.
 #   Reads:     helpers: ensure_apt_fresh
 #   Writes:    apt: vlc, supertuxkart, aisleriot, quadrapassel
 #              /usr/share/applications/vlc.desktop (consumed by Plank

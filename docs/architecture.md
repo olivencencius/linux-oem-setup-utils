@@ -18,7 +18,6 @@ linux-oem-setup-utils/
 ├── modules/                    ← one .sh per pipeline step, each sourced (not executed)
 │   ├── cleanup.sh
 │   ├── updates.sh
-│   ├── flathub.sh
 │   ├── hardware.sh
 │   ├── chrome.sh
 │   ├── zoom.sh
@@ -29,7 +28,6 @@ linux-oem-setup-utils/
 │   ├── gestures.sh
 │   ├── terminal.sh
 │   ├── regional.sh
-│   ├── powerwash.sh
 │   ├── diagnostics.sh
 │   └── uninstall.sh
 ├── assets/                     ← anything the modules install onto the system
@@ -118,11 +116,11 @@ run_step <name>  # Skips if /var/lib/oem-setup/state/<name>.done exists,
                  # otherwise calls do_step.
 ```
 
-- The **menu's individual options** (`2`–`15`) call `do_step` so a
+- The **menu's individual options** (`2`–`13`) call `do_step` so a
   technician can re-apply one step on demand even after a full pipeline.
-  Option **`16`** (Undo all changes) is the exception — it calls
+  Option **`14`** (Undo all changes) is the exception — it calls
   `step_uninstall` directly (see [`modules/uninstall.md`](./modules/uninstall.md)).
-  Option **`17`** exits without invoking a step.
+  Option **`15`** exits without invoking a step.
 - The **full pipeline** (option `1`) calls `run_step` so a re-run after a
   failure resumes from the broken step.
 
@@ -155,11 +153,6 @@ machine is being prepared for a different region than the previous one.
 - **Why one file across runs**: when a step fails mid-pipeline the
   technician will run `setup.sh` again. Keeping the log appended lets them
   grep the whole history. Rotate or truncate manually if needed.
-- **The Powerwash subsystem has its own log**: `/var/log/oem-powerwash.log`
-  is written by `oem-powerwash-finalize.sh` on the post-powerwash boot.
-  This is intentional — that script runs from a systemd service before
-  any display manager and is not part of a `setup.sh` invocation.
-
 ---
 
 ## Error handling
@@ -247,7 +240,7 @@ This matters when a technician picks individual menu options:
 - the full pipeline already calls `step_updates` which runs the real
   `apt-get update` and exports `OEM_APT_FRESH=1`, so later modules
   skip it;
-- but an individual option (e.g. "5 Install Google Chrome") needs to
+- but an individual option (e.g. "4 Install Google Chrome") needs to
   refresh the cache itself because it might run on a freshly-rebooted
   machine. The first `ensure_apt_fresh` call in that session does the
   refresh, the rest no-op.

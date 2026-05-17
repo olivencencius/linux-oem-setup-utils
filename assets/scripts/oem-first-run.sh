@@ -3,18 +3,17 @@
 #   Script:       oem-first-run.sh
 #   Purpose:      Per-user one-shot. On first XFCE login:
 #                   1. Applies the Malta wallpaper to every detected monitor.
-#                   2. Sets Mint-Y-Aqua GTK theme + Papirus icons via xsettings
-#                      and xfwm4 (window decorations).
-#                   3. Moves panel-1 to the top edge, slims it to 24 px,
+#                   2. Moves panel-1 to the top edge, slims it to 24 px,
 #                      removes the window-buttons / tasklist plugin (redundant
-#                      with Plank's running-app indicators), and strips Mint's
-#                      default panel launchers (Firefox, XFCE Terminal, Thunar)
+#                      with Plank's running-app indicators), and strips default
+#                      panel launchers (Firefox, XFCE Terminal, Thunar)
 #                      so the top bar stays status-only.
-#                   4. Seeds a Plank dock at the bottom-centre with pinned
+#                   3. Seeds a Plank dock at the bottom-centre with pinned
 #                      launchers (icon size 40, auto-hide, Matte theme — tuned
 #                      for weaker GPUs / small panels), starts plank, and installs a per-user plank
 #                      autostart entry so plank comes up on every subsequent
 #                      login.
+#                 GTK/icon themes are left to distro defaults (no overrides).
 #                 Then self-deletes its autostart entry so the user keeps full
 #                 freedom over theme/wallpaper/dock afterwards.
 #   Installed to: /usr/local/bin/oem-first-run.sh   (mode 755)
@@ -31,9 +30,6 @@
 #                 /usr/share/applications/*.desktop for each pinned launcher
 #   Writes:       xfconf-query: xfce4-desktop  ./<monitor>/last-image,
 #                                               ./<monitor>/image-style=5
-#                 xfconf-query: xsettings       /Net/ThemeName=Mint-Y-Aqua
-#                                               /Net/IconThemeName=Papirus
-#                 xfconf-query: xfwm4           /general/theme=Mint-Y-Aqua
 #                 xfconf-query: xfce4-panel     /panels/panel-1/position,
 #                                               /panels/panel-1/size,
 #                                               /panels/panel-1/plugin-ids
@@ -76,16 +72,44 @@ MARKER="$HOME/.config/.oem-first-run-done"
 
 WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 
-# Ordered list of pinned dock apps.
-# Each entry is the .desktop basename WITHOUT the .desktop extension.
-# The exact capitalisation must match /usr/share/applications/<name>.desktop.
+# Ordered list of pinned dock apps (.desktop basename without extension).
+# File manager + app store entries are resolved below so Mint and Xubuntu match.
 DOCK_LAUNCHERS=(
     xfce4-appfinder
     oem-workspace-overview
     google-chrome
     xfce4-settings-manager
-    thunar
-    mintinstall
+)
+
+# File manager — first XFCE .desktop that exists
+for _oem_fm in thunar org.xfce.thunar; do
+    if [ -f "/usr/share/applications/${_oem_fm}.desktop" ]; then
+        DOCK_LAUNCHERS+=( "$_oem_fm" )
+        break
+    fi
+done
+
+# Software centre — distro-prioritised candidates (skip if none installed)
+if [ -r /etc/os-release ]; then
+    # shellcheck source=/dev/null
+    . /etc/os-release
+fi
+case "${ID:-}" in
+    linuxmint)
+        _oem_store_candidates=( mintinstall org.gnome.Software snap-store ubuntu-software software-manager )
+        ;;
+    *)
+        _oem_store_candidates=( snap-store ubuntu-software org.gnome.Software mintinstall gnome-software synaptic )
+        ;;
+esac
+for _oem_store in "${_oem_store_candidates[@]}"; do
+    if [ -f "/usr/share/applications/${_oem_store}.desktop" ]; then
+        DOCK_LAUNCHERS+=( "$_oem_store" )
+        break
+    fi
+done
+
+DOCK_LAUNCHERS+=(
     vlc
     Zoom
     Gmail
@@ -125,22 +149,13 @@ if [ -f "$WALLPAPER" ] && command -v xfconf-query >/dev/null; then
 fi
 
 # ------------------------------------------------------------------------------
-# 2. Theme + icons
-# Set GTK theme, icon theme, and window-decoration theme.
-# ------------------------------------------------------------------------------
-if command -v xfconf-query >/dev/null; then
-    xfconf-query -c xsettings -p /Net/ThemeName     -s "Mint-Y-Aqua" 2>/dev/null || true
-    xfconf-query -c xsettings -p /Net/IconThemeName -s "Papirus"     2>/dev/null || true
-    xfconf-query -c xfwm4     -p /general/theme     -s "Mint-Y-Aqua" 2>/dev/null || true
-fi
-
-# ------------------------------------------------------------------------------
-# 3. Panel-1 — move to top, slim to 24 px, strip tasklist + default launchers.
+# 2. Panel-1 — move to top, slim to 24 px, strip tasklist + default launchers.
 #
-# Mint XFCE ships one panel (panel-1) at the bottom. We move it to the top
-# so it acts as a slim status bar (Whisker Menu, clock, tray, volume, power)
-# while Plank owns the bottom edge as the dock. The window-buttons / tasklist
-# plugin is removed because Plank already shows running-app indicators.
+# Mint XFCE often ships panel-1 at the bottom; Xubuntu may already use the top.
+# We move panel-1 to the top edge so it acts as a slim status bar (Whisker Menu,
+# clock, tray, volume, power) while Plank owns the bottom as the dock. The
+# window-buttons / tasklist plugin is removed because Plank already shows
+# running-app indicators.
 #
 # Default quick-launch icons (Firefox, XFCE Terminal, Thunar) are stored by XFCE
 # as .desktop files under ~/.config/xfce4/panel/launcher-<plugin-id>/. Those
@@ -281,7 +296,7 @@ setup_top_panel() {
 }
 
 # ------------------------------------------------------------------------------
-# 3b. Chromebook top-row “overview / scale” → xfdashboard
+# 2b. Chromebook top-row “overview / scale” → xfdashboard
 #
 # cros-keyboard-map (keyd) leaves the Vivaldi “scale” key as XF86Scale (and
 # similar XF86* codes on some boards). XFCE does not map those to an overview
@@ -308,7 +323,7 @@ setup_workspace_overview_keys() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Plank dock (bottom-centre, auto-hide, pinned launchers).
+# 3. Plank dock (bottom-centre, auto-hide, pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
 # index (01-, 02-, …) to lock the order specified in DOCK_LAUNCHERS.
@@ -395,7 +410,7 @@ setup_workspace_overview_keys
 setup_plank_dock
 
 # ------------------------------------------------------------------------------
-# 5. Mark complete and self-delete autostart entry
+# 4. Mark complete and self-delete autostart entry
 # ------------------------------------------------------------------------------
 mkdir -p "$(dirname "$MARKER")"
 touch "$MARKER"

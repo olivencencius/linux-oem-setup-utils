@@ -17,8 +17,7 @@ player and three small games (`supertuxkart`, `aisleriot`,
 ## Outputs
 
 - `vlc` package and its `/usr/share/applications/vlc.desktop` (the
-  file the panel-2 dock launcher, created at first login by
-  `oem-first-run.sh`, references).
+  file Plank references via `oem-first-run.sh`.
 - `supertuxkart`, `aisleriot`, `quadrapassel` packages and their
   menu entries.
 
@@ -33,9 +32,7 @@ Two lines. Deliberately boring.
 
 ## Notes
 
-- **Why apt, not flatpak?** VLC as a flatpak pulls the
-  `org.freedesktop.Platform` runtime (~1 GB) which is overkill on a
-  4 GB eMMC machine. apt VLC is ~50 MB. Same calculus for the games.
+- **Why apt?** Keeps disk and RAM use low on 4 GB eMMC; no separate app runtime trees.
 - Spotify is **not** in this module. It is delivered as a Chrome web
   app by `step_web_apps` — the native Linux client is 200+ MB and
   noticeably heavier than the PWA on 4 GB RAM.

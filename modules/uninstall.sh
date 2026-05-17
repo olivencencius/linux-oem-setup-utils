@@ -7,17 +7,14 @@
 #   Reads:     SUDO_USER (optional), /dev/tty (YES confirmation)
 #              /var/lib/oem-setup/backups/{grub,modules,inputrc,keyboard}
 #   Writes:    Reverts every system-level change the toolkit makes —
-#              16 sub-steps detailed in docs/uninstall.md.
-#              Notable: NOT removed are zenity/policykit-1/oem-config-gtk
-#              (commonly part of Mint OEM images),
-#              gtk2-engines-murrine (shared dep used by many GTK themes),
-#              and /var/lib/oem-setup/backups/ (kept for repeat uninstalls).
+#              15 sub-steps detailed in docs/uninstall.md.
+#              /var/lib/oem-setup/backups/ (kept for repeat uninstalls).
 #   Step fn:   step_uninstall
 #   Helpers:   note, restore_or_skip (file-scope)
 #   Docs:      docs/modules/uninstall.md   (this module)
 #              docs/uninstall.md            (cross-cutting reverted-items map)
 #
-#   NOTE: Invoked DIRECTLY from the menu (option 16), not via do_step.
+#   NOTE: Invoked DIRECTLY from the menu (option 14), not via do_step.
 #   Owns its own YES confirmation. Never writes an uninstall.done marker —
 #   re-runs always proceed (which is what you want for idempotent cleanup).
 # ==============================================================================
@@ -47,16 +44,14 @@ step_uninstall() {
     echo "         UNDO / FULL UNINSTALL           "
     echo "========================================="
     echo "This will remove every package and config change this toolkit made:"
-    echo "  - Purge: Chrome, Zoom, VLC, GIMP, Papirus icons, TLP, ZRAM tools,"
-    echo "          imwheel (legacy), touchegg, xfdashboard, keyd,"
-    echo "          language packs, mint codecs,"
+    echo "  - Purge: Chrome, Zoom, VLC, GIMP, TLP, ZRAM tools,"
+    echo "          imwheel (legacy), plank, touchegg, xfdashboard, keyd,"
+    echo "          language packs,"
     echo "          games (SuperTuxKart, Aisleriot, Quadrapassel)"
     echo "  - Remove Google Chrome apt repository and signing key"
-    echo "  - Remove Flathub remote"
     echo "  - Revert /etc/default/grub, /etc/initramfs-tools/modules,"
     echo "          /etc/inputrc, /etc/default/keyboard"
     echo "  - Delete web-app .desktop entries, icons, wallpaper, oem-first-run"
-    echo "  - Remove Powerwash tool, polkit policy and systemd finalize unit"
     echo "  - Clean /etc/skel and every user's home of toolkit artefacts"
     echo "  - Reset locale to en_US.UTF-8 and timezone to UTC"
     echo "  - Clear the oem-setup state markers and saved keyboard layout"
@@ -72,7 +67,7 @@ step_uninstall() {
     # 1. Stop running services & user helpers BEFORE purging their packages
     # -------------------------------------------------------------------------
     echo "--> Stopping services..."
-    for svc in tlp touchegg keyd oem-powerwash-finalize; do
+    for svc in tlp touchegg keyd; do
         if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.service"; then
             systemctl disable --now "$svc" 2>/dev/null || true
         fi
@@ -99,13 +94,11 @@ step_uninstall() {
         supertuxkart \
         aisleriot \
         quadrapassel \
-        papirus-icon-theme \
         plank \
         gimp \
         imwheel \
         tlp \
         zram-tools \
-        mint-meta-codecs \
         language-pack-pl \
         language-pack-gnome-pl \
         language-pack-en \
@@ -134,23 +127,11 @@ step_uninstall() {
     apt-get update -qq 2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 3. Remove Flathub remote
+    # 3. (Formerly Flathub — toolkit no longer adds flatpak remotes.)
     # -------------------------------------------------------------------------
-    if command -v flatpak &>/dev/null; then
-        echo "--> Removing Flathub remote..."
-        flatpak remote-delete --force flathub 2>/dev/null || true
-    fi
 
     # -------------------------------------------------------------------------
-    # 4. (No theme reverse-install needed)
-    #    Mint-Y-Aqua ships with mint-themes (always present on Mint; we did not
-    #    install it). Papirus was purged in step 2. No git clones were made.
-    # -------------------------------------------------------------------------
-    echo "--> Visual theme stack: Papirus purged (sub-step 2); Mint-Y-Aqua is"
-    echo "    a system theme and does not need removal."
-
-    # -------------------------------------------------------------------------
-    # 5. Chromebook-linux-audio quirks (best-effort; upstream has no uninstaller)
+    # 4. Chromebook-linux-audio quirks (best-effort; upstream has no uninstaller)
     # -------------------------------------------------------------------------
     echo "--> Cleaning chromebook-linux-audio quirks (best-effort)..."
     rm -rf  /usr/share/alsa/ucm2/codecs/cros-* \
@@ -164,7 +145,7 @@ step_uninstall() {
     note "chromebook-linux-audio has no upstream uninstaller — board-specific PipeWire/ALSA quirks may still be present. A fresh OS install is the only fully-clean reset."
 
     # -------------------------------------------------------------------------
-    # 6. Hardware-fix config: GRUB + initramfs-tools/modules
+    # 5. Hardware-fix config: GRUB + initramfs-tools/modules
     # -------------------------------------------------------------------------
     echo "--> Reverting /etc/default/grub..."
     if ! restore_or_skip /etc/default/grub; then
@@ -190,7 +171,7 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 7. Touchpad / gestures config
+    # 6. Touchpad / gestures config
     # -------------------------------------------------------------------------
     echo "--> Removing touchpad and gestures config..."
     rm -f /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf
@@ -198,7 +179,7 @@ step_uninstall() {
     rmdir --ignore-fail-on-non-empty /etc/touchegg 2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 8. Themes / wallpaper / first-run script
+    # 7. Wallpaper / first-run script
     #    (no Plank dconf override to remove — we never wrote one)
     # -------------------------------------------------------------------------
     echo "--> Removing wallpaper and first-run script..."
@@ -214,29 +195,7 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 8b. Powerwash tool — scripts, systemd unit, polkit policy, menu entry,
-    #     icon, and any pending flag file.
-    #     oem-config-gtk and zenity are NOT purged here because they are
-    #     commonly part of the Mint OEM image already.
-    # -------------------------------------------------------------------------
-    echo "--> Removing Powerwash tool..."
-    systemctl disable oem-powerwash-finalize.service 2>/dev/null || true
-    rm -f /etc/systemd/system/oem-powerwash-finalize.service
-    systemctl daemon-reload 2>/dev/null || true
-    rm -f /usr/local/bin/oem-powerwash.sh
-    rm -f /usr/local/sbin/oem-powerwash-arm.sh
-    rm -f /usr/local/sbin/oem-powerwash-finalize.sh
-    rm -f /usr/share/applications/oem-powerwash.desktop
-    rm -f /usr/share/icons/hicolor/scalable/apps/oem-powerwash.svg
-    rm -f /usr/share/polkit-1/actions/org.linuxoem.powerwash.policy
-    rm -f /var/lib/oem-setup/powerwash.flag
-    rm -f /var/log/oem-powerwash.log
-    if command -v update-desktop-database &>/dev/null; then
-        update-desktop-database /usr/share/applications 2>/dev/null || true
-    fi
-
-    # -------------------------------------------------------------------------
-    # 9. Web-app shortcuts (.desktop + icons)
+    # 8. Web-app shortcuts (.desktop + icons)
     # -------------------------------------------------------------------------
     echo "--> Removing web-app shortcuts and icons..."
     local WEBAPP_NAMES=(
@@ -258,7 +217,7 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 10. Terminal — bracketed paste fix
+    # 9. Terminal — bracketed paste fix
     # -------------------------------------------------------------------------
     echo "--> Reverting terminal paste fix..."
     if ! restore_or_skip /etc/inputrc; then
@@ -272,7 +231,7 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 11. Regional — keyboard, locale, timezone
+    # 10. Regional — keyboard, locale, timezone
     # -------------------------------------------------------------------------
     echo "--> Reverting regional settings..."
     if ! restore_or_skip /etc/default/keyboard; then
@@ -287,7 +246,7 @@ step_uninstall() {
     timedatectl set-timezone UTC              2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 12. /etc/skel cleanup — files this toolkit placed there
+    # 11. /etc/skel cleanup — files this toolkit placed there
     # -------------------------------------------------------------------------
     echo "--> Cleaning /etc/skel artefacts..."
     # Current artefacts
@@ -311,7 +270,7 @@ step_uninstall() {
     rmdir --ignore-fail-on-non-empty /root/.config/gtk-4.0 2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 13. Per-user cleanup (every uid >= 1000 plus $SUDO_USER, deduped)
+    # 12. Per-user cleanup (every uid >= 1000 plus $SUDO_USER, deduped)
     # -------------------------------------------------------------------------
     echo "--> Cleaning per-user artefacts..."
 
@@ -395,7 +354,7 @@ step_uninstall() {
     fi
 
     # -------------------------------------------------------------------------
-    # 14. Clear oem-setup state markers so a future `setup.sh` doesn't think
+    # 13. Clear oem-setup state markers so a future `setup.sh` doesn't think
     #     the toolkit is already applied.
     # -------------------------------------------------------------------------
     echo "--> Clearing oem-setup state markers..."
@@ -403,13 +362,13 @@ step_uninstall() {
     rm -f /var/lib/oem-setup/diagnostics-report.txt
 
     # -------------------------------------------------------------------------
-    # 15. /tmp residue + final autoremove
+    # 14. /tmp residue + final autoremove
     # -------------------------------------------------------------------------
     step_cleanup
     apt-get autoremove --purge -y 2>/dev/null || true
 
     # -------------------------------------------------------------------------
-    # 16. Closing summary
+    # 15. Closing summary
     # -------------------------------------------------------------------------
     echo ""
     echo "========================================="

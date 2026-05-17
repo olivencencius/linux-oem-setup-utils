@@ -3,9 +3,10 @@
 ## Purpose
 
 Brings the base system up to date and installs the toolkit's universal
-prerequisites (codecs, base tools, memory compression, power
-management). After this step, the rest of the pipeline can assume a
-fresh apt cache and a baseline set of utilities.
+prerequisites (base tools, memory compression, power management). After
+this step, the rest of the pipeline can assume a fresh apt cache and a
+baseline set of utilities. Multimedia codecs are left to the OS
+installer / image (not installed here).
 
 ## Function exported
 
@@ -23,17 +24,11 @@ None.
   prompting about modified config files; the OEM workflow can't pause
   for that.
 - Installs:
-  - `mint-meta-codecs` — non-free media codecs (h.264, AAC, etc.).
   - `git`, `wget`, `curl` — used by later modules to fetch source.
   - `xinput` — used by `step_touchpad` to apply natural scrolling to
     the live oem session.
   - `gimp` — image editor; bundled into the base tools rather than
     `step_apps` because it's a general-purpose productivity tool.
-  - `gtk2-engines-murrine` — required by the vinceliuice ChromeOS
-    GTK theme to render GTK2 widgets correctly (XFCE panel plugins,
-    older apps). Without it the theme is "selected" but visually
-    inert on those widgets — which was the symptom in the first QA
-    run.
   - `zram-tools` — ZRAM swap on compressed RAM, prevents stuttering
     on 4 GB eMMC Chromebooks.
   - `tlp` — battery management; enables and starts `tlp.service`.
@@ -47,15 +42,13 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 export OEM_APT_FRESH=1
 
-apt-get install -y mint-meta-codecs git wget curl xinput gimp \
-                   gtk2-engines-murrine
+apt-get install -y git wget curl xinput gimp
 apt-get install -y zram-tools tlp
 systemctl enable --now tlp.service
 ```
 
-Three logical sub-steps in two `apt-get install` calls plus the TLP
-service enable. The split lets the technician read the log and see
-*"base tools done"* before the larger ZRAM/TLP installation begins.
+Two logical sub-steps in two `apt-get install` calls plus the TLP
+service enable.
 
 ## Notes
 
@@ -78,13 +71,11 @@ Fully idempotent:
 
 ## Uninstall counterpart
 
-`step_uninstall` purges `tlp`, `zram-tools`, `mint-meta-codecs`,
-`imwheel` (legacy — no longer installed by this module, but the purge
-is kept as a courtesy for systems that ran an earlier revision of the
-toolkit), and `gimp` (sub-step 2). The other base tools
-(`git`, `wget`, `curl`, `xinput`, `gtk2-engines-murrine`) are
-intentionally left in place because they are routinely needed for
-general Linux administration / by other GTK themes.
+`step_uninstall` purges `tlp`, `zram-tools`, `imwheel` (legacy — no
+longer installed by this module, but the purge is kept as a courtesy for
+systems that ran an earlier revision of the toolkit), and `gimp`
+(sub-step 2). The other base tools (`git`, `wget`, `curl`, `xinput`)
+are intentionally left in place.
 
 `OEM_APT_FRESH` is a per-process variable and is naturally cleared
 when `setup.sh` exits.

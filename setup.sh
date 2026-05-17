@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==============================================================================
 #   Chromebook OEM Deployment Engine
-#   Converts MrChromebox-flashed x86 Chromebooks into market-ready Linux Mint
-#   machines optimised for resale. Run as root from the cloned repository.
+#   Converts MrChromebox-flashed x86 Chromebooks into market-ready Linux
+#   Mint XFCE or Xubuntu machines optimised for resale. Run as root from the cloned repository.
 #
 #   Usage (recommended — single command, no pre-installed dependencies):
 #     curl -sL https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
@@ -130,7 +130,6 @@ trap on_int INT TERM
 # ==============================================================================
 source "$REPO_DIR/modules/cleanup.sh"
 source "$REPO_DIR/modules/updates.sh"
-source "$REPO_DIR/modules/flathub.sh"
 source "$REPO_DIR/modules/hardware.sh"
 source "$REPO_DIR/modules/chrome.sh"
 source "$REPO_DIR/modules/zoom.sh"
@@ -141,7 +140,6 @@ source "$REPO_DIR/modules/touchpad.sh"
 source "$REPO_DIR/modules/gestures.sh"
 source "$REPO_DIR/modules/terminal.sh"
 source "$REPO_DIR/modules/regional.sh"
-source "$REPO_DIR/modules/powerwash.sh"
 source "$REPO_DIR/modules/diagnostics.sh"
 source "$REPO_DIR/modules/uninstall.sh"
 
@@ -150,7 +148,7 @@ source "$REPO_DIR/modules/uninstall.sh"
 #   Order is intentional:
 #     - prompt_keyboard FIRST so the rest can run unattended
 #     - chrome + zoom + apps + web_apps BEFORE themes so the .desktop files
-#       referenced by the skel dockitems already exist when /etc/skel is staged
+#       referenced by Plank already exist when /etc/skel is staged
 #     - gestures_and_workspaces AFTER web_apps and BEFORE themes so xfdashboard
 #       and oem-workspace-overview.desktop exist before oem-first-run.sh seeds Plank
 # ==============================================================================
@@ -158,7 +156,6 @@ run_full_pipeline() {
     prompt_keyboard
     run_step cleanup
     run_step updates
-    run_step flathub
     run_step hardware_fixes
     run_step chrome
     run_step zoom
@@ -169,7 +166,6 @@ run_full_pipeline() {
     run_step touchpad
     run_step terminal
     run_step regional
-    run_step powerwash
     run_step diagnostics
 }
 
@@ -197,44 +193,40 @@ while true; do
     echo "========================================="
     echo " 1)  Run entire pipeline (recommended for fresh setup)"
     echo " 2)  Run system updates and dependency installation"
-    echo " 3)  Run Flathub initialisation"
-    echo " 4)  Run Chromebook hardware fixes and patches"
-    echo " 5)  Install Google Chrome"
-    echo " 6)  Install Zoom"
-    echo " 7)  Install standard apps (VLC + games)"
-    echo " 8)  Inject branded web-app shortcuts"
-    echo " 9)  Workspace overview, ChromeOS themes, Plank dock and wallpaper"
-    echo " 10) Apply touchpad calibration and scroll speed fix"
-    echo " 11) Apply touchpad gestures and workspace overview"
-    echo " 12) Apply terminal paste fix"
-    echo " 13) Adjust region, language and keyboard layout"
-    echo " 14) Install Powerwash (buyer-facing factory reset) tool"
-    echo " 15) Run hardware diagnostics report"
-    echo " 16) Undo all changes (full uninstall)"
-    echo " 17) Exit setup"
+    echo " 3)  Run Chromebook hardware fixes and patches"
+    echo " 4)  Install Google Chrome"
+    echo " 5)  Install Zoom"
+    echo " 6)  Install standard apps (VLC + games)"
+    echo " 7)  Inject branded web-app shortcuts"
+    echo " 8)  Workspace overview, gestures, Plank dock and wallpaper"
+    echo " 9)  Apply touchpad calibration and scroll speed fix"
+    echo " 10) Apply touchpad gestures and install workspace overview"
+    echo " 11) Apply terminal paste fix"
+    echo " 12) Adjust region, language and keyboard layout"
+    echo " 13) Run hardware diagnostics report"
+    echo " 14) Undo all changes (full uninstall)"
+    echo " 15) Exit setup"
     echo "========================================="
-    read -p "Select choice [1-17]: " main_choice < /dev/tty
+    read -p "Select choice [1-15]: " main_choice < /dev/tty
     echo ""
 
     case $main_choice in
         1)  run_full_pipeline; print_reboot_reminder; break ;;
         2)  do_step cleanup; do_step updates ;;
-        3)  do_step flathub ;;
-        4)  do_step cleanup; do_step hardware_fixes ;;
-        5)  do_step chrome ;;
-        6)  do_step zoom ;;
-        7)  do_step apps ;;
-        8)  do_step web_apps ;;
-        9)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
-        10) do_step touchpad ;;
-        11) do_step gestures_and_workspaces ;;
-        12) do_step terminal ;;
-        13) do_step regional ;;
-        14) do_step powerwash ;;
-        15) do_step diagnostics ;;
-        16) step_uninstall ;;
-        17) echo "Exiting configuration engine."; exit 0 ;;
-        *)  echo "Invalid option. Please choose 1-17." ;;
+        3)  do_step cleanup; do_step hardware_fixes ;;
+        4)  do_step chrome ;;
+        5)  do_step zoom ;;
+        6)  do_step apps ;;
+        7)  do_step web_apps ;;
+        8)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
+        9)  do_step touchpad ;;
+        10) do_step gestures_and_workspaces ;;
+        11) do_step terminal ;;
+        12) do_step regional ;;
+        13) do_step diagnostics ;;
+        14) step_uninstall ;;
+        15) echo "Exiting configuration engine."; exit 0 ;;
+        *)  echo "Invalid option. Please choose 1-15." ;;
     esac
 done
 

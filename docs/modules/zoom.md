@@ -16,7 +16,7 @@ Installs the official Zoom desktop client from upstream's amd64 `.deb`.
 ## Outputs
 
 - The `zoom` package installed (`/usr/bin/zoom` and its data).
-- `/usr/share/applications/Zoom.desktop` — the file the panel-2 dock
+- `/usr/share/applications/Zoom.desktop` — the file the Plank dock
   launcher (created at first login by `oem-first-run.sh`) references.
 - Branded icon under `/usr/share/icons/hicolor/...` (shipped by the
   `.deb`).
@@ -52,7 +52,7 @@ from killing the whole pipeline on a flaky CDN.
 - `Zoom.desktop` (capital Z) is the exact filename shipped by the
   upstream `.deb`; the `DOCK_LAUNCHERS` entry in `oem-first-run.sh`
   references that case-sensitively.
-- If Zoom's download fails, the panel-2 dock will be short by one icon
+- If Zoom's download fails, the Plank dock will be short by one icon
   (`oem-first-run.sh` checks `/usr/share/applications/Zoom.desktop`
   exists before adding the launcher and silently skips it otherwise).
   The technician sees a clear warning in the log so they can re-run

@@ -352,9 +352,9 @@ step_diagnostics() {
     if [ "$pactl_ok" != "1" ]; then
         _result WARN "Audio stack (pactl)" "cannot query PipeWire/Pulse as root — log in as oem or check user session; see docs/handover-qa.md"
     elif [ -z "$def_sink" ]; then
-        _result FAIL "Default audio sink" "re-run menu option 4 (hardware fixes) and reboot"
+        _result FAIL "Default audio sink" "re-run menu option 3 (hardware fixes) and reboot"
     elif echo "$def_sink" | grep -qi null; then
-        _result FAIL "Default sink is null (${def_sink})" "re-run menu option 4 (hardware fixes) and reboot"
+        _result FAIL "Default sink is null (${def_sink})" "re-run menu option 3 (hardware fixes) and reboot"
     elif echo "$mute_line" | grep -qi 'yes'; then
         _result WARN "Default sink is muted" "unmute in Sound settings or pactl"
     else
@@ -368,9 +368,9 @@ step_diagnostics() {
         local src_mute
         src_mute="$(_pactl get-source-mute @DEFAULT_SOURCE@ 2>/dev/null || true)"
         if [ -z "$def_src" ]; then
-            _result FAIL "Default microphone source" "re-run menu option 4 and reboot"
+            _result FAIL "Default microphone source" "re-run menu option 3 and reboot"
         elif echo "$def_src" | grep -qi null; then
-            _result FAIL "Default source is null (${def_src})" "re-run menu option 4 and reboot"
+            _result FAIL "Default source is null (${def_src})" "re-run menu option 3 and reboot"
         elif echo "$src_mute" | grep -qi 'yes'; then
             _result WARN "Default source is muted" "unmute input in Sound settings"
         else
@@ -385,7 +385,7 @@ step_diagnostics() {
     elif systemctl is-active --quiet keyd 2>/dev/null; then
         _result WARN "keyd active but no /etc/keyd/*.conf found" "verify cros-keyboard-map install"
     else
-        _result FAIL "keyd not active" "re-run menu option 4 (keyboard installer)"
+        _result FAIL "keyd not active" "re-run menu option 3 (keyboard installer)"
     fi
 
     # Touchpad
@@ -399,7 +399,7 @@ step_diagnostics() {
     elif [ -f /etc/X11/xorg.conf.d/40-chromebook-touchpad.conf ]; then
         _result WARN "Touchpad xorg snippet present but xinput did not find a touchpad" "re-login or check X session"
     else
-        _result FAIL "Chromebook touchpad xorg snippet missing" "re-run menu option 10"
+        _result FAIL "Chromebook touchpad xorg snippet missing" "re-run menu option 9 (touchpad)"
     fi
 
     # Webcam
@@ -429,7 +429,7 @@ step_diagnostics() {
         if grep -q 'clocksource=hpet' /proc/cmdline 2>/dev/null; then
             _result PASS "CELES: HPET kernel params active in cmdline" ""
         else
-            _result FAIL "CELES board but HPET params missing from /proc/cmdline" "re-run menu option 4 and reboot"
+            _result FAIL "CELES board but HPET params missing from /proc/cmdline" "re-run menu option 3 and reboot"
         fi
     fi
 
@@ -453,7 +453,7 @@ step_diagnostics() {
                 _result WARN "Tiger/Alder: modules loaded but initramfs probe inconclusive" "run sudo update-initramfs -u -k all and reboot"
             fi
         else
-            _result FAIL "Tiger/Alder: cros_ec_typec/intel_pmc_mux not both loaded" "re-run menu option 4, update-initramfs, reboot"
+            _result FAIL "Tiger/Alder: cros_ec_typec/intel_pmc_mux not both loaded" "re-run menu option 3, update-initramfs, reboot"
         fi
         if ! grep -qx 'cros-ec-typec' /etc/initramfs-tools/modules 2>/dev/null; then
             _result WARN "/etc/initramfs-tools/modules missing cros-ec-typec line" "re-run option 4"
@@ -479,7 +479,7 @@ step_diagnostics() {
     if systemctl is-active --quiet touchegg.service 2>/dev/null; then
         _result PASS "touchegg.service active" ""
     else
-        _result FAIL "touchegg.service not active" "re-run menu option 11"
+        _result FAIL "touchegg.service not active" "re-run menu option 10"
     fi
 
     # Web apps — 13 desktop files
@@ -494,20 +494,13 @@ step_diagnostics() {
     if [ "$w_ok" -eq 13 ]; then
         _result PASS "All 13 web-app .desktop files present" ""
     else
-        _result FAIL "Web-app shortcuts: $w_ok/13 present" "re-run menu option 8"
+        _result FAIL "Web-app shortcuts: $w_ok/13 present" "re-run menu option 7"
     fi
 
     if [ -f /usr/share/backgrounds/oem-setup/malta.jpg ]; then
         _result PASS "OEM wallpaper installed" ""
     else
-        _result FAIL "OEM wallpaper missing" "re-run menu option 9"
-    fi
-
-    if [ -f /usr/share/applications/oem-powerwash.desktop ] \
-        && pkaction --action-id org.linuxoem.powerwash.arm &>/dev/null; then
-        _result PASS "Powerwash desktop entry + polkit action registered" ""
-    else
-        _result FAIL "Powerwash shortcut or polkit action missing" "re-run menu option 14"
+        _result FAIL "OEM wallpaper missing" "re-run menu option 8"
     fi
 
     if [ -r /sys/power/state ] && grep -qw mem /sys/power/state 2>/dev/null; then

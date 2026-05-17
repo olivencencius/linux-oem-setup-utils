@@ -12,7 +12,6 @@ The top-level [`README.md`](../README.md) is intentionally slim — it tells you
 | See the full pipeline as one ordered list with the reason each step is where it is | [`pipeline.md`](./pipeline.md) |
 | Know what an individual module does, what it reads, what it writes | [`modules/`](./modules/) |
 | Trace every file in `assets/` and `skel/` to its install path and the module that places it | [`assets.md`](./assets.md) |
-| Follow the multi-stage Powerwash flow end-to-end (menu → polkit → arm → boot finalize) | [`powerwash.md`](./powerwash.md) |
 | Audit exactly what `Undo all changes` reverts, and the best-effort caveats | [`uninstall.md`](./uninstall.md) |
 | Run the per-machine QA checklist before handover | [`handover-qa.md`](./handover-qa.md) |
 
@@ -23,7 +22,6 @@ One file per script in `modules/`, all follow the same template
 
 - [`modules/cleanup.md`](./modules/cleanup.md)
 - [`modules/updates.md`](./modules/updates.md)
-- [`modules/flathub.md`](./modules/flathub.md)
 - [`modules/hardware.md`](./modules/hardware.md)
 - [`modules/chrome.md`](./modules/chrome.md)
 - [`modules/zoom.md`](./modules/zoom.md)
@@ -34,7 +32,6 @@ One file per script in `modules/`, all follow the same template
 - [`modules/gestures.md`](./modules/gestures.md)
 - [`modules/terminal.md`](./modules/terminal.md)
 - [`modules/regional.md`](./modules/regional.md)
-- [`modules/powerwash.md`](./modules/powerwash.md)
 - [`modules/diagnostics.md`](./modules/diagnostics.md)
 - [`modules/uninstall.md`](./modules/uninstall.md)
 

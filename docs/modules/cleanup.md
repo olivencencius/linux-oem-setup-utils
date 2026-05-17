@@ -39,7 +39,7 @@ A single `rm -rf` and a single `rm -f`. That's the whole script.
 ## Notes
 
 - Called at multiple points: from `run_full_pipeline` (as the second
-  step), from menu options 2 and 4 and 9 (each chains it before its
+  step), from menu options 2, 3, and 8 (each chains it before its
   main step), and from `step_uninstall` near the end.
 - The `do_step` wrapper means every call writes a `cleanup.done`
   marker. After a re-run, `run_step cleanup` short-circuits. That's

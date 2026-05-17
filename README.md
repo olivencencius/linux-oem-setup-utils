@@ -1,34 +1,35 @@
-# Chromebook Linux Mint OEM Deployment
+# Chromebook Linux OEM deployment
 
 A modular, automated deployment toolkit that converts MrChromebox-flashed
-x86 / Intel Chromebooks into market-ready Linux Mint XFCE machines with a
-ChromeOS-like look and feel. Built for resale velocity on 4 GB RAM
-hardware: hardware fixes, sensible defaults, dock-pinned apps, a buyer
-facing factory reset, and a single-command bootstrap.
+x86 / Intel Chromebooks into market-ready **Linux Mint XFCE** or **Xubuntu**
+machines with a ChromeOS-like layout. Built for resale velocity on 4 GB RAM
+hardware: hardware fixes, sensible defaults, dock-pinned apps, and a
+single-command bootstrap.
 
 ## What it does in one screen
 
 - **Driver and quirk fixes** — audio, top-row keys, board-specific kernel
   parameters (CELES HPET, Tiger/AlderLake USB-C), all detected
   automatically.
-- **ChromeOS-like UX** — ChromeOS GTK theme, Tela-blue icons, Plank dock
-  with 11 pinned apps in a fixed order, wallpaper, natural
-  scrolling, 8 multi-finger gestures.
+- **ChromeOS-like UX** — Plank dock with pinned apps, Malta wallpaper, top
+  panel layout, natural scrolling, multi-finger gestures (touchegg +
+  xfdashboard). GTK/icon themes follow **distro defaults** (no custom theme
+  packages from this toolkit).
 - **Performance defaults for 4 GB eMMC** — ZRAM memory compression and
   TLP power management.
 - **Apps and shortcuts** — Google Chrome (with self-updating Google apt
   repo), Zoom, VLC, GIMP, three games, 11 Chrome web-app launchers
   (Netflix, Prime Video, Disney+, Max, YouTube, Spotify, Gmail, Docs,
   Drive, Gemini, Chrome Remote Desktop).
-- **Powerwash** — buyer-facing factory reset (menu entry → confirm →
-  type "POWERWASH" → admin auth → reboot → boot-time wipe → wizard
-  re-arm).
 - **Full undo** — a single menu option reverses every change the toolkit
   makes.
 
+Multimedia codec packs are **not** installed by this repo — enable them in the
+OS installer or image if you need them.
+
 ## How to run it
 
-On a Chromebook freshly OEM-installed with Linux Mint XFCE:
+On a Chromebook freshly OEM-installed with Linux Mint XFCE or Xubuntu:
 
 1. Log into the temporary `oem` desktop and connect to Wi-Fi.
 2. Open a terminal.
@@ -63,7 +64,7 @@ sudo rm -rf /var/lib/oem-setup/state && sudo bash setup.sh
 
 ### Reverting a deployment
 
-Run the script again and pick **option 16 — Undo all changes**. See
+Run the script again and pick **option 14 — Undo all changes**. See
 [`docs/uninstall.md`](docs/uninstall.md) for what gets reverted and the
 best-effort caveats.
 
@@ -75,9 +76,9 @@ linux-oem-setup-utils/
 ├── setup.sh           entry point: helpers, menu, full pipeline orchestrator
 ├── modules/           one .sh file per pipeline step
 ├── assets/            files installed onto the deployed machine
-│   ├── configs/       touchegg, powerwash desktop entry, polkit policy, systemd unit
-│   ├── icons/         11 web-app icons + powerwash icon
-│   ├── scripts/       4 helper scripts run on the deployed machine
+│   ├── configs/       touchegg, workspace overview .desktop
+│   ├── icons/         11 web-app icons
+│   ├── scripts/       oem-first-run.sh (per-user wallpaper + dock)
 │   └── wallpapers/    malta.jpg
 ├── skel/              copied verbatim to /etc/skel (user defaults)
 ├── docs/              full technical documentation — start at docs/README.md
@@ -96,9 +97,7 @@ Everything beyond the quickstart lives in **[`docs/`](docs/)**:
   inputs, outputs, walkthrough, idempotency, uninstall counterpart.
 - [`docs/assets.md`](docs/assets.md) — every file in `assets/` and
   `skel/` mapped to its install path and owning module.
-- [`docs/powerwash.md`](docs/powerwash.md) — the multi-stage
-  Powerwash flow end-to-end.
-- [`docs/uninstall.md`](docs/uninstall.md) — what option 16 reverts,
+- [`docs/uninstall.md`](docs/uninstall.md) — what option 14 reverts,
   and the best-effort caveats.
 - [`docs/handover-qa.md`](docs/handover-qa.md) — the per-machine QA
   checklist to run before shipping.
