@@ -73,10 +73,14 @@ will silently no-op the 4-finger gestures.
 
 ```bash
 ensure_apt_fresh
-apt-get install -y wmctrl xdotool touchegg xfdashboard
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  wmctrl xdotool touchegg xfdashboard </dev/null >&3 2>&3
 install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
     /usr/share/applications/oem-workspace-overview.desktop
 ```
+
+`apt-get` returns **exit 100** on install failure. Stdout/stderr are attached to
+the real TTY (`>&3 2>&3`) so the resolver error is visible — not lost in the `tee` pipe.
 
 If `xfdashboard` is not in the distro repos, this step fails (no silent
 overview pin or gesture).

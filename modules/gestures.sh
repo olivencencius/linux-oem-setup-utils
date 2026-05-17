@@ -35,9 +35,13 @@ step_gestures_and_workspaces() {
 
     ensure_apt_fresh
 
-    # Required: one failed package blocks this step so QA never sees a silently
-    # broken 3-finger-up or missing dock pin.
-    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y wmctrl xdotool touchegg xfdashboard
+    # apt exit 100 = install failure; errors must be visible (same TTY issue as Chrome wget).
+    oem_tty_say \
+        "--> apt: installing wmctrl, xdotool, touchegg, xfdashboard…" \
+        "    [.] If this fails with exit 100, read the apt message below — often missing repo (enable \"universe\") or broken dpkg state (sudo dpkg --configure -a)."
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        wmctrl xdotool touchegg xfdashboard \
+        </dev/null >&3 2>&3
 
     install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
         /usr/share/applications/oem-workspace-overview.desktop
