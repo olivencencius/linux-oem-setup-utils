@@ -196,7 +196,7 @@ manual QA remains in [`handover-qa.md`](./handover-qa.md).
 
 ## What is **not** in the pipeline
 
-- **`uninstall`** is only reachable via menu option `15`. It is sourced
+- **`uninstall`** is only reachable via menu option `16`. It is sourced
   by `setup.sh` like every other module but never called from
   `run_full_pipeline`.
 - **`cleanup` is repeated**: `step_uninstall` calls `step_cleanup` near

@@ -72,7 +72,7 @@ purging packages** and **restore config files before `update-grub` /
 
 ## Notes
 
-- `step_uninstall` is invoked directly from the menu (option **15**), not
+- `step_uninstall` is invoked directly from the menu (option **16**), not
   via `do_step` / `run_step`. It owns its own confirmation
   (`read … YES`) and never writes a `uninstall.done` marker.
 - The `for svc in tlp touchegg keyd; do … done`

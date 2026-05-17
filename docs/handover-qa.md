@@ -34,7 +34,7 @@ systemd-analyze blame --no-pager | head -25
 Goal: Plymouth / splash where possible, minimal **TTY1** **login:** visibility before
 LightDM. A brief flash can still be GPU/driver-specific.
 
-Menu option **14** writes excerpts under **Boot (systemd)** in
+Menu option **15** writes excerpts under **Boot (systemd)** in
 `/var/lib/oem-setup/diagnostics-report.txt`.
 
 ---

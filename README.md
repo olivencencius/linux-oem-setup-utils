@@ -129,7 +129,7 @@ Everything beyond the quickstart lives in **[`docs/`](docs/)**:
   inputs, outputs, walkthrough, idempotency, uninstall counterpart.
 - [`docs/assets.md`](docs/assets.md) — every file in `assets/` and
   `skel/` mapped to its install path and owning module.
-- [`docs/uninstall.md`](docs/uninstall.md) — what option 15 reverts,
+- [`docs/uninstall.md`](docs/uninstall.md) — what option 16 reverts,
   and the best-effort caveats.
 - [`docs/handover-qa.md`](docs/handover-qa.md) — the per-machine QA
   checklist to run before shipping.

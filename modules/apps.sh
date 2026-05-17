@@ -11,8 +11,8 @@
 #   Step fn:   step_apps
 #   Docs:      docs/modules/apps.md
 #   Uninstall: step_uninstall purges vlc, supertuxkart, aisleriot,
-#              quadrapassel (sub-step 2). GIMP lives in step_updates, not
-#              here. Spotify is a web app via step_web_apps.
+#              quadrapassel (sub-step 2). GIMP is optional (`step_gimp` / menu
+#              option 14), not here. Spotify is a web app via step_web_apps.
 # ==============================================================================
 
 step_apps() {

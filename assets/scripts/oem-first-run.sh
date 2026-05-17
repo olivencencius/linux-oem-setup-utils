@@ -473,43 +473,7 @@ setup_rofi_window_switcher() {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Theme defaults (ChromeOS-like UI)
-# ------------------------------------------------------------------------------
-setup_theme_defaults() {
-    command -v xfconf-query >/dev/null || return 0
-
-    local gtk_theme=""
-    for t in "ChromeOS-Dark" "ChromeOS-dark" "ChromeOS"; do
-        if [ -d "/usr/share/themes/$t" ]; then
-            gtk_theme="$t"
-            break
-        fi
-    done
-
-    if [ -n "$gtk_theme" ]; then
-        xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s "$gtk_theme" 2>/dev/null || \
-        xfconf-query -c xsettings -p /Net/ThemeName -s "$gtk_theme" 2>/dev/null || true
-        
-        xfconf-query -c xfwm4 -p /general/theme -n -t string -s "$gtk_theme" 2>/dev/null || \
-        xfconf-query -c xfwm4 -p /general/theme -s "$gtk_theme" 2>/dev/null || true
-    fi
-
-    local icon_theme=""
-    for i in "Tela-dark" "Tela-circle-dark" "Tela"; do
-        if [ -d "/usr/share/icons/$i" ]; then
-            icon_theme="$i"
-            break
-        fi
-    done
-
-    if [ -n "$icon_theme" ]; then
-        xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s "$icon_theme" 2>/dev/null || \
-        xfconf-query -c xsettings -p /Net/IconThemeName -s "$icon_theme" 2>/dev/null || true
-    fi
-}
-
-# ------------------------------------------------------------------------------
-# 4. Plank dock (bottom-centre, auto-hide, pinned launchers).
+# 3. Plank dock (bottom-centre, auto-hide, pinned launchers).
 # Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
 # lexicographic filename order, so we prefix each file with a zero-padded
 # index (01-, 02-, …) to lock the order specified in DOCK_LAUNCHERS.
@@ -596,11 +560,10 @@ setup_top_panel
 setup_workspace_overview_keys
 setup_add_workspace_key
 setup_rofi_window_switcher
-setup_theme_defaults
 setup_plank_dock
 
 # ------------------------------------------------------------------------------
-# 5. Mark complete and self-delete autostart entry
+# 4. Mark complete and self-delete autostart entry
 # ------------------------------------------------------------------------------
 mkdir -p "$(dirname "$MARKER")"
 touch "$MARKER"

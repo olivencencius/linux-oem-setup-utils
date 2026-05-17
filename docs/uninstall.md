@@ -1,6 +1,6 @@
 # Uninstall — what `Undo all changes` reverts
 
-Menu option **15** runs `step_uninstall`, the best-effort reversal of
+Menu option **16** runs `step_uninstall`, the best-effort reversal of
 every change this toolkit makes. This page explains exactly what it
 does, in order, and where the inevitable "best-effort" caveats are.
 
@@ -11,7 +11,7 @@ cross-cutting summary.
 
 ## How it's invoked
 
-Menu option `15` calls `step_uninstall` directly (not via `do_step`).
+Menu option `16` calls `step_uninstall` directly (not via `do_step`).
 The function asks for a `YES` (uppercase) confirmation read from
 `/dev/tty`. Anything else aborts.
 

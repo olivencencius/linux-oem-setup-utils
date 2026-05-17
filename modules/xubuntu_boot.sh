@@ -123,5 +123,5 @@ step_xubuntu_boot() {
     fi
 
     oem_tty_say "" "    [i] Reboot to apply GRUB, Plymouth, and systemd boot behaviour."
-    oem_tty_say "    [i] Full uninstall (menu 15) reverses these changes."
+    oem_tty_say "    [i] Full uninstall (menu 16) reverses these changes."
 }
