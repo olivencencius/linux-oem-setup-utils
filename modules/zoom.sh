@@ -27,10 +27,20 @@ step_zoom() {
     local deb=/tmp/zoom_amd64.deb
 
     rm -f "$deb"
+    oem_tty_say "    [.] Starting wget…"
     # Zoom is "nice to have" — we explicitly tolerate a download failure
     # (e.g. flaky CDN) and just skip the install, instead of aborting the
     # whole pipeline. `|| true` keeps `set -e` from biting us.
-    oem_run_log wget --continue --show-progress -O "$deb" https://zoom.us/client/latest/zoom_amd64.deb || true
+    # Same as Chrome: progress bar needs stderr on a real TTY (fd 3), not the tee pipe.
+    wget \
+        --continue \
+        --show-progress \
+        --timeout=30 \
+        --tries=3 \
+        -O "$deb" \
+        https://zoom.us/client/latest/zoom_amd64.deb \
+        2>&3 \
+        || true
 
     if [ ! -s "$deb" ]; then
         oem_tty_say "    [!] Zoom .deb download failed — skipping."

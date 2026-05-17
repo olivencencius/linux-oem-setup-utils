@@ -60,17 +60,27 @@ patch_google_chrome_desktop() {
 }
 
 step_chrome() {
-    # Do NOT use wget -q here: it suppresses output and a ~100 MiB download looks
-    # frozen for many minutes on slow Wi-Fi. --show-progress needs non-quiet mode.
+    # GNU wget's --show-progress bar only renders when stderr is a TTY. Running
+    # wget under oem_run_log (pipe to tee) makes isatty(stderr)=false → no bar.
+    # Send wget's stderr to fd 3 (real terminal from setup.sh). Download data
+    # still goes to -O file, not stdout.
     oem_tty_say \
         "--> Downloading Google Chrome .deb (network)…" \
         "    [.] Package is large (~100 MiB from dl.google.com). On slow Wi-Fi this" \
-        "        often takes 5–20+ minutes — watch the progress bar below, not only this line."
+        "        often takes 5–20+ minutes — a progress bar should appear on the next line."
     local deb=/tmp/google-chrome-stable_current_amd64.deb
+    local url='https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
 
     rm -f "$deb"
-    oem_run_log wget --continue --show-progress -O "$deb" \
-        https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    oem_tty_say "    [.] Starting wget (connection can take up to ~30s before the bar moves)…"
+    wget \
+        --continue \
+        --show-progress \
+        --timeout=30 \
+        --tries=3 \
+        -O "$deb" \
+        "$url" \
+        2>&3
 
     if [ ! -s "$deb" ]; then
         oem_tty_say "    [!] Chrome .deb download failed or empty — aborting step."

@@ -45,8 +45,12 @@ Chrome stays current via the system's normal `apt update` cycle.
 ```bash
 local deb=/tmp/google-chrome-stable_current_amd64.deb
 rm -f "$deb"
+# Progress bar: wget --show-progress only draws when stderr is a TTY. The setup
+# script's stdout/stderr go through `tee` (a pipe), so we run wget with `2>&3`
+# (fd 3 = real terminal opened in setup.sh). Not duplicated into oem-setup.log.
 wget --continue --show-progress -O "$deb" \
-    https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb' \
+  2>&3
 
 if [ ! -s "$deb" ]; then
     rm -f "$deb"
@@ -64,11 +68,11 @@ Linear and conservative:
 
 1. Remove any leftover `.deb` from a previous partial run (also done
    by `step_cleanup`, but cheap to repeat).
-2. `wget` **without** `-q`: quiet mode hides the progress bar, so a
-   ~100 MiB download looks “frozen” for many minutes on OEM Wi‑Fi.
-   `--continue` allows resuming a partial `.deb`. `--show-progress`
-   draws an updating bar on stderr (wrapped by `oem_run_log` for line
-   buffering through `tee`).
+2. `wget` **without** `-q` and with **`2>&3`**: GNU wget's progress bar uses
+   `\r` updates and only enables when **`isatty(stderr)`** is true. Our shell
+   output goes through `tee` (a pipe), so stderr must be attached to the real
+   TTY (fd 3 from `setup.sh`). The `.deb` body still goes to `-O`, not stdout.
+   `--continue` resumes partial downloads.
 3. `[ ! -s ]` checks that the `.deb` is non-empty. `wget` can return
    `0` with a zero-byte file on certain CDN failures; this catches
    that.
