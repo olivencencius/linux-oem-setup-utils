@@ -199,4 +199,5 @@ and every shortcut.
 | Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5–8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
 
-Anything not in this table: read `/var/log/oem-setup.log`.
+Anything not in this table: read `/var/log/oem-setup.log` (best-effort transcript
+— upstream hardware installers are terminal-only).

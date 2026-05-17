@@ -21,9 +21,9 @@
 #              cleanup, restore grub and initramfs-tools/modules from backups
 #              or sed-remove our lines, purge keyd.
 #
-#   NOTE — INTERACTIVE: the audio and keyboard installers may ask the
-#   technician questions. Their stdin is wired to /dev/tty so prompts work
-#   even under `curl … | sudo bash`. WATCH THE SCREEN.
+#   NOTE — INTERACTIVE: audio + keyboard installers use oem_run_interactive (stdio
+#   on fd 3 / real TTY). That UI is not copied into /var/log/oem-setup.log — only
+#   START/END markers; watch the terminal during these two steps.
 # ==============================================================================
 
 step_hardware_fixes() {

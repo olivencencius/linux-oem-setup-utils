@@ -27,8 +27,11 @@ that cannot be scripted.
 
 ## Outputs
 
-- **Terminal**: full report (stderr is unchanged; normal messages still go to
-  `/var/log/oem-setup.log` via `setup.sh`'s `tee`).
+- **Terminal**: full report; each line is also copied to fd 3 immediately. Colour
+  still goes to stdout (via `tee`); when stdout is not a TTY, colours may be
+  disabled by `_diag_line` logic.
+- **`/var/log/oem-setup.log`**: receives the same stream as stdout from `setup.sh`'s
+  `tee` (best-effort; not a separate copy of fd 3-only lines).
 - **`/var/lib/oem-setup/diagnostics-report.txt`** — plain lines only (no ANSI).
 
 No packages installed, no config files modified.

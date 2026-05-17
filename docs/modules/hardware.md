@@ -15,7 +15,9 @@ TigerLake/AlderLake) USB-C ports all work.
 
 - Live network connectivity (to clone two GitHub repos and run their
   installers).
-- A controlling TTY (the two upstream installers may ask questions).
+- A controlling TTY — the two upstream installers use **`oem_run_interactive`**
+  (stdin/stdout/stderr on the real terminal). That session is **not** duplicated
+  into `/var/log/oem-setup.log` (only START/END markers are); watch the screen.
 - DMI / `/sys/class/dmi/id/product_name` for board detection.
 - `lscpu` output for CPU detection.
 

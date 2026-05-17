@@ -72,13 +72,16 @@ The boot sequence inside `setup.sh`:
 3. Resolve `REPO_DIR` to the absolute path of the script's own directory.
    Modules read assets via `$REPO_DIR/assets/...`, so a `curl | bash`
    invocation, a `cd` into the wrong place, or symlinks all work the same.
-4. Create `LOG_FILE` (`/var/log/oem-setup.log`), `STATE_DIR`
+4. Open fd 3 on `/dev/tty` (fallback: dup stderr) for **direct TTY I/O**; export
+   `LOG_FILE` and create `LOG_FILE`, `STATE_DIR`
    (`/var/lib/oem-setup/state`), and the backups directory
    (`/var/lib/oem-setup/backups`).
-5. `exec > >(tee -a "$LOG_FILE") 2>&1` — tee everything (stdout + stderr)
-   into the log file as well as the terminal, *before* sourcing modules,
-   so their output is also captured.
-6. Define the helpers `backup_once`, `ensure_apt_fresh`, `mark_done`,
+5. `exec > >(tee -a "$LOG_FILE") 2>&1` — **best-effort** tee of shell stdout/stderr
+   to the log and terminal, *before* sourcing modules. Interactive upstream
+   installers use `oem_run_interactive` (stdio on fd 3) and are **not** fully
+   logged — see *Logging* below.
+6. Define helpers: `oem_tty_say`, `oem_run_log`, `oem_run_interactive`, `backup_once`,
+   `ensure_apt_fresh`, `mark_done`,
    `is_done`, `do_step`, `run_step`; export the ones modules may call.
 7. Install the `ERR` and `INT`/`TERM` traps.
 8. `source` every `modules/*.sh`.
@@ -145,15 +148,21 @@ machine is being prepared for a different region than the previous one.
 
 ## Logging
 
-- **Log file**: `/var/log/oem-setup.log` (append-only across runs).
-- **Mechanism**: `exec > >(tee -a "$LOG_FILE") 2>&1` early in `setup.sh`.
-  This redirects the shell's own stdout/stderr into a `tee` subprocess
-  which writes to both the terminal *and* the log file. Modules need no
-  awareness of this — every `echo`, every `apt-get` line, every error is
-  captured automatically.
-- **Why one file across runs**: when a step fails mid-pipeline the
-  technician will run `setup.sh` again. Keeping the log appended lets them
-  grep the whole history. Rotate or truncate manually if needed.
+- **Log file**: `/var/log/oem-setup.log` (append-only across runs) — **best-effort**
+  capture of everything that goes through the shell's `tee`'d **stdout/stderr**
+  (apt, wget, `oem_tty_say` echo to stdout, errors, etc.).
+- **Not in the log** (by design): output from **`oem_run_interactive`** — the
+  upstream **chromebook-linux-audio** and **cros-keyboard-map** installers
+  attach stdin/stdout/stderr directly to the real TTY so prompts and menus work.
+  Only **START/END timestamp lines** for those blocks are appended to the log.
+- **Mechanism**: `exec > >(tee -a "$LOG_FILE") 2>&1` early in `setup.sh`. For
+  anything that must be visible immediately, use **`oem_tty_say`** (writes to
+  fd 3 **and** stdout) or run chatty commands under **`oem_run_log`** (`stdbuf`).
+- **Technician policy**: trust the **terminal** session; use the log for grep
+  and post-mortem, not as a byte-for-byte mirror of hardware installer UIs.
+- **Why one file across runs**: when a step fails mid-pipeline the technician
+  will run `setup.sh` again. Keeping the log appended lets them grep the whole
+  history. Rotate or truncate manually if needed.
 ---
 
 ## Error handling
@@ -200,6 +209,17 @@ banner can name which step was running.
 ---
 
 ## Exported helpers (modules call these)
+
+### `oem_tty_say`, `oem_run_log`, `oem_run_interactive`
+
+- **`oem_tty_say`** — prints each line to **fd 3** (real TTY) and to stdout (so `tee`
+  records it). Use for all user-visible status the technician must not miss.
+- **`oem_run_log`** — wraps a command in `stdbuf -oL -eL` so apt/wget/git output
+  streams through the `tee` pipe instead of batch-buffering.
+- **`oem_run_interactive`** — runs a command with **stdin, stdout, stderr on fd 3**.
+  Used only for upstream installers that require a true TTY (`isatty`, dialog,
+  etc.). **Does not** stream installer output into the log — only **START/END**
+  timestamp lines are appended to `LOG_FILE`.
 
 ### `backup_once <src>`
 

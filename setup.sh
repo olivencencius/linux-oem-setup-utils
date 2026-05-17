@@ -30,23 +30,27 @@ export REPO_DIR
 
 # ==============================================================================
 #   State + logging
-#   - LOG_FILE   : full transcript of every run (appended)
+#   - LOG_FILE   : best-effort transcript (stdout/stderr through `tee`; see below)
 #   - STATE_DIR  : per-step "done" markers + saved keyboard layout
+#
+#   Priority: what you see in the terminal is authoritative. The log file
+#   captures whatever flows through the shell's tee'd stdout — it does NOT
+#   include output from `oem_run_interactive` (upstream audio/keyboard
+#   installers), which attach directly to the real TTY so prompts work.
 # ==============================================================================
 LOG_FILE="/var/log/oem-setup.log"
 STATE_DIR="/var/lib/oem-setup/state"
 mkdir -p "$(dirname "$LOG_FILE")" "$STATE_DIR" /var/lib/oem-setup/backups
 export STATE_DIR
+export LOG_FILE
 
-# Real terminal on fd 3 for *prompt output* only (bypasses fully-buffered `tee`).
-# Prefer read-write open; a plain stderr dup can be write-only — do not use it for `read -uN`.
-# All interactive *input* uses `read … < /dev/tty` so the keyboard always works.
+# Real terminal on fd 3. Plain `echo` without oem_tty_say can look "stuck" once
+# stdout is a pipe to `tee` (libc fully buffers non-TTY stdout).
 if ! exec 3<>/dev/tty 2>/dev/null; then
     exec 3>&2
 fi
 
-# Tee everything (stdout + stderr) into the log file as well as the terminal.
-# Done before we source modules so their output is also captured.
+# Tee shell stdout/stderr into the log file and the terminal (best-effort copy).
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Duplicate lines to fd 3 (real TTY) and stdout — libc fully buffers stdout once it
@@ -63,9 +67,15 @@ oem_run_log() {
 }
 export -f oem_run_log
 
-# Upstream installers that prompt: real TTY on stdin + line-buffered output.
+# Upstream installers (chromebook-linux-audio, cros-keyboard-map) need a real
+# TTY on stdin/out/err — not the `tee` pipe — or prompts disappear. Log file
+# only gets begin/end markers; the live session is intentionally terminal-only.
 oem_run_interactive() {
-    oem_run_log "$@" < /dev/tty
+    printf '%s\n' "$(date -Is) [interactive] START $*" >> "$LOG_FILE"
+    "$@" <&3 >&3 2>&3
+    local ec=$?
+    printf '%s\n' "$(date -Is) [interactive] END (exit $ec) $*" >> "$LOG_FILE"
+    return "$ec"
 }
 export -f oem_run_interactive
 
@@ -178,7 +188,7 @@ source "$REPO_DIR/modules/uninstall.sh"
 # ==============================================================================
 run_full_pipeline() {
     prompt_keyboard
-    oem_tty_say "    [.] Keyboard choice recorded — continuing (full log: $LOG_FILE)…"
+    oem_tty_say "    [.] Keyboard choice recorded — continuing (terminal is live; log: $LOG_FILE)…"
     run_step cleanup
     run_step updates
     run_step hardware_fixes

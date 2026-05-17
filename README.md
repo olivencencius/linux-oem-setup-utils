@@ -56,6 +56,15 @@ On a Chromebook freshly OEM-installed with Linux Mint XFCE or Xubuntu:
 
 The buyer creates their own user account on first boot.
 
+### Log file vs terminal
+
+`/var/log/oem-setup.log` is an **append-only,
+best-effort** mirror of the script’s normal output (apt, toolkit status lines,
+errors). **Upstream audio and keyboard installers** in *hardware fixes* attach to the
+**real terminal** so interactive prompts work — that UI is **not** copied into the
+log. **Trust what you see on screen** during those steps; use the log for grep and
+post-mortems elsewhere in the run.
+
 ### Re-running and resuming
 
 `setup.sh` writes a marker per completed step into
