@@ -30,15 +30,62 @@
 #   installed before step_themes runs oem-first-run.sh so the dockitem exists.
 # ==============================================================================
 
+# Touchegg lives in Ubuntu “universe”; minimal / OEM images sometimes ship with
+# only main, which yields: “package touchegg is not available but is referred
+# to by another package”. Fall back to the upstream Touchégg PPA if needed.
+_gestures_touchegg_candidate() {
+    apt-cache policy touchegg 2>/dev/null | sed -n 's/^[[:space:]]*Candidate:[[:space:]]*//p' | head -n1
+}
+
+_gestures_ensure_touchegg_apt_source() {
+    local cand
+    cand="$(_gestures_touchegg_candidate)"
+    if [[ -n "$cand" && "$cand" != "(none)" ]]; then
+        return 0
+    fi
+
+    if ! command -v add-apt-repository >/dev/null 2>&1; then
+        oem_tty_say "--> Installing software-properties-common (for apt repositories)…"
+        env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            software-properties-common </dev/null >&3 2>&3
+    fi
+
+    oem_tty_say "--> touchegg not in apt (Candidate empty); enabling \"universe\"…"
+    env DEBIAN_FRONTEND=noninteractive add-apt-repository -y universe \
+        </dev/null >&3 2>&3 || true
+    unset OEM_APT_FRESH 2>/dev/null || true
+    ensure_apt_fresh
+
+    cand="$(_gestures_touchegg_candidate)"
+    if [[ -n "$cand" && "$cand" != "(none)" ]]; then
+        return 0
+    fi
+
+    oem_tty_say "--> touchegg still unavailable; adding ppa:touchegg/stable…"
+    env DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:touchegg/stable \
+        </dev/null >&3 2>&3
+    unset OEM_APT_FRESH 2>/dev/null || true
+    ensure_apt_fresh
+
+    cand="$(_gestures_touchegg_candidate)"
+    if [[ -z "$cand" || "$cand" == "(none)" ]]; then
+        oem_tty_say \
+            "    [!] touchegg still has no apt Candidate — check sources.list, offline mirror, or install touchegg manually."
+        return 1
+    fi
+    return 0
+}
+
 step_gestures_and_workspaces() {
     oem_tty_say "--> Installing touchpad gestures (touchegg) and workspace overview (xfdashboard)…"
 
     ensure_apt_fresh
+    _gestures_ensure_touchegg_apt_source
 
     # apt exit 100 = install failure; errors must be visible (same TTY issue as Chrome wget).
     oem_tty_say \
         "--> apt: installing wmctrl, xdotool, touchegg, xfdashboard…" \
-        "    [.] If this fails with exit 100, read the apt message below — often missing repo (enable \"universe\") or broken dpkg state (sudo dpkg --configure -a)."
+        "    [.] If this fails with exit 100, read the apt message below — broken dpkg (sudo dpkg --configure -a), conflicts, or network."
     env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         wmctrl xdotool touchegg xfdashboard \
         </dev/null >&3 2>&3

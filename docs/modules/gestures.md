@@ -71,8 +71,15 @@ will silently no-op the 4-finger gestures.
 
 ### 1. Apt install and overview launcher
 
+If `apt-cache policy touchegg` shows **Candidate: (none)** (common on minimal
+Xubuntu when **universe** is not enabled), the module enables `universe`,
+runs `apt-get update` again, and if `touchegg` is still missing adds
+**`ppa:touchegg/stable`**, then updates again. It may install
+**`software-properties-common`** when `add-apt-repository` is not present.
+
 ```bash
 ensure_apt_fresh
+# _gestures_ensure_touchegg_apt_source — universe, then ppa:touchegg/stable if needed
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   wmctrl xdotool touchegg xfdashboard </dev/null >&3 2>&3
 install -m 644 "$REPO_DIR/assets/configs/oem-workspace-overview.desktop" \
