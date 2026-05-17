@@ -1,6 +1,6 @@
 # Handover QA checklist
 
-Most checks below are partially automated by **`setup.sh` menu option 14**
+Most checks below are partially automated by **`setup.sh` menu option 15**
 (`step_diagnostics`) — see `/var/lib/oem-setup/diagnostics-report.txt`. This
 page remains the master checklist and lists everything that still requires a
 human.

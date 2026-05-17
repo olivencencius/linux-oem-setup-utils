@@ -564,6 +564,11 @@ step_diagnostics() {
     _diag_line "$summ" "$C_DIM"
     _diag_line "Report saved to: $REPORT" "$C_DIM"
 
+    if [ "$FAIL_COUNT" -gt 0 ]; then
+        _diag_line "" ""
+        _diag_line "${C_FAIL}[!] $FAIL_COUNT probe(s) FAILED — review lines above and $REPORT before shipping${C_RST}" "$C_FAIL"
+    fi
+
     oem_tty_say "" "    [+] Diagnostics complete (exit 0 by design — inspect [FAIL] lines above)."
     return 0
 }

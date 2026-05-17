@@ -87,7 +87,8 @@ step_hardware_fixes() {
             changed=1
         fi
         if [ "$changed" = "1" ]; then
-            oem_tty_say "--> update-initramfs (Type-C modules — can take a few minutes)…"
+            oem_tty_say "--> update-initramfs (Type-C modules — can take 2–5 minutes; system may appear frozen)…"
+            oem_tty_say "    [.] Please wait — do not interrupt."
             oem_run_log update-initramfs -u -k all
         else
             oem_tty_say "    [i] Type-C modules already in initramfs — leaving alone."

@@ -178,6 +178,18 @@ source "$REPO_DIR/modules/diagnostics.sh"
 source "$REPO_DIR/modules/uninstall.sh"
 
 # ==============================================================================
+#   Optional: GIMP (image editor) — separate from base updates for space optimization.
+#   Useful for OEM pre-handover screenshot and documentation work, but not
+#   essential on 4GB eMMC systems. Available as menu option 14.
+# ==============================================================================
+step_gimp() {
+    oem_tty_say "--> Installing GIMP image editor…"
+    ensure_apt_fresh
+    oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y gimp
+    oem_tty_say "    [+] GIMP installed."
+}
+
+# ==============================================================================
 #   Full pipeline — uses run_step so completed steps are skipped on resume.
 #   Order is intentional:
 #     - prompt_keyboard FIRST so the rest can run unattended
@@ -244,11 +256,12 @@ while true; do
         echo " 11) Libinput gestures + xfdashboard only (skips Plank / wallpaper)"
         echo " 12) Apply terminal paste fix"
         echo " 13) Adjust region, language and keyboard layout"
-        echo " 14) Run hardware diagnostics report"
-        echo " 15) Undo all changes (full uninstall)"
-        echo " 16) Exit setup"
+        echo " 14) Install GIMP image editor (optional; saves ~100 MiB if skipped)"
+        echo " 15) Run hardware diagnostics report"
+        echo " 16) Undo all changes (full uninstall)"
+        echo " 17) Exit setup"
         echo "========================================="
-        printf "Select choice [1-16] (type number, then press Enter): "
+        printf "Select choice [1-17] (type number, then press Enter): "
     } >&3
     read -r main_choice < /dev/tty || true
     main_choice=${main_choice:-}
@@ -268,10 +281,11 @@ while true; do
         11) do_step gestures_and_workspaces ;;
         12) do_step terminal ;;
         13) do_step regional ;;
-        14) do_step diagnostics ;;
-        15) step_uninstall ;;
-        16) oem_tty_say "Exiting configuration engine."; exit 0 ;;
-        *)  oem_tty_say "Invalid option. Please choose 1-16." ;;
+        14) do_step gimp ;;
+        15) do_step diagnostics ;;
+        16) step_uninstall ;;
+        17) oem_tty_say "Exiting configuration engine."; exit 0 ;;
+        *)  oem_tty_say "Invalid option. Please choose 1-17." ;;
     esac
 done
 

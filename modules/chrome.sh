@@ -72,12 +72,13 @@ step_chrome() {
     local url='https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
 
     rm -f "$deb"
-    oem_tty_say "    [.] Starting wget (connection can take up to ~30s before the bar moves)…"
+    oem_tty_say "    [.] Starting wget (connection can take up to ~60s before the bar moves)…"
+    # Timeout: 60s per connection attempt + 2 retries (more forgiving than 30s×3 on slow CDN)
     wget \
         --continue \
         --show-progress \
-        --timeout=30 \
-        --tries=3 \
+        --timeout=60 \
+        --tries=2 \
         -O "$deb" \
         "$url" \
         2>&3

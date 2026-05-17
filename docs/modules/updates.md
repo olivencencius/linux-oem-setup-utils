@@ -27,11 +27,10 @@ None.
   - `git`, `wget`, `curl` — used by later modules to fetch source.
   - `xinput` — used by `step_touchpad` to apply natural scrolling to
     the live oem session.
-  - `gimp` — image editor; bundled into the base tools rather than
-    `step_apps` because it's a general-purpose productivity tool.
   - `zram-tools` — ZRAM swap on compressed RAM, prevents stuttering
     on 4 GB eMMC Chromebooks.
   - `tlp` — battery management; enables and starts `tlp.service`.
+  - (Note: `gimp` is now optional — see `step_gimp` menu option 14, not included in base updates)
 - Exports `OEM_APT_FRESH=1` so other modules' `ensure_apt_fresh` calls
   short-circuit.
 
@@ -42,7 +41,7 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 export OEM_APT_FRESH=1
 
-apt-get install -y git wget curl xinput gimp
+apt-get install -y git wget curl xinput
 apt-get install -y zram-tools tlp
 systemctl enable --now tlp.service
 ```
@@ -73,9 +72,11 @@ Fully idempotent:
 
 `step_uninstall` purges `tlp`, `zram-tools`, `imwheel` (legacy — no
 longer installed by this module, but the purge is kept as a courtesy for
-systems that ran an earlier revision of the toolkit), and `gimp`
-(sub-step 2). The other base tools (`git`, `wget`, `curl`, `xinput`)
-are intentionally left in place.
+systems that ran an earlier revision of the toolkit). The other base tools
+(`git`, `wget`, `curl`, `xinput`) are intentionally left in place.
+
+If `step_gimp` was run (optional menu option 14), `step_uninstall` also
+purges `gimp` (sub-step 2).
 
 `OEM_APT_FRESH` is a per-process variable and is naturally cleared
 when `setup.sh` exits.

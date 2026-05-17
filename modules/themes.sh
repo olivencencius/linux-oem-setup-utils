@@ -134,4 +134,19 @@ step_themes() {
     else
         oem_tty_say "    [i] \$SUDO_USER not set — layout will apply on next login via skel."
     fi
+
+    oem_tty_say "--> Validating dock configuration…"
+    local expected_apps=(
+        Netflix PrimeVideo DisneyPlus HBOMax Spotify YouTube
+        Gmail GoogleDocs GoogleSheets GoogleSlides GoogleDrive Gemini ChromeRemoteDesktop
+    )
+    local dock_ok=0
+    for app in "${expected_apps[@]}"; do
+        [ -f "/usr/share/applications/${app}.desktop" ] && dock_ok=$((dock_ok + 1))
+    done
+    if [ "$dock_ok" -eq 13 ]; then
+        oem_tty_say "    [+] All 13 web-app dock items present."
+    elif [ "$dock_ok" -gt 0 ]; then
+        oem_tty_say "    [!] Warning: only $dock_ok/13 web-app dock items found — verify they were installed correctly (menu option 8)."
+    fi
 }

@@ -77,7 +77,8 @@ into that user's home and runs `oem-first-run.sh` inline.
 | File | Starts | Why |
 |---|---|---|
 | `oem-first-run.desktop` | `bash -c "sleep 5 && /usr/local/bin/oem-first-run.sh"` | One-shot: wallpaper, panel layout, Plank; removes its own autostart when done |
-| `touchegg-client.desktop` | legacy Touchegg client (if package existed) | Still present in the repo `skel/` tree; **`step_gestures_and_workspaces`** purges **`touchegg`** and removes **`/etc/touchegg/`**; **`step_uninstall`** also deletes this autostart entry from `/etc/skel` and user homes |
+
+**Legacy note:** `touchegg-client.desktop` was removed from the repo as part of the migration from **Touchegg** to **libinput-gestures**. References in **`step_uninstall`** remain for defensive cleanup of legacy OEM deployments.
 
 The sleep lets `xfdesktop` register monitors before the wallpaper loop runs.
 

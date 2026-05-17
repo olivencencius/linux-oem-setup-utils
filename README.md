@@ -21,14 +21,30 @@ single-command bootstrap.
   less TTY flicker; applied automatically in the full pipeline (menu **2**
   re-applies the same step if needed).
 - **Apps and shortcuts** — Google Chrome (with self-updating Google apt
-  repo), Zoom, VLC, GIMP, three games, 13 Chrome web-app launchers
+  repo), Zoom, VLC, three games, 13 Chrome web-app launchers
   (Netflix, Prime Video, Disney+, Max, YouTube, Spotify, Gmail, Google Docs,
-  Sheets, Slides, Drive, Gemini, Chrome Remote Desktop).
+  Sheets, Slides, Drive, Gemini, Chrome Remote Desktop). GIMP is available as
+  an optional menu item.
 - **Full undo** — a single menu option reverses every change the toolkit
   makes.
 
 Multimedia codec packs are **not** installed by this repo — enable them in the
 OS installer or image if you need them.
+
+## Prerequisites
+
+Before running the setup toolkit, ensure:
+
+- **Wi-Fi connection**: Stable, **>50 Mbps** network required (3 upstream git
+  clones for audio, keyboard, and gestures). If your Wi-Fi is unreliable, re-run
+  the setup — completed steps are skipped automatically.
+- **Patience for hardware fixes**: The initramfs rebuild (Tiger/AlderLake USB-C
+  support) may take **2–5 minutes** and can appear to freeze the UI. This is
+  expected — do not interrupt.
+- **Chrome download time**: Expect **5–20+ minutes** for the ~100 MiB Chrome
+  .deb on slow CDNs. A progress bar will appear on the terminal.
+- **Reboot required**: Kernel, initramfs, audio, and keyboard changes only take
+  effect after a reboot — plan accordingly.
 
 ## How to run it
 
@@ -80,7 +96,7 @@ sudo rm -rf /var/lib/oem-setup/state && sudo bash setup.sh
 
 ### Reverting a deployment
 
-Run the script again and pick **option 15 — Undo all changes**. See
+Run the script again and pick **option 16 — Undo all changes**. See
 [`docs/uninstall.md`](docs/uninstall.md) for what gets reverted and the
 best-effort caveats.
 
