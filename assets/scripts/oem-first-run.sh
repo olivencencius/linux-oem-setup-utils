@@ -11,11 +11,12 @@
 #                      binds Super+Tab (rofi) and Super+Insert (add desk), and strips default
 #                      panel launchers (Firefox, XFCE Terminal, Thunar)
 #                      so the top bar stays status-only.
-#                   3. Seeds a Plank dock at the bottom-centre with pinned
-#                      launchers (icon size 40, auto-hide, Matte theme — tuned
-#                      for weaker GPUs / small panels), starts plank, and installs a per-user plank
-#                      autostart entry so plank comes up on every subsequent
-#                      login.
+#                   3. Seeds / refreshes a Plank dock at the bottom-centre with pinned
+#                      launchers (fixed pin order; icon size 40, auto-hide, Matte theme — tuned
+#                      for weaker GPUs / small panels). Runs before the first-run marker check so
+#                      re-running this script fixes dock order on an installed profile; restarts
+#                      plank to reload launchers. Installs per-user plank autostart so plank starts
+#                      every login.
 #                 GTK/icon themes are left to distro defaults (no overrides).
 #                 Then self-deletes its autostart entry so the user keeps full
 #                 freedom over theme/wallpaper/dock afterwards.
@@ -26,7 +27,7 @@
 #                 HOME / DBUS_SESSION_BUS_ADDRESS set by oem_user_xrun)
 #   Triggered by: skel/.config/autostart/oem-first-run.desktop
 #                 (staged into /etc/skel by step_themes)
-#   Marker:       ~/.config/.oem-first-run-done  (created at end, checked at start)
+#   Marker:       ~/.config/.oem-first-run-done  (created at end; checked after Plank setup)
 #   Reads:        /usr/share/backgrounds/oem-setup/malta.jpg
 #                 xfconf-query (xfce4-desktop channel) for monitor list
 #                 xfconf-query (xfce4-panel channel) for panel-1/plugin-ids
@@ -69,28 +70,21 @@
 #   composited strip, so it co-exists cleanly with panel-1 while giving a
 #   ChromeOS-style centred dock (installed by step_themes).
 #
-#   NOTE — idempotency. We deliberately do NOT short-circuit if the plank
-#   config dir already exists: if a previous run failed half-way (e.g.
-#   apt-get got interrupted before plank was installed), re-running this
-#   script should re-seed cleanly. The dockitem writes use heredoc-overwrite
-#   so they are safe to repeat.
+#   NOTE — idempotency. Plank dockitems are rewritten every run (even after the
+#   first-run marker exists): clearing ~/.config/plank/dock1/launchers/*.dockitem
+#   and renumbering avoids stale pins and fixes sort order when you re-run this
+#   script on an installed machine. Other steps still exit early once marked done.
 # ==============================================================================
 
 MARKER="$HOME/.config/.oem-first-run-done"
-[ -f "$MARKER" ] && exit 0
-
 WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 
 # Ordered list of pinned dock apps (.desktop basename without extension).
-# File manager + app store entries are resolved below (Xubuntu/Ubuntu .desktop names).
-DOCK_LAUNCHERS=(
-    xfce4-appfinder
-    oem-workspace-overview
-    google-chrome
-    xfce4-settings-manager
-)
+# Build strictly in visual order — Plank sorts launcher files lexicographically,
+# so setup_plank_dock prefixes each file with a zero-padded index (01-, 02-, …).
+DOCK_LAUNCHERS=()
 
-# File manager — first XFCE .desktop that exists
+# 1. File manager — first XFCE .desktop that exists
 for _oem_fm in thunar org.xfce.thunar; do
     if [ -f "/usr/share/applications/${_oem_fm}.desktop" ]; then
         DOCK_LAUNCHERS+=( "$_oem_fm" )
@@ -98,7 +92,10 @@ for _oem_fm in thunar org.xfce.thunar; do
     fi
 done
 
-# Software centre — Xubuntu/Ubuntu-prioritised candidates (skip if none installed)
+# 2. Application finder
+DOCK_LAUNCHERS+=( xfce4-appfinder )
+
+# 3. Package manager — Xubuntu/Ubuntu-prioritised candidates (skip if none)
 _oem_store_candidates=(
     snap-store ubuntu-software org.gnome.Software gnome-software synaptic software-properties-gtk
 )
@@ -109,18 +106,115 @@ for _oem_store in "${_oem_store_candidates[@]}"; do
     fi
 done
 
+# 4–15. Settings, browser, Google productivity stack (fixed OEM order), Zoom,
+# Spotify, VLC; then streaming / extras shipped by step_web_apps + gestures.
 DOCK_LAUNCHERS+=(
-    vlc
-    Zoom
+    xfce4-settings-manager
+    google-chrome
     Gmail
     GoogleDocs
     GoogleSheets
     GoogleSlides
-    GoogleDrive
-    Gemini
     YouTube
+    Gemini
+    GoogleDrive
+    Zoom
     Spotify
+    vlc
+    oem-workspace-overview
+    Netflix
+    PrimeVideo
+    DisneyPlus
+    HBOMax
+    ChromeRemoteDesktop
 )
+
+# ------------------------------------------------------------------------------
+# 0. Plank dock — runs before first-run early-exit so re-running this script
+# fixes dock order on machines that already completed wallpaper/panel setup.
+# ------------------------------------------------------------------------------
+setup_plank_dock() {
+    command -v plank >/dev/null || return 0
+
+    local plank_dir="$HOME/.config/plank/dock1"
+    local launchers_dir="$plank_dir/launchers"
+    mkdir -p "$launchers_dir"
+
+    # Drop stale dockitems so removed pins / old numbering cannot linger.
+    local f
+    for f in "$launchers_dir"/*.dockitem; do
+        [ -e "$f" ] || continue
+        rm -f "$f"
+    done
+
+    # Settings (lighter redraw + smoother hide/show on composited desktops):
+    #   Position=3       Gtk.PositionType.BOTTOM
+    #   Alignment=3      PlankItemsAlignment.CENTER
+    #   HideMode=2       HideType AUTOHIDE (hide until cursor hits dock edge — frees vertical space)
+    #   HideDelay/UnhideDelay  small nonzero ms — reduces twitchy overlap flaps at launch/maximize
+    #   IconSize=40      modest GPU win vs 48 px; tighter strip on laptops
+    #   Theme=Matte      ships with plank; less translucent work than Transparent
+    #   LockItems=false  buyer can drag-rearrange after purchase
+    cat > "$plank_dir/settings" <<'EOF'
+[PlankDockPreferences]
+CurrentWorkspaceOnly=false
+IconSize=40
+HideMode=2
+UnhideDelay=150
+HideDelay=150
+Monitor=
+DockItems=
+Position=3
+Offset=0
+Theme=Matte
+Alignment=3
+ItemsAlignment=3
+LockItems=false
+PressureReveal=false
+PinnedOnly=false
+AutoPinning=true
+ShowDockItem=false
+ZoomEnabled=false
+ZoomPercent=150
+EOF
+
+    # Emit one dockitem per launcher whose backing .desktop actually exists.
+    local idx=1 app src n
+    for app in "${DOCK_LAUNCHERS[@]}"; do
+        src="/usr/share/applications/${app}.desktop"
+        [ -f "$src" ] || continue
+        n=$(printf '%02d' "$idx")
+        cat > "$launchers_dir/${n}-${app}.dockitem" <<EOF
+[PlankDockItemPreferences]
+Launcher=file://${src}
+EOF
+        idx=$(( idx + 1 ))
+    done
+
+    mkdir -p "$HOME/.config/autostart"
+    cat > "$HOME/.config/autostart/plank.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Plank
+Comment=ChromeOS-style dock
+Exec=plank
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+
+    # Restart plank so dock order reloads from disk (single-instance dbus otherwise
+    # keeps stale launcher layout).
+    if pgrep -x plank >/dev/null 2>&1; then
+        pkill -x plank >/dev/null 2>&1 || true
+        sleep 0.3
+    fi
+    (plank >/dev/null 2>&1 &) || true
+}
+
+setup_plank_dock
+
+[ -f "$MARKER" ] && exit 0
 
 # ------------------------------------------------------------------------------
 # 1. Wallpaper
@@ -472,95 +566,11 @@ setup_rofi_window_switcher() {
         -p "$prop" -s "$cmd" 2>/dev/null || true
 }
 
-# ------------------------------------------------------------------------------
-# 3. Plank dock (bottom-centre, auto-hide, pinned launchers).
-# Plank reads dockitem files from ~/.config/plank/dock1/launchers/ in
-# lexicographic filename order, so we prefix each file with a zero-padded
-# index (01-, 02-, …) to lock the order specified in DOCK_LAUNCHERS.
-# ------------------------------------------------------------------------------
-setup_plank_dock() {
-    command -v plank >/dev/null || return 0
-
-    local plank_dir="$HOME/.config/plank/dock1"
-    local launchers_dir="$plank_dir/launchers"
-    mkdir -p "$launchers_dir"
-
-    # Settings (lighter redraw + smoother hide/show on composited desktops):
-    #   Position=3       Gtk.PositionType.BOTTOM
-    #   Alignment=3      PlankItemsAlignment.CENTER
-    #   HideMode=2       HideType AUTOHIDE (hide until cursor hits dock edge — frees vertical space)
-    #   HideDelay/UnhideDelay  small nonzero ms — reduces twitchy overlap flaps at launch/maximize
-    #   IconSize=40      modest GPU win vs 48 px; tighter strip on laptops
-    #   Theme=Matte      ships with plank; less translucent work than Transparent
-    #   LockItems=false  buyer can drag-rearrange after purchase
-    cat > "$plank_dir/settings" <<'EOF'
-[PlankDockPreferences]
-CurrentWorkspaceOnly=false
-IconSize=40
-HideMode=2
-UnhideDelay=150
-HideDelay=150
-Monitor=
-DockItems=
-Position=3
-Offset=0
-Theme=Matte
-Alignment=3
-ItemsAlignment=3
-LockItems=false
-PressureReveal=false
-PinnedOnly=false
-AutoPinning=true
-ShowDockItem=false
-ZoomEnabled=false
-ZoomPercent=150
-EOF
-
-    # Emit one dockitem per launcher whose backing .desktop actually exists.
-    # Silent-skip preserves the existing safety net (e.g. Zoom .deb download
-    # failed → step_zoom returns 0 → no Zoom.desktop → Plank just renders 10).
-    local idx=1 app src n
-    for app in "${DOCK_LAUNCHERS[@]}"; do
-        src="/usr/share/applications/${app}.desktop"
-        [ -f "$src" ] || continue
-        n=$(printf '%02d' "$idx")
-        cat > "$launchers_dir/${n}-${app}.dockitem" <<EOF
-[PlankDockItemPreferences]
-Launcher=file://${src}
-EOF
-        idx=$(( idx + 1 ))
-    done
-
-    # Install a per-user plank autostart entry so plank comes up on every
-    # subsequent login. We write it here (not via /etc/skel) so the
-    # first-login race against this script is impossible: by the time
-    # plank.desktop exists, the dock config is already in place.
-    mkdir -p "$HOME/.config/autostart"
-    cat > "$HOME/.config/autostart/plank.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Plank
-Comment=ChromeOS-style dock
-Exec=plank
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-EOF
-
-    # Start plank now so the live session (and the first-login buyer) sees
-    # the dock immediately. If plank is already running it just no-ops
-    # because plank holds a single-instance dbus lock.
-    if ! pgrep -x plank >/dev/null 2>&1; then
-        (plank >/dev/null 2>&1 &) || true
-    fi
-}
-
 setup_workspace_defaults
 setup_top_panel
 setup_workspace_overview_keys
 setup_add_workspace_key
 setup_rofi_window_switcher
-setup_plank_dock
 
 # ------------------------------------------------------------------------------
 # 4. Mark complete and self-delete autostart entry
