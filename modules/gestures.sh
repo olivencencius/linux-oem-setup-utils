@@ -185,4 +185,4 @@ step_gestures_and_workspaces() {
         oem_tty_say \
             '    [i] $SUDO_USER not set — gestures start next login (/etc/xdg/autostart/libinput-gestures.desktop).'
     fi
-
+}
