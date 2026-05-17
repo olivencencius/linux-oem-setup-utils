@@ -38,14 +38,24 @@ STATE_DIR="/var/lib/oem-setup/state"
 mkdir -p "$(dirname "$LOG_FILE")" "$STATE_DIR" /var/lib/oem-setup/backups
 export STATE_DIR
 
-# Keep the real terminal on fd 3. The `tee` redirect below turns stdout/stderr
-# into a pipe; libc then fully buffers them, so prompts and echoes can appear
-# "stuck" until ~4KiB fills. The main menu (and immediate feedback) uses fd 3.
-exec 3>&2
+# Real terminal on fd 3 for *prompt output* only (bypasses fully-buffered `tee`).
+# Prefer read-write open; a plain stderr dup can be write-only — do not use it for `read -uN`.
+# All interactive *input* uses `read … < /dev/tty` so the keyboard always works.
+if ! exec 3<>/dev/tty 2>/dev/null; then
+    exec 3>&2
+fi
 
 # Tee everything (stdout + stderr) into the log file as well as the terminal.
 # Done before we source modules so their output is also captured.
 exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Duplicate lines to fd 3 (real TTY) and stdout — libc fully buffers stdout once it
+# is the `tee` pipe, so plain `echo` after prompts can appear to do nothing.
+oem_tty_say() {
+    printf '%s\n' "$@" >&3
+    printf '%s\n' "$@"
+}
+export -f oem_tty_say
 
 echo ""
 echo "=== oem-setup run started: $(date -Iseconds) ==="
@@ -87,17 +97,16 @@ is_done()   { [ -e "$STATE_DIR/$1.done" ]; }
 do_step() {
     local name="$1"
     CURRENT_STEP="$name"
-    echo ""
-    echo "==> step_${name}  [$(date -Iseconds)]"
+    oem_tty_say "" "==> step_${name}  [$(date -Iseconds)]"
     "step_${name}"
     mark_done "$name"
-    echo "<== step_${name} OK"
+    oem_tty_say "<== step_${name} OK"
 }
 
 run_step() {
     local name="$1"
     if is_done "$name"; then
-        echo "==> step_${name}  [skipped — already completed; rm $STATE_DIR/${name}.done to redo]"
+        oem_tty_say "==> step_${name}  [skipped — already completed; rm $STATE_DIR/${name}.done to redo]"
         return 0
     fi
     do_step "$name"
@@ -110,21 +119,19 @@ run_step() {
 on_err() {
     local exit_code=$?
     local line=$1
-    echo ""
-    echo "================================================================="
-    echo "[!] FAILED at step: ${CURRENT_STEP:-<setup>}  (line $line, exit $exit_code)"
-    echo "[!] Log: $LOG_FILE"
-    echo "[!] Fix the cause, then re-run 'sudo bash setup.sh' — completed"
-    echo "    steps will be skipped automatically."
-    echo "================================================================="
+    oem_tty_say "" "================================================================="
+    oem_tty_say "[!] FAILED at step: ${CURRENT_STEP:-<setup>}  (line $line, exit $exit_code)"
+    oem_tty_say "[!] Log: $LOG_FILE"
+    oem_tty_say "[!] Fix the cause, then re-run 'sudo bash setup.sh' — completed"
+    oem_tty_say "    steps will be skipped automatically."
+    oem_tty_say "================================================================="
     exit "$exit_code"
 }
 on_int() {
-    echo ""
-    echo "================================================================="
-    echo "[!] Interrupted by user at step: ${CURRENT_STEP:-<setup>}"
-    echo "[!] Re-run 'sudo bash setup.sh' to resume."
-    echo "================================================================="
+    oem_tty_say "" "================================================================="
+    oem_tty_say "[!] Interrupted by user at step: ${CURRENT_STEP:-<setup>}"
+    oem_tty_say "[!] Re-run 'sudo bash setup.sh' to resume."
+    oem_tty_say "================================================================="
     exit 130
 }
 trap 'on_err $LINENO' ERR
@@ -160,6 +167,7 @@ source "$REPO_DIR/modules/uninstall.sh"
 # ==============================================================================
 run_full_pipeline() {
     prompt_keyboard
+    oem_tty_say "    [.] Keyboard choice recorded — continuing (full log: $LOG_FILE)…"
     run_step cleanup
     run_step updates
     run_step hardware_fixes
@@ -181,11 +189,12 @@ run_full_pipeline() {
 #   full effect after a reboot, so we always warn.
 # ==============================================================================
 print_reboot_reminder() {
-    echo ""
-    echo "================================================================="
-    echo " REBOOT REQUIRED before QA — kernel/initramfs/audio/keyboard "
-    echo " changes only take full effect on the next boot."
-    echo "================================================================="
+    oem_tty_say \
+        "" \
+        "=================================================================" \
+        " REBOOT REQUIRED before QA — kernel/initramfs/audio/keyboard " \
+        " changes only take full effect on the next boot." \
+        "================================================================="
 }
 
 # ==============================================================================
@@ -218,7 +227,8 @@ while true; do
         echo "========================================="
         printf "Select choice [1-16] (type number, then press Enter): "
     } >&3
-    read -r -u3 main_choice || true
+    read -r main_choice < /dev/tty || true
+    main_choice=${main_choice:-}
     echo "" >&3
 
     case $main_choice in
@@ -237,17 +247,18 @@ while true; do
         13) do_step regional ;;
         14) do_step diagnostics ;;
         15) step_uninstall ;;
-        16) echo "Exiting configuration engine." >&3; exit 0 ;;
-        *)  echo "Invalid option. Please choose 1-16." >&3 ;;
+        16) oem_tty_say "Exiting configuration engine."; exit 0 ;;
+        *)  oem_tty_say "Invalid option. Please choose 1-16." ;;
     esac
 done
 
-echo ""
-echo "========================================="
-echo "              OPERATION END              "
-echo "========================================="
-echo ""
-echo "REMINDER: Once you have rebooted and verified the setup, double-click"
-echo "  the 'Prepare for shipping to end user' icon on the desktop,"
-echo "  enter the OEM password, then shut down the machine."
-echo "========================================="
+oem_tty_say \
+    "" \
+    "=========================================" \
+    "              OPERATION END              " \
+    "=========================================" \
+    "" \
+    "REMINDER: Once you have rebooted and verified the setup, double-click" \
+    "  the 'Prepare for shipping to end user' icon on the desktop," \
+    "  enter the OEM password, then shut down the machine." \
+    "========================================="

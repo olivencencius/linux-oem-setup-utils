@@ -61,7 +61,7 @@ step_uninstall() {
         echo "========================================="
         printf "Type 'YES' (uppercase) to proceed, anything else to abort: "
     } >&3
-    read -r -u3 confirm || true
+    read -r confirm < /dev/tty || true
     if [ "$confirm" != "YES" ]; then
         echo "Uninstall aborted." >&3
         return 0

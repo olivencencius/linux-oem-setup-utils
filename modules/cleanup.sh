@@ -15,7 +15,7 @@
 # ==============================================================================
 
 step_cleanup() {
-    echo "--> Cleaning up temporary files from any previous partial runs..."
+    oem_tty_say "--> Cleaning up temporary files from any previous partial runs..."
     rm -rf /tmp/chromebook-linux-audio \
            /tmp/cros-keyboard-map \
            /tmp/ChromeOS-theme \

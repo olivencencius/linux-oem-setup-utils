@@ -34,8 +34,8 @@ prompt_keyboard() {
     if [ -f "$STATE_DIR/kb_layout" ]; then
         KB_LAYOUT=$(cat "$STATE_DIR/kb_layout")
         export KB_LAYOUT
-        echo "    [i] Using saved keyboard layout from previous run: $KB_LAYOUT"
-        echo "        (rm $STATE_DIR/kb_layout to be asked again)"
+        oem_tty_say "    [i] Using saved keyboard layout from previous run: $KB_LAYOUT" \
+            "        (rm $STATE_DIR/kb_layout to be asked again)"
         return
     fi
 
@@ -52,19 +52,21 @@ prompt_keyboard() {
         echo "========================================="
         printf "Enter number [1-5] (then press Enter): "
     } >&3
-    read -r -u3 kb_choice || true
+    # Input from /dev/tty — not fd 3; some setups cannot read the keyboard via a stderr dup.
+    kb_choice=""
+    read -r kb_choice < /dev/tty || true
 
-    case $kb_choice in
+    case "${kb_choice:-}" in
         1) KB_LAYOUT="us" ;;
         2) KB_LAYOUT="gb" ;;
         3) KB_LAYOUT="de" ;;
         4) KB_LAYOUT="se" ;;
         5) KB_LAYOUT="pl" ;;
-        *) echo "Invalid input. Defaulting to US layout." >&3; KB_LAYOUT="us" ;;
+        *) oem_tty_say "Invalid input. Defaulting to US layout."; KB_LAYOUT="us" ;;
     esac
     export KB_LAYOUT
     echo "$KB_LAYOUT" > "$STATE_DIR/kb_layout"
-    echo "    [+] Keyboard layout will be set to: $KB_LAYOUT"
+    oem_tty_say "    [+] Keyboard layout will be set to: $KB_LAYOUT"
 }
 
 step_regional() {
