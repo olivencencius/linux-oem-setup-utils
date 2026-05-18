@@ -70,7 +70,12 @@ standard **`oem`** account from the OEM install workflow):
 6. Run the per-machine [handover QA checklist](docs/handover-qa.md).
 7. Double-click **Prepare for shipping to end user** on the desktop (or run
    `sudo oem-prepare-shipping` in a terminal), complete the prompts, then shut
-   down when ready.
+   down when ready. **Handover only** (this script alone — no `bootstrap.sh`, no
+   repo clone):
+
+   ```bash
+   wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-prepare-shipping.sh | sudo bash
+   ```
 
 The buyer creates their own user account on first boot.
 

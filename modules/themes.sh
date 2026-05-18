@@ -96,9 +96,8 @@ step_themes() {
     oem_tty_say "--> Staging defaults into /etc/skel…"
     cp -r "$REPO_DIR/skel/." /etc/skel/
     mkdir -p /etc/skel/Desktop
-    cp -f "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
+    install -m 755 "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
        /etc/skel/Desktop/oem-prepare-shipping.desktop
-    chmod 644 /etc/skel/Desktop/oem-prepare-shipping.desktop
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
         SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -118,7 +117,7 @@ step_themes() {
 
         oem_tty_say "--> Mirroring OEM handover desktop launcher into ~$SUDO_USER/Desktop…"
         sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/Desktop"
-        cp -f /etc/skel/Desktop/oem-prepare-shipping.desktop \
+        install -m 755 /etc/skel/Desktop/oem-prepare-shipping.desktop \
            "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
         chown "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
 

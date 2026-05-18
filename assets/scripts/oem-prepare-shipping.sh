@@ -9,10 +9,12 @@
 #   Installed by: modules/themes.sh
 #   Runs as:      root (re-exec: sudo oem-prepare-shipping)
 #
-#   GUI shortcut: Desktop + /usr/share/applications launcher uses pkexec on
-#                 /usr/sbin/oem-config-prepare — packages must be installed
-#                 (step_themes does this; this script is for terminal use or
-#                 when fixing a half-installed state).
+#   GUI shortcut: Desktop + menu launchers use pkexec on this script (same as
+#                 sudo oem-prepare-shipping) so oem-config can be installed on
+#                 demand and behaviour matches the terminal path.
+#
+#   Remote run (handover only — not bootstrap.sh):
+#     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-prepare-shipping.sh | sudo bash
 # ==============================================================================
 
 set -Eeuo pipefail
