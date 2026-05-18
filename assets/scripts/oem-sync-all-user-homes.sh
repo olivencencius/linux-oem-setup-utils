@@ -46,7 +46,14 @@ for a in "$@"; do
     esac
 done
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Resolve script location. ${BASH_SOURCE[0]} is bash-only; with `set -u`, dash/sh
+# errors on "nieustawiona zmienna" (unbound). Prefer $0 unless bash gives a real path
+# (not "-" from wget | bash -s).
+_oem_script_path=$0
+if [ "${BASH_SOURCE+set}" = set ] && [ "${BASH_SOURCE[0]-}" != "-" ]; then
+    _oem_script_path=${BASH_SOURCE[0]}
+fi
+SCRIPT_DIR=$(CDPATH= cd -P -- "$(dirname -- "$_oem_script_path")" && pwd)
 REPO_SKEL="$SCRIPT_DIR/../../skel"
 INPUTRC_LINE='set enable-bracketed-paste off'
 
