@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-if [ "${EUID:-}" -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     echo "oem-sync-all-user-homes: run as root (sudo bash \"$0\" …)" >&2
     exit 1
 fi
@@ -46,14 +46,10 @@ for a in "$@"; do
     esac
 done
 
-# Resolve script location. ${BASH_SOURCE[0]} is bash-only; with `set -u`, dash/sh
-# errors on "nieustawiona zmienna" (unbound). Prefer $0 unless bash gives a real path
-# (not "-" from wget | bash -s).
-_oem_script_path=$0
-if [ "${BASH_SOURCE+set}" = set ] && [ "${BASH_SOURCE[0]-}" != "-" ]; then
-    _oem_script_path=${BASH_SOURCE[0]}
-fi
-SCRIPT_DIR=$(CDPATH= cd -P -- "$(dirname -- "$_oem_script_path")" && pwd)
+# Script directory: use only $0 — never ${BASH_SOURCE[0]} (unset under sh/dash, or
+# unbound under bash+set -u with an empty BASH_SOURCE). wget|bash gives $0=bash →
+# dirname is '.' (REPO_SKEL may be wrong; /etc/skel path still works).
+SCRIPT_DIR=$(CDPATH= cd -P -- "$(dirname -- "${0:-.}")" && pwd)
 REPO_SKEL="$SCRIPT_DIR/../../skel"
 INPUTRC_LINE='set enable-bracketed-paste off'
 
