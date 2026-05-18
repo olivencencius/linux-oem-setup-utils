@@ -141,6 +141,9 @@ for **rofi** / **add workspace**, and bottom Plank dock immediately. It does **n
 install **`oem-prepare-shipping`** or a handover desktop launcher — handover is a
 separate manual step using **`assets/scripts/oem-prepare-shipping.sh`** (that script
 **apt-installs** **`oem-config`** / **`oem-config-gtk`** when needed — the pipeline does not).
+After **`/etc/skel`** is updated, **`oem-first-run.desktop`** is synced into every
+UID **1000–65533** home that has **not** completed **`oem-first-run`** yet, so
+extra accounts (not only **`$SUDO_USER`**) get wallpaper / Plank on next login.
 See [`modules/themes.md`](./modules/themes.md) for the detail.
 
 GTK and icon themes stay at **distro defaults** (**Xubuntu**).

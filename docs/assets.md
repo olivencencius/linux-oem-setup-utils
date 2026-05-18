@@ -46,6 +46,7 @@ without extension**, e.g. `Icon=netflix`.
 |---|---|---|---|---|---|
 | `assets/scripts/oem-first-run.sh` | `/usr/local/bin/oem-first-run.sh` | `755` | `modules/themes.sh` | each user | first XFCE login (skel autostart) or inline during `step_themes` |
 | `assets/scripts/oem-add-workspace.sh` | `/usr/local/bin/oem-add-workspace.sh` | `755` | `modules/gestures.sh` | each user | **Super+Insert** (xfce4-keyboard-shortcuts), seeded by **`oem-first-run.sh`** |
+| `assets/scripts/oem-sync-all-user-homes.sh` | *(not installed)* | `755` | — | root | Ad-hoc: preflight (wallpaper, web apps, games, dock `.desktop`) then sync autostart + inputrc + `input` for uid 1000–65533; **`--reset`**, **`--strict`**, **`--dry-run`** |
 | `assets/scripts/oem-prepare-shipping.sh` | *(not installed by the toolkit)* | `755` | — | root | Run standalone (`sudo bash …` or wget \| sudo bash) — installs **`oem-config`** if needed, then **`oem-config-prepare`** |
 
 See [`modules/themes.md`](./modules/themes.md) for behaviour (wallpaper, top panel, Plank dock).
@@ -68,8 +69,9 @@ The `oem-setup` subdirectory is owned by this toolkit and removed by `step_unins
 **`Desktop/`** handover launcher).
 
 The live technician account does **not** automatically pick up `/etc/skel`
-(because it pre-exists). `step_themes` mirrors **`autostart`** into that user's
-home and runs `oem-first-run.sh` inline.
+(because it pre-exists). **`step_themes`** syncs **oem-first-run** autostart to
+every UID **1000–65533** home without **`.oem-first-run-done`**, and runs
+**`oem-first-run.sh`** inline for **`$SUDO_USER`** when possible.
 
 ### `skel/.config/autostart/*.desktop`
 

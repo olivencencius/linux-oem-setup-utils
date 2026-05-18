@@ -26,7 +26,8 @@
 #   Also called:  inline by step_themes for the live oem session (with correct
 #                 HOME / DBUS_SESSION_BUS_ADDRESS set by oem_user_xrun)
 #   Triggered by: skel/.config/autostart/oem-first-run.desktop
-#                 (staged into /etc/skel by step_themes)
+#                 (staged into /etc/skel by step_themes, also copied into every
+#                 uid 1000–65533 home without ~/.config/.oem-first-run-done)
 #   Marker:       ~/.config/.oem-first-run-done  (created at end; checked after Plank setup)
 #   Reads:        /usr/share/backgrounds/oem-setup/malta.jpg
 #                 xfconf-query (xfce4-desktop channel) for monitor list
@@ -81,19 +82,19 @@ WALLPAPER="/usr/share/backgrounds/oem-setup/malta.jpg"
 
 # Ordered list of pinned dock apps (.desktop basename without extension).
 # Build strictly in visual order — Plank sorts launcher files lexicographically,
-# so setup_plank_dock prefixes each file with a zero-padded index (01-, 02-, …).
+# so setup_plank_dock prefixes each file with a zero-padded index (001-, 002-, …).
 DOCK_LAUNCHERS=()
 
-# 1. File manager — first XFCE .desktop that exists
+# 1. App launcher first (ChromeOS-style: open the app list before Files)
+DOCK_LAUNCHERS+=( xfce4-appfinder )
+
+# 2. File manager — first XFCE .desktop that exists
 for _oem_fm in thunar org.xfce.thunar; do
     if [ -f "/usr/share/applications/${_oem_fm}.desktop" ]; then
         DOCK_LAUNCHERS+=( "$_oem_fm" )
         break
     fi
 done
-
-# 2. Application finder
-DOCK_LAUNCHERS+=( xfce4-appfinder )
 
 # 3. Package manager — Xubuntu/Ubuntu-prioritised candidates (skip if none)
 _oem_store_candidates=(
@@ -106,8 +107,8 @@ for _oem_store in "${_oem_store_candidates[@]}"; do
     fi
 done
 
-# 4–15. Settings, browser, Google productivity stack (fixed OEM order), Zoom,
-# Spotify, VLC; then streaming / extras shipped by step_web_apps + gestures.
+# 4–N. Settings, browser, Google productivity stack (fixed OEM order), Zoom,
+# Spotify, VLC; workspace overview; streaming / extras from step_web_apps.
 DOCK_LAUNCHERS+=(
     xfce4-settings-manager
     google-chrome
@@ -140,21 +141,15 @@ setup_plank_dock() {
     local launchers_dir="$plank_dir/launchers"
     mkdir -p "$launchers_dir"
 
-    # Drop stale dockitems so removed pins / old numbering cannot linger.
-    local f
-    for f in "$launchers_dir"/*.dockitem; do
-        [ -e "$f" ] || continue
-        rm -f "$f"
-    done
+    # Remove every .dockitem (glob misses weird names; find covers all).
+    find "$launchers_dir" -maxdepth 1 -type f -name '*.dockitem' -delete 2>/dev/null || true
 
-    # Settings (lighter redraw + smoother hide/show on composited desktops):
-    #   Position=3       Gtk.PositionType.BOTTOM
-    #   Alignment=3      PlankItemsAlignment.CENTER
-    #   HideMode=2       HideType AUTOHIDE (hide until cursor hits dock edge — frees vertical space)
-    #   HideDelay/UnhideDelay  small nonzero ms — reduces twitchy overlap flaps at launch/maximize
-    #   IconSize=40      modest GPU win vs 48 px; tighter strip on laptops
-    #   Theme=Matte      ships with plank; less translucent work than Transparent
-    #   LockItems=false  buyer can drag-rearrange after purchase
+    # Settings:
+    #   AutoPinning=false  — do not auto-pin every launched app (avoids a duplicated,
+    #                        ever-growing dock of web apps / Chrome windows).
+    #   PinnedOnly=true    — only show our pinned dockitems, not arbitrary runners.
+    #   Position=3 / Alignment=3 — bottom, centred
+    #   LockItems=false   — user can rearrange after purchase
     cat > "$plank_dir/settings" <<'EOF'
 [PlankDockPreferences]
 CurrentWorkspaceOnly=false
@@ -171,8 +166,8 @@ Alignment=3
 ItemsAlignment=3
 LockItems=false
 PressureReveal=false
-PinnedOnly=false
-AutoPinning=true
+PinnedOnly=true
+AutoPinning=false
 ShowDockItem=false
 ZoomEnabled=false
 ZoomPercent=150
@@ -180,10 +175,13 @@ EOF
 
     # Emit one dockitem per launcher whose backing .desktop actually exists.
     local idx=1 app src n
+    declare -A _oem_seen_dock=()
     for app in "${DOCK_LAUNCHERS[@]}"; do
+        [ -n "${_oem_seen_dock[$app]:-}" ] && continue
+        _oem_seen_dock[$app]=1
         src="/usr/share/applications/${app}.desktop"
         [ -f "$src" ] || continue
-        n=$(printf '%02d' "$idx")
+        n=$(printf '%03d' "$idx")
         cat > "$launchers_dir/${n}-${app}.dockitem" <<EOF
 [PlankDockItemPreferences]
 Launcher=file://${src}

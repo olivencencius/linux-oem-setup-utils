@@ -25,6 +25,11 @@ the start and end.
 - The same line appended to `/etc/skel/.inputrc` for every future
   user account.
 
+- The same line appended to **`~/.inputrc`** for every **existing**
+  login user (UID 1000–65533 with a home directory) that does not
+  already have it — so accounts created **before** this step (e.g.
+  children’s users) still get the fix.
+
 Backup taken:
 
 - `/etc/inputrc` (if it existed before this step ran).
@@ -41,6 +46,8 @@ mkdir -p /etc/skel
 if ! grep -qxF 'set enable-bracketed-paste off' /etc/skel/.inputrc 2>/dev/null; then
     echo "set enable-bracketed-paste off" >> /etc/skel/.inputrc
 fi
+
+_oem_sync_inputrc_bracketed_paste_all_users
 ```
 
 `grep -qxF` (-x exact line, -F fixed string) protects against

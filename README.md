@@ -94,6 +94,45 @@ post-mortems elsewhere in the run.
 `/var/lib/oem-setup/state/`. If anything fails or you Ctrl-C, re-run
 `sudo bash setup.sh` — finished steps are skipped automatically.
 
+**Extra user accounts** — **`oem-sync-all-user-homes.sh`** pushes **`oem-first-run`**
+autostart, **`inputrc`**, and group **`input`** to every UID **1000–65533**. That only
+works if the **machine already has** the same system-wide assets the pipeline installs
+(wallpaper, Plank, **`oem-first-run.sh`**, Chrome, **13** web shortcuts, VLC + games,
+workspace-overview launcher) — the script **preflights** those and warns (or aborts
+with **`--strict`**). Typical order: run **menu 1** (or **5–9** as needed), then sync.
+
+   ```bash
+   wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-sync-all-user-homes.sh | sudo bash -s --
+   ```
+
+   Full **oem-first-run** replay on next login (wallpaper, panel, dock — use after dock/wallpaper fixes):
+
+   ```bash
+   wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-sync-all-user-homes.sh | sudo bash -s -- --reset
+   ```
+
+   Abort if anything required is missing (instead of warn-only):
+
+   ```bash
+   wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-sync-all-user-homes.sh | sudo bash -s -- --strict --reset
+   ```
+
+   From a clone: `sudo bash assets/scripts/oem-sync-all-user-homes.sh` (same flags).
+
+| System piece | Menu / step |
+|--------------|-------------|
+| Malta wallpaper, Plank, `/usr/local/bin/oem-first-run.sh`, `/etc/skel` autostart | **1** or **9** (`themes`) |
+| Google Chrome | **5** |
+| Zoom (optional; network install may skip) | **6** — if missing, Plank omits that pin only |
+| VLC + SuperTuxKart + Aisleriot + Quadrapassel | **7** (`apps`) |
+| 13 web-app `.desktop` + icons | **8** (`web_apps`) |
+| libinput-gestures, **`input`** in `adduser.conf`, **`oem-workspace-overview.desktop`** | **9** or **11** (`gestures_and_workspaces`) |
+
+**`step_themes`** (menu **9**) also syncs **`oem-first-run.desktop`** into homes that
+lack **`~/.config/.oem-first-run-done`**. To force one user to re-run layout, remove
+their **`~/.config/.oem-first-run-done`** (and optionally **`~/.config/plank`**) then
+sync or **log in again**.
+
 To start completely over:
 
 ```bash
@@ -116,7 +155,7 @@ linux-oem-setup-utils/
 ├── assets/            files installed onto the deployed machine
 │   ├── configs/       libinput-gestures, workspace overview; optional OEM `.desktop` in repo only
 │   ├── icons/         13 web-app icons (SVG)
-│   ├── scripts/       oem-first-run.sh, oem-add-workspace.sh, oem-prepare-shipping.sh (handover — not deployed by pipeline)
+│   ├── scripts/       oem-first-run.sh, oem-sync-all-user-homes.sh, oem-add-workspace.sh, oem-prepare-shipping.sh (ad-hoc / handover)
 │   └── wallpapers/    malta.jpg
 ├── skel/              copied to /etc/skel (autostart); pipeline does not add Desktop handover launcher
 ├── docs/              full technical documentation — start at docs/README.md

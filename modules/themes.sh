@@ -14,7 +14,8 @@
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
 #              /etc/skel/...                         (full skel tree copy)
-#              ~SUDO_USER/.config/autostart          (mirrored from skel)
+#              ~SUDO_USER/.config/autostart          (mirrored from skel; same for
+#              every human UID 1000–65533 without .oem-first-run-done)
 #              ~SUDO_USER/.config/plank/dock1/...    (written by inline
 #                                                     oem-first-run.sh call)
 #   Step fn:   step_themes
@@ -61,9 +62,30 @@ oem_user_xrun() {
         "$@"
 }
 
-step_themes() {
-    local SUDO_HOME
+# Seed oem-first-run.desktop into every interactive home that has not finished
+# first-run yet. Without this, only $SUDO_USER (the account that ran sudo) and
+# brand-new accounts (from /etc/skel at user creation time) would get the layout.
+_oem_sync_oem_first_run_autostart_all_users() {
+    local src="/etc/skel/.config/autostart/oem-first-run.desktop"
+    [ -f "$src" ] || return 0
 
+    oem_tty_say "--> Syncing oem-first-run autostart → homes without .oem-first-run-done…"
+
+    local u uid home marker
+    while IFS=: read -r u _ uid _ _ home _; do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -lt 65534 ] 2>/dev/null || continue
+        [ -n "${home:-}" ] && [ -d "$home" ] || continue
+        marker="$home/.config/.oem-first-run-done"
+        [ -f "$marker" ] && continue
+
+        install -d -m 755 -o "$u" -g "$u" "$home/.config/autostart"
+        install -m 644 -o "$u" -g "$u" "$src" "$home/.config/autostart/oem-first-run.desktop"
+        oem_tty_say "    [+] oem-first-run autostart synced → ~$u (uid $uid)"
+    done < /etc/passwd
+}
+
+step_themes() {
     oem_tty_say "--> Installing Plank (dock)…"
 
     ensure_apt_fresh
@@ -83,28 +105,17 @@ step_themes() {
     oem_tty_say "--> Staging defaults into /etc/skel…"
     cp -r "$REPO_DIR/skel/." /etc/skel/
 
+    _oem_sync_oem_first_run_autostart_all_users
+
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
-        SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 
-        oem_tty_say "--> Mirroring skel autostart into live user's home: $SUDO_USER"
-
-        sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/.config/autostart"
-
-        for f in oem-first-run.desktop; do
-            if [ -f "/etc/skel/.config/autostart/$f" ]; then
-                cp "/etc/skel/.config/autostart/$f" \
-                   "$SUDO_HOME/.config/autostart/$f"
-            fi
-        done
-
-        chown -R "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/.config/autostart"
-
-        oem_tty_say "--> Running oem-first-run.sh once for the live session (Plank + wallpaper)…"
+        oem_tty_say "--> Applying Plank + wallpaper in live session: $SUDO_USER"
         oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true
 
         oem_tty_say "    [+] Wallpaper and Plank dock applied to live session for user: $SUDO_USER"
     else
-        oem_tty_say "    [i] \$SUDO_USER not set — layout will apply on next login via skel."
+        oem_tty_say "    [i] \$SUDO_USER not set — run themes from sudo on a graphical session" \
+                     " or log each user out/in once so oem-first-run can apply."
     fi
 
     oem_tty_say "--> Validating dock configuration…"
