@@ -3,10 +3,11 @@
 ## Purpose
 
 Deploys **Plank**, the **Malta** OEM wallpaper, the per-user **`oem-first-run.sh`**
-helper, Ubuntu **OEM handover launcher** assets (desktop launcher,
-`/usr/local/bin/oem-prepare-shipping` — packages **`oem-config`** /
-**`oem-config-gtk`** are installed later by **`step_oem_handover`**), and the
-**`skel/`** autostart entries.
+helper, and the **`skel/`** autostart entries. **`oem-config`** /
+**`oem-config-gtk`** are **not** installed by this toolkit — they are pulled in
+when you run **`oem-prepare-shipping.sh`** before handover. That script is **not**
+deployed by this module (operators run it separately from the repo or GitHub).
+
 **Does not** install theme or icon packages or override GTK / icon / xfwm themes
 — distro defaults apply (**Xubuntu**).
 
@@ -26,39 +27,35 @@ for the OS).
 
 - `$REPO_DIR/assets/wallpapers/malta.jpg`
 - `$REPO_DIR/assets/scripts/oem-first-run.sh`
-- `$REPO_DIR/assets/scripts/oem-prepare-shipping.sh`
-- `$REPO_DIR/assets/configs/oem-prepare-shipping.desktop`
-- `$REPO_DIR/skel/.` (typically `autostart`; `Desktop/` is added by this step)
+- `$REPO_DIR/skel/.` (typically `autostart`)
 - `ensure_apt_fresh` (for apt installs)
-- `$SUDO_USER` — when set, mirrors skel **autostart** and **Desktop** into the
-  live session and runs `oem-first-run.sh` inline
+- `$SUDO_USER` — when set, mirrors skel **autostart** into the live session and
+  runs `oem-first-run.sh` inline
 
 ## Outputs
 
-- **apt:** `plank` (`oem-config` / `oem-config-gtk`: see **`modules/oem_handover.sh`**)
+- **apt:** `plank`
 - **`/usr/share/backgrounds/oem-setup/malta.jpg`**
 - **`/usr/local/bin/oem-first-run.sh`** (mode `755`)
-- **`/usr/local/bin/oem-prepare-shipping`** (mode `755`)
-- **`/usr/share/applications/oem-prepare-shipping.desktop`**
-- **`/etc/skel/...`** — copy of repo `skel/` plus **`Desktop/oem-prepare-shipping.desktop`**
-- **Live session:** copies autostart `.desktop` files and the handover launcher
-  into `$SUDO_HOME`, then runs `oem-first-run.sh`
+- **`/etc/skel/...`** — copy of repo `skel/`
+- **Live session:** copies autostart `.desktop` files into `$SUDO_HOME`, then runs
+  `oem-first-run.sh`
 
 ## Walkthrough
 
 1. `ensure_apt_fresh` then `apt-get install -y plank`.
-2. Install `oem-prepare-shipping.sh` and `oem-prepare-shipping.desktop` system-wide.
-3. Copy wallpaper into `/usr/share/backgrounds/oem-setup/`.
-4. Install `oem-first-run.sh` to `/usr/local/bin/`.
-5. `cp -r "$REPO_DIR/skel/." /etc/skel/`; create `/etc/skel/Desktop/` and copy the
-   handover `.desktop` there.
-6. If `$SUDO_USER` is set: mirror autostart + Desktop, `chown`, run `oem-first-run.sh`.
+2. Copy wallpaper into `/usr/share/backgrounds/oem-setup/`.
+3. Install `oem-first-run.sh` to `/usr/local/bin/`.
+4. `cp -r "$REPO_DIR/skel/." /etc/skel/`.
+5. If `$SUDO_USER` is set: mirror autostart, `chown`, run `oem-first-run.sh`.
 
 ## Uninstall counterpart
 
 `step_uninstall` purges **`plank`**, removes **`/usr/share/backgrounds/oem-setup`**
-and **`oem-first-run.sh`**, **`oem-prepare-shipping`**, the handover `.desktop`
-files, cleans **`/etc/skel`** and per-user Plank / marker / Desktop launcher
-files. **`oem-config` / `oem-config-gtk`** are purged together with the other
-toolkit packages in the apt purge list.
+and **`oem-first-run.sh`**, **best-effort** cleanup of legacy **`oem-prepare-shipping`**
+binaries / handover **`.desktop`** files (from older toolkit revisions), cleans
+**`/etc/skel`** and per-user Plank / marker / Desktop launcher files.
+**`oem-config` / `oem-config-gtk`** are also on the **`step_uninstall`** apt purge
+list (no-ops if never installed).
+
 See [`uninstall.md`](../uninstall.md).

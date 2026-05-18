@@ -7,19 +7,14 @@
 #              defaults apply (Xubuntu LTS compatible).
 #   Reads:     REPO_DIR/assets/wallpapers/malta.jpg
 #              REPO_DIR/assets/scripts/oem-first-run.sh
-#              REPO_DIR/assets/scripts/oem-prepare-shipping.sh
-#              REPO_DIR/assets/configs/oem-prepare-shipping.desktop
 #              REPO_DIR/skel/...
 #              SUDO_USER (optional, for live-session apply)
 #              helpers: ensure_apt_fresh
-#   Writes:    apt: plank (oem-config packages: see modules/oem_handover.sh)
+#   Writes:    apt: plank
 #              /usr/share/backgrounds/oem-setup/malta.jpg
 #              /usr/local/bin/oem-first-run.sh       (mode 755)
-#              /usr/local/bin/oem-prepare-shipping   (mode 755)
-#              /usr/share/applications/oem-prepare-shipping.desktop
-#              /etc/skel/...                         (full skel tree copy + Desktop launcher)
+#              /etc/skel/...                         (full skel tree copy)
 #              ~SUDO_USER/.config/autostart          (mirrored from skel)
-#              ~SUDO_USER/Desktop/oem-prepare-shipping.desktop
 #              ~SUDO_USER/.config/plank/dock1/...    (written by inline
 #                                                     oem-first-run.sh call)
 #   Step fn:   step_themes
@@ -75,14 +70,6 @@ step_themes() {
     oem_run_log env DEBIAN_FRONTEND=noninteractive apt-get install -y plank
     oem_tty_say "    [+] plank installed."
 
-    install -m 755 "$REPO_DIR/assets/scripts/oem-prepare-shipping.sh" \
-                   /usr/local/bin/oem-prepare-shipping
-    oem_tty_say "    [+] /usr/local/bin/oem-prepare-shipping deployed."
-
-    install -m 644 "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
-                   /usr/share/applications/oem-prepare-shipping.desktop
-    oem_tty_say "    [+] /usr/share/applications/oem-prepare-shipping.desktop deployed."
-
     oem_tty_say "--> Installing wallpaper…"
     mkdir -p /usr/share/backgrounds/oem-setup
     cp "$REPO_DIR/assets/wallpapers/malta.jpg" \
@@ -95,9 +82,6 @@ step_themes() {
 
     oem_tty_say "--> Staging defaults into /etc/skel…"
     cp -r "$REPO_DIR/skel/." /etc/skel/
-    mkdir -p /etc/skel/Desktop
-    install -m 755 "$REPO_DIR/assets/configs/oem-prepare-shipping.desktop" \
-       /etc/skel/Desktop/oem-prepare-shipping.desktop
 
     if [ -n "${SUDO_USER:-}" ] && id "$SUDO_USER" &>/dev/null; then
         SUDO_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -114,12 +98,6 @@ step_themes() {
         done
 
         chown -R "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/.config/autostart"
-
-        oem_tty_say "--> Mirroring OEM handover desktop launcher into ~$SUDO_USER/Desktop…"
-        sudo -u "$SUDO_USER" mkdir -p "$SUDO_HOME/Desktop"
-        install -m 755 /etc/skel/Desktop/oem-prepare-shipping.desktop \
-           "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
-        chown "$SUDO_USER:$SUDO_USER" "$SUDO_HOME/Desktop/oem-prepare-shipping.desktop"
 
         oem_tty_say "--> Running oem-first-run.sh once for the live session (Plank + wallpaper)…"
         oem_user_xrun "$SUDO_USER" /usr/local/bin/oem-first-run.sh 2>/dev/null || true

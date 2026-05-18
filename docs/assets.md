@@ -11,7 +11,7 @@ runtime install path and the module that puts it there.
 |---|---|---|---|
 | `assets/configs/libinput-gestures.conf` | `/etc/libinput-gestures.conf` | `modules/gestures.sh` | **`libinput-gestures`** (per-session daemon) |
 | `assets/configs/oem-workspace-overview.desktop` | `/usr/share/applications/oem-workspace-overview.desktop` | `modules/gestures.sh` | Plank / menu — `xfdashboard` |
-| `assets/configs/oem-prepare-shipping.desktop` | `/usr/share/applications/oem-prepare-shipping.desktop`; `/etc/skel/Desktop/oem-prepare-shipping.desktop` | `modules/themes.sh` | **`pkexec /usr/sbin/oem-config-prepare`** — OEM handover launcher |
+| `assets/configs/oem-prepare-shipping.desktop` | *(not installed by the toolkit)* | — | Optional: copy manually if you install `oem-prepare-shipping.sh` to `/usr/local/bin` and want **`pkexec`** — **`Exec=`** targets that path |
 
 ---
 
@@ -46,9 +46,9 @@ without extension**, e.g. `Icon=netflix`.
 |---|---|---|---|---|---|
 | `assets/scripts/oem-first-run.sh` | `/usr/local/bin/oem-first-run.sh` | `755` | `modules/themes.sh` | each user | first XFCE login (skel autostart) or inline during `step_themes` |
 | `assets/scripts/oem-add-workspace.sh` | `/usr/local/bin/oem-add-workspace.sh` | `755` | `modules/gestures.sh` | each user | **Super+Insert** (xfce4-keyboard-shortcuts), seeded by **`oem-first-run.sh`** |
-| `assets/scripts/oem-prepare-shipping.sh` | `/usr/local/bin/oem-prepare-shipping` | `755` | `modules/themes.sh` | root | `sudo oem-prepare-shipping` — installs `oem-config` if needed, then `oem-config-prepare` |
+| `assets/scripts/oem-prepare-shipping.sh` | *(not installed by the toolkit)* | `755` | — | root | Run standalone (`sudo bash …` or wget \| sudo bash) — installs **`oem-config`** if needed, then **`oem-config-prepare`** |
 
-See [`modules/themes.md`](./modules/themes.md) for behaviour (wallpaper, top panel, Plank dock, OEM handover).
+See [`modules/themes.md`](./modules/themes.md) for behaviour (wallpaper, top panel, Plank dock).
 
 ---
 
@@ -64,13 +64,12 @@ The `oem-setup` subdirectory is owned by this toolkit and removed by `step_unins
 
 ## `skel/` — user-default tree
 
-`step_themes` runs `cp -r "$REPO_DIR/skel/." /etc/skel/`, then adds
-**`/etc/skel/Desktop/oem-prepare-shipping.desktop`** from `assets/configs/` so new
-users inherit the launcher. New user accounts inherit these files.
+`step_themes` runs `cp -r "$REPO_DIR/skel/." /etc/skel/` (no pipeline-generated
+**`Desktop/`** handover launcher).
 
 The live technician account does **not** automatically pick up `/etc/skel`
-(because it pre-exists). `step_themes` mirrors **`autostart`** and **`Desktop`**
-into that user's home and runs `oem-first-run.sh` inline.
+(because it pre-exists). `step_themes` mirrors **`autostart`** into that user's
+home and runs `oem-first-run.sh` inline.
 
 ### `skel/.config/autostart/*.desktop`
 
@@ -90,14 +89,9 @@ The sleep lets `xfdesktop` register monitors before the wallpaper loop runs.
 Pinned launcher order is the `DOCK_LAUNCHERS` logic in `oem-first-run.sh`
 (including resolved Thunar + software-centre `.desktop` names).
 
-### `Desktop/` (generated on the deployed system)
-
-`step_themes` creates `/etc/skel/Desktop/oem-prepare-shipping.desktop` from
-`assets/configs/oem-prepare-shipping.desktop` (not stored under `skel/` in git).
-
-| File | Action | Why |
-|---|---|---|
-| `oem-prepare-shipping.desktop` | `pkexec /usr/sbin/oem-config-prepare` | Ubuntu OEM **prepare for shipping** launcher |
+**Handover:** `assets/scripts/oem-prepare-shipping.sh` and
+`assets/configs/oem-prepare-shipping.desktop` stay in the repo only; operators
+run the script when needed (see README / handover QA).
 
 ## `/var/lib/oem-setup/` on a deployed machine
 

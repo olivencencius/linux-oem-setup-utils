@@ -192,12 +192,12 @@ work; the 4-finger ones silently no-op on unsupported hardware.
 ## Final OEM hand-off
 
 - [ ] Reboot one more time.
-- [ ] **`oem-config` installed:** `command -v oem-config-prepare` succeeds;
-      `dpkg -l oem-config oem-config-gtk` shows both packages (after the full
-      pipeline or `step_oem_handover`).
-- [ ] Double-click **Prepare for shipping to end user** on the desktop
-      (installed by this toolkit) **or** run `sudo oem-prepare-shipping` in a
-      terminal. This invokes **`oem-config-prepare`** (Ubuntu OEM handover).
+- [ ] When handing over, run **`oem-prepare-shipping.sh` as root** (not deployed by
+      this toolkit — e.g. `wget` the raw script from GitHub **or**
+      `sudo bash` from your clone). It **apt-installs** **`oem-config`** /
+      **`oem-config-gtk`** if **`oem-config-prepare`** is missing, then runs
+      **`oem-config-prepare`**. On a staging unit, confirm **`command -v oem-config-prepare`**
+      after that install step before you depend on it for resale.
       A dedicated technician **`oem`** account (Canonical OEM workflow) is
       **recommended** so first-boot cleanup matches OEM expectations; other
       admin accounts may still work but are less tested.
@@ -209,6 +209,15 @@ The next person to turn it on is the buyer. They will see the same
 welcome wizard as a fresh OEM install, then land on a configured desktop
 with the Malta wallpaper, Plank dock, layout and timezone from OS install,
 and every shortcut.
+
+### If the buyer only sees a normal login
+
+The buyer may describe this as a screen that asks for **username and password** that they were never given. That usually means **`oem-config-firstboot` did not run the first-boot wizard** (or never started).
+
+1. **Install type** — Handover assumes the disk was originally installed through an **OEM / prepare-for-resale style flow** with a technician account (often literally named **`oem`**). Running `oem-config-prepare` on a **generic single-user** Xubuntu install (one personal account, no OEM staging) can leave the next boot without a working end-user wizard.
+2. **Try the technician account once** — If the list shows **`oem`** (or your install username), the password is the one **you** set when the image was first installed — **not** something the buyer would know. If this login works, treat the handover as **failed for resale**: read **`/var/log/oem-config.log`**, **`journalctl -b`**, and fix before shipping; do not leave the buyer dependent on the `oem` password.
+3. **Recovery** — From **Advanced options → recovery mode → root shell** (or a live USB + chroot): **`adduser`** a new account, **`usermod -aG sudo …`**, reboot. That unblocks the machine but **does not** replace the missing OEM wizard experience.
+4. **Logs** — **`/var/log/oem-config.log`** is the primary diagnostic for Ubiquity/oem-config failures.
 
 ---
 
@@ -223,7 +232,8 @@ and every shortcut.
 | Dock / Plank missing or short an icon | First-run script didn't run, or a `.desktop` was missing at first-run time | Delete the marker (`rm ~/.config/.oem-first-run-done`) and re-login; ensure `step_gestures_and_workspaces` ran before `step_themes` when reprovisioning |
 | Dock missing specific app | The referenced `.desktop` doesn't exist (e.g. Zoom download failed) | Re-run the relevant install (5–8) then re-login or re-run option 9 |
 | Gesture not firing | Touchpad firmware doesn't report that finger count | No fix — silently unsupported; 3-finger gestures should still work |
-| Handover icon missing | `step_themes` did not run or XFCE Desktop dir differs | Re-run option **1** or **9**; or run `sudo oem-prepare-shipping`; check `~/Desktop/oem-prepare-shipping.desktop` |
+| Handover icon missing | N/A — pipeline no longer deploys a desktop launcher | Run `oem-prepare-shipping.sh` from the repo or GitHub raw URL as root |
+| Buyer sees graphical login only, no wizard | Non-OEM install, handover incomplete, or `oem-config-firstboot` failed | See **“If the buyer only sees a normal login”** above; **`/var/log/oem-config.log`** |
 
 Anything not in this table: read `/var/log/oem-setup.log` (best-effort transcript
 — upstream hardware installers are terminal-only).

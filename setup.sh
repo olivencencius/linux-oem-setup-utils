@@ -170,7 +170,6 @@ source "$REPO_DIR/modules/zoom.sh"
 source "$REPO_DIR/modules/apps.sh"
 source "$REPO_DIR/modules/webapps.sh"
 source "$REPO_DIR/modules/themes.sh"
-source "$REPO_DIR/modules/oem_handover.sh"
 source "$REPO_DIR/modules/touchpad.sh"
 source "$REPO_DIR/modules/gestures.sh"
 source "$REPO_DIR/modules/terminal.sh"
@@ -198,8 +197,6 @@ step_gimp() {
 #     - xubuntu_boot AFTER hardware_fixes so GRUB merges HPET + silent-boot tokens cleanly
 #     - gestures_and_workspaces AFTER web_apps and BEFORE themes so xfdashboard
 #       and oem-workspace-overview.desktop exist before oem-first-run.sh seeds Plank
-#     - oem_handover AFTER diagnostics — heavy oem-config apt install last so it
-#       does not block the rest of the pipeline; verbose apt in that step
 # ==============================================================================
 run_full_pipeline() {
     run_step cleanup
@@ -216,7 +213,6 @@ run_full_pipeline() {
     run_step terminal
     run_step regional
     run_step diagnostics
-    run_step oem_handover
 }
 
 # ==============================================================================
@@ -277,7 +273,7 @@ while true; do
         6)  do_step zoom ;;
         7)  do_step apps ;;
         8)  do_step web_apps ;;
-        9)  do_step cleanup; do_step gestures_and_workspaces; do_step themes; do_step oem_handover ;;
+        9)  do_step cleanup; do_step gestures_and_workspaces; do_step themes ;;
         10) do_step touchpad ;;
         11) do_step gestures_and_workspaces ;;
         12) do_step terminal ;;
@@ -296,7 +292,7 @@ oem_tty_say \
     "              OPERATION END              " \
     "=========================================" \
     "" \
-    "REMINDER: Once you have rebooted and verified the setup, double-click" \
-    "  'Prepare for shipping to end user' on the desktop (or run" \
-    "  sudo oem-prepare-shipping), then shut down when the tool says you may." \
+    "REMINDER: When you hand over a machine, run the standalone OEM script" \
+    "  (see README — wget oem-prepare-shipping.sh | sudo bash), then shut down" \
+    "  when the tool says you may." \
     "========================================="

@@ -66,18 +66,18 @@ standard **`oem`** account from the OEM install workflow):
    language packs and switches the **system locale** (`LANG`).
    Boot optimisations run **automatically** as part of option **1** (after
    hardware fixes). **Menu option 2** only re-runs that step in isolation.
-5. When the pipeline finishes, **reboot**.
-6. Run the per-machine [handover QA checklist](docs/handover-qa.md).
-7. Double-click **Prepare for shipping to end user** on the desktop (or run
-   `sudo oem-prepare-shipping` in a terminal), complete the prompts, then shut
-   down when ready. **Handover only** (this script alone — no `bootstrap.sh`, no
-   repo clone):
+5. When the pipeline finishes, **reboot** and run the per-machine [handover QA checklist](docs/handover-qa.md) where applicable.
+6. When you are ready to hand over, run **`oem-prepare-shipping.sh` as root** (it is
+   **not** installed by this toolkit). For example:
 
    ```bash
    wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-prepare-shipping.sh | sudo bash
    ```
 
-The buyer creates their own user account on first boot.
+   Or from a clone: `sudo bash /path/to/linux-oem-setup-utils/assets/scripts/oem-prepare-shipping.sh`.
+   Complete the prompts, then shut down when ready. Confirm a **buyer cold boot** (wizard, not a stuck login) before shipping — see [Handover QA](docs/handover-qa.md).
+
+   The buyer’s **first cold boot** after you ship should show the **OEM / first-time setup wizard** (new account, language, etc.), not a bare LightDM-style login. If they only get a username and password prompt, see **[Handover QA — if the buyer only sees a normal login](docs/handover-qa.md#if-the-buyer-only-sees-a-normal-login)**.
 
 ### Log file vs terminal
 
@@ -114,11 +114,11 @@ linux-oem-setup-utils/
 ├── setup.sh           entry point: helpers, menu, full pipeline orchestrator
 ├── modules/           one .sh file per pipeline step
 ├── assets/            files installed onto the deployed machine
-│   ├── configs/       libinput-gestures, workspace overview, OEM handover .desktop
+│   ├── configs/       libinput-gestures, workspace overview; optional OEM `.desktop` in repo only
 │   ├── icons/         13 web-app icons (SVG)
-│   ├── scripts/       oem-first-run.sh, oem-add-workspace.sh, oem-prepare-shipping.sh
+│   ├── scripts/       oem-first-run.sh, oem-add-workspace.sh, oem-prepare-shipping.sh (handover — not deployed by pipeline)
 │   └── wallpapers/    malta.jpg
-├── skel/              copied to /etc/skel; step_themes adds Desktop launcher
+├── skel/              copied to /etc/skel (autostart); pipeline does not add Desktop handover launcher
 ├── docs/              full technical documentation — start at docs/README.md
 └── LICENSE
 ```

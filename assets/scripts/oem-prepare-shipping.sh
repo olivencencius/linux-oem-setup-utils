@@ -5,13 +5,11 @@
 #                 ubiquity oem-config flow). Installs oem-config packages if
 #                 needed, then runs oem-config-prepare.
 #
-#   Installed to: /usr/local/bin/oem-prepare-shipping (mode 755)
-#   Installed by: modules/themes.sh
-#   Runs as:      root (re-exec: sudo oem-prepare-shipping)
-#
-#   GUI shortcut: Desktop + menu launchers use pkexec on this script (same as
-#                 sudo oem-prepare-shipping) so oem-config can be installed on
-#                 demand and behaviour matches the terminal path.
+#   Distribution: Not installed by the toolkit pipeline. Run this file directly
+#                 (or wget/curl the raw script from GitHub) when you hand over.
+#                 Optional: copy to /usr/local/bin/oem-prepare-shipping (755) if
+#                 you want a stable path or a custom .desktop with pkexec.
+#   Runs as:      root
 #
 #   Remote run (handover only — not bootstrap.sh):
 #     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/assets/scripts/oem-prepare-shipping.sh | sudo bash
@@ -20,7 +18,7 @@
 set -Eeuo pipefail
 
 if [ "${EUID:-}" -ne 0 ]; then
-    echo "oem-prepare-shipping: run as root (sudo oem-prepare-shipping)" >&2
+    echo "oem-prepare-shipping: run as root (e.g. sudo bash oem-prepare-shipping.sh, or wget … | sudo bash)" >&2
     exit 1
 fi
 
