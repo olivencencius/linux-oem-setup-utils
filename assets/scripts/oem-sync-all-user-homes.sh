@@ -20,7 +20,15 @@
 #   repo skel/ next to this script).
 # ==============================================================================
 
-set -euo pipefail
+# Arrays and other bash features are required; dash/sh will mis-handle this file.
+if [ -z "${BASH_VERSION:-}" ]; then
+    printf '%s\n' "oem-sync-all-user-homes.sh: run with bash, not sh — e.g. sudo bash \"$0\" $*" >&2
+    exit 1
+fi
+
+# Do not use set -u: sudo/wget wrappers and edge cases have triggered false
+# "unbound variable" (e.g. older copies used \${BASH_SOURCE[0]}). Use defaults instead.
+set -eo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "oem-sync-all-user-homes: run as root (sudo bash \"$0\" …)" >&2
@@ -54,7 +62,7 @@ REPO_SKEL="$SCRIPT_DIR/../../skel"
 INPUTRC_LINE='set enable-bracketed-paste off'
 
 _oem_has_desktop() {
-    [ -f "/usr/share/applications/${1}.desktop" ]
+    [ -n "${1:-}" ] && [ -f "/usr/share/applications/${1}.desktop" ]
 }
 
 _oem_has_any_game_desktop() {
@@ -188,9 +196,14 @@ run() {
     if $DRY; then
         echo "[dry-run] $*"
     else
+        if [ "$#" -eq 0 ]; then
+            return 0
+        fi
         "$@"
     fi
 }
+
+echo "oem-sync-all-user-homes: script build 2026-05-19 (bash-only, no nounset)" >&2
 
 _oem_preflight_system_payload
 
