@@ -16,42 +16,70 @@ fi
 echo "--> Installing xfdashboard (ChromeOS-style workspace overview)…"
 apt-get install -y xfdashboard
 
-echo "--> Injecting system-wide XFCE keyboard shortcuts safely…"
+echo "--> Injecting system-wide XFCE keyboard shortcuts safely via Python XML parser…"
 KEYBIND_XML="/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
 
 if [ -f "$KEYBIND_XML" ]; then
-    # Idempotency check: only inject if xfdashboard isn't already there
-    if ! grep -q 'value="xfdashboard"' "$KEYBIND_XML" 2>/dev/null; then
-        # Find the <property name="custom" type="empty"> line and inject our keys right below it
-        sed -i '/<property name="custom" type="empty">/a \
-      <property name="Super_L" type="string" value="xfdashboard"/>\
-      <property name="F5" type="string" value="xfdashboard"/>\
-      <property name="XF86Scale" type="string" value="xfdashboard"/>\
-      <property name="XF86Explorer" type="string" value="xfdashboard"/>' "$KEYBIND_XML"
-        echo "    [+] Injected xfdashboard bindings into ${KEYBIND_XML}."
-    else
-        echo "    [i] xfdashboard shortcuts already present in ${KEYBIND_XML}."
-    fi
+    # Use native Python to safely parse and append elements without breaking XML structures
+    python3 - << 'EOF'
+import xml.etree.ElementTree as ET
+import os
+
+xml_path = "/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
+try:
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    
+    # Locate the custom commands block
+    custom_node = None
+    for commands in root.findall(".//property[@name='commands']"):
+        for custom in commands.findall("./property[@name='custom']"):
+            custom_node = custom
+            break
+            
+    if custom_node is not None:
+        # Strip the empty attribute type flag since we are adding properties
+        if 'type' in custom_node.attrib and custom_node.attrib['type'] == 'empty':
+            del custom_node.attrib['type']
+            
+        # Comprehensive list of potential keysyms emitted by Chromebook overview mappings
+        keys_to_bind = ["Super_L", "F5", "XF86Scale", "XF86Display", "XF86Taskman", "XF86Explorer"]
+        existing_keys = {p.attrib.get('name') for p in custom_node.findall("./property")}
+        
+        for key in keys_to_bind:
+            if key not in existing_keys:
+                ET.SubElement(custom_node, "property", name=key, type="string", value="xfdashboard")
+                print(f"    [+] Registered system-wide key mapping: {key}")
+                
+        tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+except Exception as e:
+    print(f"    [!] Error parsing keyboard shortcuts XML: {e}")
+EOF
 else
-    echo "    [!] Warning: Default XFCE keyboard shortcuts XML not found. Skipping to prevent breakage."
+    echo "    [!] Warning: Default XFCE keyboard shortcuts XML template not found."
 fi
 
-# --- APPLY TO TECHNICIAN FOR QA ---
+# --- APPLY TO TECHNICIAN FOR LIVE QA ---
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
-    echo "--> Applying Workspaces shortcuts to technician user (${SUDO_USER}) for QA preview..."
+    echo "--> Live-linking workspace shortcuts to active technician user context (${SUDO_USER})..."
     
-    # We must run this as the live user with access to their specific DBUS session 
-    # so the XFCE settings daemon applies the changes instantly without a reboot.
-    sudo -u "${SUDO_USER}" bash -c '
-        export DISPLAY=:0
-        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+    # Dynamically extract your active desktop DBUS socket instead of guessing it
+    TECH_UID=$(id -u "${SUDO_USER}")
+    DBUS_PID=$(pgrep -u "${TECH_UID}" -x xfce4-session | head -n 1 || pgrep -u "${TECH_UID}" -x xfsettingsd | head -n 1 || echo "")
+    
+    if [ -n "$DBUS_PID" ] && [ -f "/proc/${DBUS_PID}/environ" ]; then
+        DBUS_ADDR=$(tr '\0' '\n' < "/proc/${DBUS_PID}/environ" | grep '^DBUS_SESSION_BUS_ADDRESS=' | cut -d= -f2- || echo "")
         
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/Super_L" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/F5" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Scale" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Explorer" -n -t string -s "xfdashboard" 2>/dev/null || true
-    '
-    echo "    [+] Keyboard shortcuts applied to live session."
+        if [ -n "$DBUS_ADDR" ]; then
+            # Inject directly into your live user configuration space using xfconf
+            sudo -u "${SUDO_USER}" env DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" bash -c '
+                for key in Super_L F5 XF86Scale XF86Display XF86Taskman XF86Explorer; do
+                    xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/${key}" -n -t string -s "xfdashboard" 2>/dev/null || true
+                done
+            '
+            echo "    [+] Keyboard shortcuts synchronized with active XFCE background daemon."
+        fi
+    fi
 fi
 # ----------------------------------
 
