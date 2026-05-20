@@ -16,51 +16,24 @@ fi
 echo "--> Installing xfdashboard (ChromeOS-style workspace overview)…"
 apt-get install -y xfdashboard
 
-echo "--> Installing system-wide XFCE keyboard shortcuts…"
-mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
-
+echo "--> Injecting system-wide XFCE keyboard shortcuts safely…"
 KEYBIND_XML="/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
 
-if [ ! -f "$KEYBIND_XML" ]; then
-    cat > "$KEYBIND_XML" <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-keyboard-shortcuts" version="1.0">
-  <property name="commands" type="empty">
-    <property name="custom" type="empty">
-      <property name="Super_L" type="string" value="xfdashboard"/>
-      <property name="F5" type="string" value="xfdashboard"/>
-      <property name="XF86Scale" type="string" value="xfdashboard"/>
-      <property name="XF86Explorer" type="string" value="xfdashboard"/>
-    </property>
-  </property>
-</channel>
-EOF
-    echo "    [+] Created ${KEYBIND_XML}"
-else
-    changed=0
-    for key in Super_L F5 XF86Scale XF86Explorer; do
-        if ! grep -q "name=\"${key}\"" "$KEYBIND_XML" 2>/dev/null; then
-            changed=1
-        fi
-    done
-    if [ "$changed" -eq 1 ] || ! grep -q 'value="xfdashboard"' "$KEYBIND_XML" 2>/dev/null; then
-        cat > "$KEYBIND_XML" <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-keyboard-shortcuts" version="1.0">
-  <property name="commands" type="empty">
-    <property name="custom" type="empty">
-      <property name="Super_L" type="string" value="xfdashboard"/>
-      <property name="F5" type="string" value="xfdashboard"/>
-      <property name="XF86Scale" type="string" value="xfdashboard"/>
-      <property name="XF86Explorer" type="string" value="xfdashboard"/>
-    </property>
-  </property>
-</channel>
-EOF
-        echo "    [+] Refreshed ${KEYBIND_XML} with xfdashboard bindings."
+if [ -f "$KEYBIND_XML" ]; then
+    # Idempotency check: only inject if xfdashboard isn't already there
+    if ! grep -q 'value="xfdashboard"' "$KEYBIND_XML" 2>/dev/null; then
+        # Find the <property name="custom" type="empty"> line and inject our keys right below it
+        sed -i '/<property name="custom" type="empty">/a \
+      <property name="Super_L" type="string" value="xfdashboard"/>\
+      <property name="F5" type="string" value="xfdashboard"/>\
+      <property name="XF86Scale" type="string" value="xfdashboard"/>\
+      <property name="XF86Explorer" type="string" value="xfdashboard"/>' "$KEYBIND_XML"
+        echo "    [+] Injected xfdashboard bindings into ${KEYBIND_XML}."
     else
         echo "    [i] xfdashboard shortcuts already present in ${KEYBIND_XML}."
     fi
+else
+    echo "    [!] Warning: Default XFCE keyboard shortcuts XML not found. Skipping to prevent breakage."
 fi
 
 mark_done

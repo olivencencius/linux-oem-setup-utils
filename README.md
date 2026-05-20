@@ -62,6 +62,3 @@ sudo bash addons/prepare_for_shipping.sh
 - State: `/var/lib/xubuntu-oem-setup/.state`
 - Clear state to force re-run: `sudo rm -f /var/lib/xubuntu-oem-setup/.state`
 
-## License
-
-See repository license file if present.

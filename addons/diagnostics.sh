@@ -10,7 +10,7 @@ print_rule() {
 
 print_rule "Operating System"
 if [ -f /etc/os-release ]; then
-    grep -E '^(PRETTY_NAME|VERSION_ID|ID)=)' /etc/os-release | sed 's/^/  /'
+    grep -E '^(PRETTY_NAME|VERSION_ID|ID)=' /etc/os-release | sed 's/^/  /'
 else
     echo "  ( /etc/os-release not found )"
 fi

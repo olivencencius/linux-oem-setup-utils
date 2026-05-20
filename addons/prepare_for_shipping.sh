@@ -15,5 +15,11 @@ if ! command -v oem-config-prepare &>/dev/null; then
     apt-get install -y oem-config oem-config-gtk
 fi
 
+echo "--> Scrubbing OEM setup footprints, logs, and temporary states..."
+rm -rf /var/lib/xubuntu-oem-setup
+rm -rf /tmp/xubuntu-oem-setup
+rm -f /var/log/xubuntu_oem_setup.log
+apt-get clean
+
 echo "--> Running oem-config-prepare (removes OEM user; first-boot setup wizard for buyer)…"
 exec /usr/sbin/oem-config-prepare "$@"
