@@ -26,7 +26,7 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 2 | `02_install_git.sh` | Install git |
 | 3 | `03_boot_optimization.sh` | Mask network wait-online; quiet GRUB |
 | 4 | `04_chromebook_fixes.sh` | Audio + keyboard (interactive), zram, tlp, swappiness |
-| 5 | `05_touchpad_gestures.sh` | libinput touchpad + touchegg workspace swipes |
+| 5 | `05_touchpad_gestures.sh` | libinput touchpad + gestures workspace swipes |
 | 6 | `06_workspaces_view.sh` | xfdashboard + overview key bindings |
 | 7 | `07_terminal_paste_fix.sh` | Disable bracketed paste in `/etc/inputrc` |
 | 8 | `08_install_chrome.sh` | Google Chrome `.deb` |

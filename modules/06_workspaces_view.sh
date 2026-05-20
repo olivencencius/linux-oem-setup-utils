@@ -36,5 +36,24 @@ else
     echo "    [!] Warning: Default XFCE keyboard shortcuts XML not found. Skipping to prevent breakage."
 fi
 
+# --- APPLY TO TECHNICIAN FOR QA ---
+if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    echo "--> Applying Workspaces shortcuts to technician user (${SUDO_USER}) for QA preview..."
+    
+    # We must run this as the live user with access to their specific DBUS session 
+    # so the XFCE settings daemon applies the changes instantly without a reboot.
+    sudo -u "${SUDO_USER}" bash -c '
+        export DISPLAY=:0
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+        
+        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/Super_L" -n -t string -s "xfdashboard" 2>/dev/null || true
+        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/F5" -n -t string -s "xfdashboard" 2>/dev/null || true
+        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Scale" -n -t string -s "xfdashboard" 2>/dev/null || true
+        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Explorer" -n -t string -s "xfdashboard" 2>/dev/null || true
+    '
+    echo "    [+] Keyboard shortcuts applied to live session."
+fi
+# ----------------------------------
+
 mark_done
 echo "[${MODULE_ID}] Done."

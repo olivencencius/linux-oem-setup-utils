@@ -68,13 +68,13 @@ idx=1
 write_dockitem $((idx++)) thunar.desktop Thunar.desktop
 write_dockitem $((idx++)) xfce4-settings-manager.desktop xfce-settings-manager.desktop
 write_dockitem $((idx++)) google-chrome.desktop
-write_dockitem $((idx++)) GoogleDocs.desktop
-write_dockitem $((idx++)) GoogleSheets.desktop
-write_dockitem $((idx++)) GoogleSlides.desktop
-write_dockitem $((idx++)) YouTube.desktop
-write_dockitem $((idx++)) Netflix.desktop
-write_dockitem $((idx++)) Gmail.desktop
-write_dockitem $((idx++)) Gemini.desktop
+write_dockitem $((idx++)) webapp-googledocs.desktop
+write_dockitem $((idx++)) webapp-googlesheets.desktop
+write_dockitem $((idx++)) webapp-googleslides.desktop
+write_dockitem $((idx++)) webapp-youtube.desktop
+write_dockitem $((idx++)) webapp-netflix.desktop
+write_dockitem $((idx++)) webapp-gmail.desktop
+write_dockitem $((idx++)) webapp-gemini.desktop
 
 mkdir -p /etc/skel/.config/autostart
 cat > /etc/skel/.config/autostart/plank.desktop <<'EOF'
@@ -87,6 +87,23 @@ Hidden=false
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
 EOF
+
+# --- APPLY TO TECHNICIAN FOR QA ---
+if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    TECH_HOME=$(getent passwd "${SUDO_USER}" | cut -d: -f6)
+    echo "--> Applying Plank configurations to technician user (${SUDO_USER}) for QA preview..."
+    
+    mkdir -p "${TECH_HOME}/.config/autostart"
+    cp -r /etc/skel/.config/plank "${TECH_HOME}/.config/"
+    cp /etc/skel/.config/autostart/plank.desktop "${TECH_HOME}/.config/autostart/"
+    
+    # Root copied these files, so we must give ownership back to the technician
+    chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/plank"
+    chown "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/autostart/plank.desktop"
+    
+    echo "    [+] Successfully injected Plank into technician desktop."
+fi
+# ----------------------------------
 
 mark_done
 echo "[${MODULE_ID}] Done. New users inherit Plank from /etc/skel/."
