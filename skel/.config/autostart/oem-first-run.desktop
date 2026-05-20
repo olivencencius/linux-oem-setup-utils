@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=OEM First Run
-Comment=One-shot per-user theme and wallpaper applier; self-deletes after first run
-Exec=bash -c "sleep 5 && /usr/local/bin/oem-first-run.sh"
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true

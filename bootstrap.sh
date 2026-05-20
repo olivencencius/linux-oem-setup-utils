@@ -1,49 +1,157 @@
 #!/bin/bash
 # ==============================================================================
-#   Chromebook OEM Bootstrap
-#   Downloads the full deployment toolkit and launches the setup menu.
+#   Xubuntu Chromebook OEM Bootstrap
+#   Downloads modular setup scripts and runs the full pipeline or individual steps.
 #
-#   Run this single command from the oem terminal:
+#   Usage:
 #     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
 # ==============================================================================
 
-set -Eeuo pipefail
+set -euo pipefail
 
-if [ "$EUID" -ne 0 ]; then
-    echo "Error: Please run this script with sudo."
+if [ "${EUID:-}" -ne 0 ]; then
+    echo "Error: Please run this script with sudo (root privileges required)."
     exit 1
 fi
 
-REPO_URL="https://github.com/olivencencius/linux-oem-setup-utils.git"
-REPO_DIR="/var/cache/oem-setup-repo"
+readonly GITHUB_RAW="https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main"
+readonly WORK_DIR="/tmp/xubuntu-oem-setup"
+readonly STATE_DIR="/var/lib/xubuntu-oem-setup"
+readonly STATE_FILE="${STATE_DIR}/.state"
+readonly LOG_FILE="/var/log/xubuntu_oem_setup.log"
 
-echo "========================================="
-echo "      CHROMEBOOK DEPLOYMENT BOOTSTRAP    "
-echo "========================================="
+MODULES=(
+    "01_update_os.sh"
+    "02_install_git.sh"
+    "03_boot_optimization.sh"
+    "04_chromebook_fixes.sh"
+    "05_touchpad_gestures.sh"
+    "06_workspaces_view.sh"
+    "07_terminal_paste_fix.sh"
+    "08_install_chrome.sh"
+    "09_install_vlc.sh"
+    "10_web_apps.sh"
+    "11_install_games.sh"
+    "12_install_plank.sh"
+)
 
-# Ensure git is available — minimal Xubuntu images may omit it
-if ! command -v git &>/dev/null; then
-    echo "--> git not found — installing..."
-    apt-get update -qq
-    apt-get install -y git
-fi
+mkdir -p "$WORK_DIR" "$STATE_DIR"
+touch "$LOG_FILE"
+chmod 644 "$LOG_FILE"
 
-# Clone or refresh the repo. If a fast-forward pull fails (local edits, diverged
-# branch, dirty tree), wipe and re-clone so a stale checkout never bites us.
-if [ -d "$REPO_DIR/.git" ]; then
-    echo "--> Updating existing local copy of deployment toolkit..."
-    if ! git -C "$REPO_DIR" pull --ff-only; then
-        echo "    [!] Fast-forward pull failed — re-cloning a clean copy."
-        rm -rf "$REPO_DIR"
-        git clone "$REPO_URL" "$REPO_DIR"
+export STATE_DIR STATE_FILE LOG_FILE WORK_DIR
+
+log_msg() {
+    local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    echo "$msg" | tee -a "$LOG_FILE"
+}
+
+is_step_done() {
+    local step="$1"
+    [ -f "$STATE_FILE" ] && grep -qxF "$step" "$STATE_FILE"
+}
+
+mark_step_done() {
+    local step="$1"
+    grep -qxF "$step" "$STATE_FILE" 2>/dev/null || echo "$step" >> "$STATE_FILE"
+}
+
+download_modules() {
+    log_msg "Downloading modules to ${WORK_DIR}…"
+    local f base
+    for f in "${MODULES[@]}"; do
+        base="${f%.sh}"
+        log_msg "  -> ${f}"
+        wget -q --show-progress -O "${WORK_DIR}/${f}" "${GITHUB_RAW}/modules/${f}" \
+            || wget -O "${WORK_DIR}/${f}" "${GITHUB_RAW}/modules/${f}"
+        chmod +x "${WORK_DIR}/${f}"
+    done
+    log_msg "All modules downloaded."
+}
+
+run_module() {
+    local script="$1"
+    local step_id="${script%.sh}"
+
+    if is_step_done "$step_id"; then
+        log_msg "[${step_id}] Already completed — skipping."
+        return 0
     fi
-else
-    echo "--> Cloning deployment toolkit..."
-    rm -rf "$REPO_DIR"
-    git clone "$REPO_URL" "$REPO_DIR"
-fi
 
-echo "--> Launching setup..."
-echo ""
+    log_msg "========== Running ${script} =========="
+    if bash "${WORK_DIR}/${script}"; then
+        mark_step_done "$step_id"
+        log_msg "[${step_id}] Completed successfully."
+        return 0
+    else
+        log_msg "[${step_id}] FAILED (exit $?). Fix the issue and re-run; completed steps are skipped."
+        return 1
+    fi
+}
 
-exec bash "$REPO_DIR/setup.sh"
+run_pipeline() {
+    local script failed=0
+    for script in "${MODULES[@]}"; do
+        run_module "$script" || failed=1
+    done
+    if [ "$failed" -eq 0 ]; then
+        log_msg "Pipeline finished — all 12 modules completed."
+    else
+        log_msg "Pipeline stopped with errors. Re-run bootstrap to resume from the last failed step."
+        return 1
+    fi
+}
+
+show_menu() {
+    echo ""
+    echo "========================================="
+    echo "   XUBUNTU CHROMEBOOK OEM SETUP"
+    echo "========================================="
+    echo "  Log file: ${LOG_FILE}"
+    echo "  State:    ${STATE_FILE}"
+    echo ""
+    echo "  0) Run full pipeline (modules 1–12)"
+    echo "  1)  OS update"
+    echo "  2)  Install git"
+    echo "  3)  Boot optimization"
+    echo "  4)  Chromebook fixes (audio, keyboard, low-spec)"
+    echo "  5)  Touchpad + gestures"
+    echo "  6)  Workspaces overview (xfdashboard)"
+    echo "  7)  Terminal paste fix"
+    echo "  8)  Install Google Chrome"
+    echo "  9)  Install VLC"
+    echo " 10)  Web apps"
+    echo " 11)  Low-spec games"
+    echo "  12) Plank dock (system skel)"
+    echo "  q) Quit"
+    echo ""
+}
+
+main() {
+    log_msg "Bootstrap started."
+    download_modules
+
+    while true; do
+        show_menu
+        read -r -p "Select option [0-12, q]: " choice </dev/tty || choice="q"
+
+        case "$choice" in
+            0)
+                run_pipeline
+                ;;
+            1|2|3|4|5|6|7|8|9|10|11|12)
+                idx=$((10#$choice))
+                run_module "${MODULES[$((idx - 1))]}"
+                ;;
+            q|Q)
+                log_msg "Bootstrap exited by user."
+                exit 0
+                ;;
+            *)
+                echo "Invalid option. Try again."
+                ;;
+        esac
+    done
+}
+
+main "$@"

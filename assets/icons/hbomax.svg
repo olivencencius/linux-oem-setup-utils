@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="60" fill="#000000"/>
-  <!-- "Max" wordmark, white, centered -->
-  <text x="256" y="330" text-anchor="middle"
-        font-family="Helvetica, Arial Black, Arial, sans-serif"
-        font-weight="900" font-size="220"
-        fill="#FFFFFF" letter-spacing="-8">Max</text>
-</svg>
