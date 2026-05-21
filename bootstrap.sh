@@ -149,7 +149,7 @@ show_menu() {
     echo " 10)  Web apps"
     echo " 11)  Low-spec games"
     echo " 12)  Plank dock & Panel move"
-    echo " 13)  Touchpad scroll speed (libinput ScrollPixelDistance)"
+    echo " 13)  Touchpad scroll speed (ScrollPixelDistance, default 30)"
     echo " 15)  Lid close: deep sleep + suspend on lid"
     echo ""
     echo "  Add-ons (standalone):"

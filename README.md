@@ -39,7 +39,7 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 10 | `10_web_apps.sh` | Chrome `--app` shortcuts with self-hosted SVG icons |
 | 11 | `11_install_games.sh` | supertuxkart, aisleriot, gnome-mines |
 | 12 | `12_install_plank.sh` | Plank dock + move LXQt panel to top (`/etc/skel`) |
-| 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger scroll via libinput `ScrollPixelDistance` (higher = slower; optional `ScrollFactor` if exposed) |
+| 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger scroll via `ScrollPixelDistance` (default **30**, range 10–50; higher = slower) |
 | 15 | `15_lid_close_suspend.sh` | Deep sleep (`mem_sleep=deep` when s2idle available) + systemd-logind suspend on lid close |
 
 Modules **4**, **5**, and **6** apply settings to the technician account (`$SUDO_USER`) for QA when run with `sudo`. Module **13** also tries a live `xinput` preview on the technician session. New customer accounts inherit defaults from `/etc/skel`.
@@ -51,7 +51,7 @@ sudo STATE_DIR=/var/lib/lubuntu-oem-setup STATE_FILE=/var/lib/lubuntu-oem-setup/
   bash modules/13_touchpad_scroll_speed.sh
 ```
 
-Tune scroll: `sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=120 bash modules/13_touchpad_scroll_speed.sh` (safe to re-run; raises distance = slower). Many Chromebooks do not expose `Scroll Factor` in `xinput` — use **Scrolling Pixel Distance** instead.
+Tune scroll: `sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=40 bash modules/13_touchpad_scroll_speed.sh` (safe to re-run; higher = slower, max 50).
 
 ## Add-ons
 

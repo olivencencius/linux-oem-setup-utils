@@ -8,7 +8,7 @@ MODULE_ID="13_touchpad_scroll_speed"
 # libinput strictly limits ScrollPixelDistance to a range of [10, 50].
 # 15 is the default. 50 is the maximum possible slowness.
 # (Legacy synaptics accepted 100+, but libinput will reject it).
-SCROLL_PIXEL_DISTANCE="${OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE:-50}"
+SCROLL_PIXEL_DISTANCE="${OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE:-30}"
 SCROLL_FACTOR="${OEM_TOUCHPAD_SCROLL_FACTOR:-}"
 SCROLL_CONF="/etc/X11/xorg.conf.d/91-touchpad-scroll-speed.conf"
 
@@ -98,8 +98,8 @@ echo ""
 echo "    Quick tune (desktop session):"
 echo "      xinput list"
 echo "      xinput list-props <touchpad-id> | grep -i scroll"
-echo "      xinput set-prop <id> \"libinput Scrolling Pixel Distance\" 50"
-echo "    Re-apply module: sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=50 bash modules/13_touchpad_scroll_speed.sh"
+echo "      xinput set-prop <id> \"libinput Scrolling Pixel Distance\" 30"
+echo "    Re-apply module: sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=30 bash modules/13_touchpad_scroll_speed.sh"
 echo ""
 
 mark_done
