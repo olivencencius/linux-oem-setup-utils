@@ -14,8 +14,8 @@ wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/
 
 Bootstrap downloads modules into `/tmp/lubuntu-oem-setup`, logs to `/var/log/lubuntu_oem_setup.log`, tracks progress in `/var/lib/lubuntu-oem-setup/.state`, and offers:
 
-- **0** — Full pipeline (modules 1–13)
-- **1–13** — Individual module
+- **0** — Full pipeline (modules 1–13 and **15**)
+- **1–13**, **15** — Individual module (no module 14)
 - **d** — Hardware diagnostics (read-only add-on)
 - **q** — Quit
 
@@ -40,6 +40,7 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 11 | `11_install_games.sh` | supertuxkart, aisleriot, gnome-mines |
 | 12 | `12_install_plank.sh` | Plank dock + move LXQt panel to top (`/etc/skel`) |
 | 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger scroll via libinput `ScrollPixelDistance` (higher = slower; optional `ScrollFactor` if exposed) |
+| 15 | `15_lid_close_suspend.sh` | Deep sleep (`mem_sleep=deep` when s2idle available) + systemd-logind suspend on lid close |
 
 Modules **4**, **5**, and **6** apply settings to the technician account (`$SUDO_USER`) for QA when run with `sudo`. Module **13** also tries a live `xinput` preview on the technician session. New customer accounts inherit defaults from `/etc/skel`.
 
@@ -80,7 +81,7 @@ If you need a login UI workaround on the bench, try the **breeze** SDDM theme (`
 Lubuntu has no Ubuntu OEM / `oem-config-prepare` flow. Before shipping:
 
 1. Run the full pipeline (or all modules you need).
-2. Reboot and verify panel position, Plank dock, overview keys, gestures, and web apps (test SDDM login after the OEM auto-login phase has ended).
+2. Reboot and verify panel position, Plank dock, overview keys, gestures, web apps, and lid-close suspend (test SDDM login after the OEM auto-login phase has ended).
 3. Run diagnostics (**d**) and keep the output for your records if useful.
 4. Remove the technician account (or reset the machine to a clean state).
 5. Scrub OEM footprints:

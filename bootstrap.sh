@@ -29,6 +29,7 @@ MODULES=(
     "11_install_games.sh"
     "12_install_plank.sh"
     "13_touchpad_scroll_speed.sh"
+    "15_lid_close_suspend.sh"
 )
 
 ADDONS=(
@@ -135,7 +136,7 @@ show_menu() {
     echo "  Log file: ${LOG_FILE}"
     echo "  State:    ${STATE_FILE}"
     echo ""
-    echo "  0) Run full pipeline (modules 1–13)"
+    echo "  0) Run full pipeline (modules 1–13, 15)"
     echo "  1)  OS update & Codecs"
     echo "  2)  Install git"
     echo "  3)  Boot optimization"
@@ -149,6 +150,7 @@ show_menu() {
     echo " 11)  Low-spec games"
     echo " 12)  Plank dock & Panel move"
     echo " 13)  Touchpad scroll speed (libinput ScrollPixelDistance)"
+    echo " 15)  Lid close: deep sleep + suspend on lid"
     echo ""
     echo "  Add-ons (standalone):"
     echo "  d)  Hardware diagnostics (read-only report)"
@@ -164,7 +166,7 @@ main() {
 
     while true; do
         show_menu
-        read -r -p "Select option [0-13, d, q]: " choice </dev/tty || choice="q"
+        read -r -p "Select option [0-13, 15, d, q]: " choice </dev/tty || choice="q"
 
         case "$choice" in
             0) run_pipeline ;;
@@ -172,6 +174,7 @@ main() {
                 idx=$((10#$choice))
                 run_module "${MODULES[$((idx - 1))]}"
                 ;;
+            15) run_module "15_lid_close_suspend.sh" ;;
             d|D) run_addon "diagnostics.sh" ;;
             q|Q)
                 log_msg "Bootstrap exited by user."
