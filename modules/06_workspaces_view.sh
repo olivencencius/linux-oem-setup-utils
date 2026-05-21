@@ -8,6 +8,24 @@ MODULE_ID="06_workspaces_view"
 is_done() { [ -f "$STATE_FILE" ] && grep -qxF "$MODULE_ID" "$STATE_FILE"; }
 mark_done() { mkdir -p "$STATE_DIR"; grep -qxF "$MODULE_ID" "$STATE_FILE" || echo "$MODULE_ID" >> "$STATE_FILE"; }
 
+SKIPPY_EXEC="/usr/bin/skippy-xd --paging"
+
+# LXQt treats Exec='skippy-xd --paging' as a literal command name (quotes included).
+normalize_skippy_exec() {
+    local keys_file="$1"
+    [ -f "$keys_file" ] || return 0
+    if ! grep -q 'skippy-xd' "$keys_file" 2>/dev/null; then
+        return 0
+    fi
+    sed -i -E \
+        -e "s/^Exec=['\"](.*skippy-xd[^'\"]*)['\"]\$/Exec=\\1/" \
+        -e "s|^Exec=skippy-xd --paging\$|Exec=${SKIPPY_EXEC}|" \
+        -e "s|^Exec='skippy-xd --paging'\$|Exec=${SKIPPY_EXEC}|" \
+        -e "s|^Exec=\"skippy-xd --paging\"\$|Exec=${SKIPPY_EXEC}|" \
+        "$keys_file"
+    echo "    [+] Normalized skippy Exec lines (no shell quotes) in ${keys_file}"
+}
+
 # Idempotent LXQt bindings (also migrates legacy LaunchA -> XF86LaunchA on re-run).
 ensure_skippy_hotkeys() {
     local keys_file="$1"
@@ -30,48 +48,50 @@ ensure_skippy_hotkeys() {
             sed -i 's/^\[LaunchA\./[XF86LaunchA./' "$keys_file"
             echo "    [+] Migrated LaunchA -> XF86LaunchA in ${keys_file}"
         elif ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
-            cat >> "$keys_file" <<'EOF'
+            cat >> "$keys_file" <<EOF
 
 [XF86LaunchA.1]
 Comment=Workspace Overview (Chromebook Launcher Key)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 EOF
             echo "    [+] Added XF86LaunchA binding to ${keys_file}"
         else
             echo "    [i] XF86LaunchA skippy binding already present in ${keys_file}"
         fi
+        normalize_skippy_exec "$keys_file"
         return 0
     fi
 
-    cat >> "$keys_file" <<'EOF'
+    cat >> "$keys_file" <<EOF
 
 [F5.1]
 Comment=Workspace Overview (F5)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 
 [XF86LaunchA.2]
 Comment=Workspace Overview (Chromebook Launcher Key)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 
 [Super_L.3]
 Comment=Workspace Overview (Super Key)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 
 [XF86Scale.4]
 Comment=Workspace Overview (Chromebook Overview Key 1)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 
 [XF86Explorer.5]
 Comment=Workspace Overview (Chromebook Overview Key 2)
 Enabled=true
-Exec=skippy-xd --paging
+Exec=${SKIPPY_EXEC}
 EOF
     echo "    [+] Skippy-XD bindings injected into ${keys_file}"
+    normalize_skippy_exec "$keys_file"
 }
 
 if is_done; then

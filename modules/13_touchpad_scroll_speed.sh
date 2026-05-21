@@ -5,12 +5,10 @@ STATE_DIR="${STATE_DIR:-/var/lib/lubuntu-oem-setup}"
 STATE_FILE="${STATE_FILE:-${STATE_DIR}/.state}"
 MODULE_ID="13_touchpad_scroll_speed"
 
-# ScrollPixelDistance: finger pixels per wheel "tick" — HIGHER = slower two-finger scroll.
-# Most Lubuntu/X11 touchpads expose this; ScrollFactor is often missing on older xf86-input-libinput.
-# Override: sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=120 bash modules/13_touchpad_scroll_speed.sh
-# Optional (only if your xinput lists "libinput Scroll Factor"):
-#   sudo OEM_TOUCHPAD_SCROLL_FACTOR=0.2 bash modules/13_touchpad_scroll_speed.sh
-SCROLL_PIXEL_DISTANCE="${OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE:-100}"
+# libinput strictly limits ScrollPixelDistance to a range of [10, 50].
+# 15 is the default. 50 is the maximum possible slowness.
+# (Legacy synaptics accepted 100+, but libinput will reject it).
+SCROLL_PIXEL_DISTANCE="${OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE:-50}"
 SCROLL_FACTOR="${OEM_TOUCHPAD_SCROLL_FACTOR:-}"
 SCROLL_CONF="/etc/X11/xorg.conf.d/91-touchpad-scroll-speed.conf"
 
@@ -21,8 +19,17 @@ if is_done; then
     echo "[${MODULE_ID}] Already completed — re-applying scroll settings."
 fi
 
+# Sanity check to prevent X11 crashes (integer out of range errors)
+if [ "$SCROLL_PIXEL_DISTANCE" -gt 50 ]; then
+    echo "    [!] Warning: libinput caps max distance at 50. Automatically capping value to 50."
+    SCROLL_PIXEL_DISTANCE=50
+elif [ "$SCROLL_PIXEL_DISTANCE" -lt 10 ]; then
+    echo "    [!] Warning: libinput caps min distance at 10. Automatically rounding up to 10."
+    SCROLL_PIXEL_DISTANCE=10
+fi
+
 echo "--> Slowing touchpad two-finger scroll (pointer movement unchanged)…"
-echo "    [i] ScrollPixelDistance=${SCROLL_PIXEL_DISTANCE} (higher = slower; try 80–150)."
+echo "    [i] ScrollPixelDistance=${SCROLL_PIXEL_DISTANCE} (Valid range: 10-50, default is 15)."
 
 mkdir -p /etc/X11/xorg.conf.d
 {
@@ -91,8 +98,8 @@ echo ""
 echo "    Quick tune (desktop session):"
 echo "      xinput list"
 echo "      xinput list-props <touchpad-id> | grep -i scroll"
-echo "      xinput set-prop <id> \"libinput Scrolling Pixel Distance\" 120"
-echo "    Re-apply module: sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=120 bash modules/13_touchpad_scroll_speed.sh"
+echo "      xinput set-prop <id> \"libinput Scrolling Pixel Distance\" 50"
+echo "    Re-apply module: sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=50 bash modules/13_touchpad_scroll_speed.sh"
 echo ""
 
 mark_done
