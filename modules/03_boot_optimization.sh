@@ -13,28 +13,24 @@ if is_done; then
     exit 0
 fi
 
-echo "--> Configuring boot sequence UX..."
-
-if [ -f /etc/default/grub ]; then
-    # Hardware Detection Branching
-    if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"; then
-        echo "    [i] AMD Hardware Detected (Stoney Ridge CRAT Delay)."
-        echo "    [+] Applying 'Diagnostic Boot' UX to mask the 30-second firmware timeout..."
-        
-        # Remove 'quiet' and 'splash' so the user sees the active systemd boot text
-        # Remove the blinking cursor to keep it looking clean and intentional
-        TARGET_OPTS="loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
-    else
-        echo "    [i] Intel/Other Hardware Detected."
-        echo "    [+] Applying standard silent Plymouth splash screen..."
-        
-        TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
+echo "--> Masking network wait-online services (prevents WiFi-less boot hangs)…"
+for svc in systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
+    if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}"; then
+        systemctl mask --now "$svc" 2>/dev/null || true
+        echo "    [+] Masked $svc"
     fi
+done
+
+echo "--> Restoring standard Plymouth loading spinner..."
+if [ -f /etc/default/grub ]; then
+    # Standard fast-boot parameters to ensure the Xubuntu spinner appears
+    # Hides the blinking cursor for a cleaner look
+    TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
     
     if ! grep -q "GRUB_CMDLINE_LINUX_DEFAULT=\"$TARGET_OPTS\"" /etc/default/grub; then
         sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/default/grub
         
-        echo "    [+] Updated GRUB configuration."
+        echo "    [+] Updated GRUB configuration parameters."
         update-grub
         echo "    [+] update-grub completed successfully."
     else
@@ -43,6 +39,24 @@ if [ -f /etc/default/grub ]; then
 else
     echo "    [!] /etc/default/grub not found — GRUB tweaks skipped."
 fi
+
+echo "--> Injecting multilingual 'Please wait' banner into TTY1..."
+# Overwrite the default TTY greeting so the user doesn't see a scary system prompt 
+# if the hardware delays the graphical interface.
+cat > /etc/issue << 'EOF'
+
+
+=============================================
+  Please wait...
+  Proszę czekać...
+  Bitte warten...
+  Veuillez patienter...
+  Vänligen vänta...
+=============================================
+
+
+EOF
+echo "    [+] /etc/issue banner updated."
 
 mark_done
 echo "[${MODULE_ID}] Done."
