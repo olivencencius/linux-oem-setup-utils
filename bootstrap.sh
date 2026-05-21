@@ -29,6 +29,7 @@ MODULES=(
     "11_install_games.sh"
     "12_install_plank.sh"
     "13_touchpad_scroll_speed.sh"
+    "14_keyd_after_login.sh"
 )
 
 ADDONS=(
@@ -135,7 +136,7 @@ show_menu() {
     echo "  Log file: ${LOG_FILE}"
     echo "  State:    ${STATE_FILE}"
     echo ""
-    echo "  0) Run full pipeline (modules 1–13)"
+    echo "  0) Run full pipeline (modules 1–14)"
     echo "  1)  OS update & Codecs"
     echo "  2)  Install git"
     echo "  3)  Boot optimization"
@@ -149,6 +150,7 @@ show_menu() {
     echo " 11)  Low-spec games"
     echo " 12)  Plank dock & Panel move"
     echo " 13)  Touchpad scroll speed (libinput ScrollFactor)"
+    echo " 14)  keyd after login (SDDM greeter fix)"
     echo ""
     echo "  Add-ons (standalone):"
     echo "  d)  Hardware diagnostics (read-only report)"
@@ -164,11 +166,11 @@ main() {
 
     while true; do
         show_menu
-        read -r -p "Select option [0-13, d, q]: " choice </dev/tty || choice="q"
+        read -r -p "Select option [0-14, d, q]: " choice </dev/tty || choice="q"
 
         case "$choice" in
             0) run_pipeline ;;
-            1|2|3|4|5|6|7|8|9|10|11|12|13)
+            1|2|3|4|5|6|7|8|9|10|11|12|13|14)
                 idx=$((10#$choice))
                 run_module "${MODULES[$((idx - 1))]}"
                 ;;
