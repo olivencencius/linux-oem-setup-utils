@@ -40,9 +40,9 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 11 | `11_install_games.sh` | supertuxkart, aisleriot, gnome-mines |
 | 12 | `12_install_plank.sh` | Plank dock + move LXQt panel to top (`/etc/skel`) |
 | 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger touchpad scroll via libinput `ScrollFactor` (does not change pointer speed) |
-| 14 | `14_keyd_after_login.sh` | **SDDM fix:** disable boot-time `keyd`; start after LXQt login; stop when returning to greeter |
+| 14 | `14_keyd_after_login.sh` | **SDDM fix:** mask/stop **keyd** on greeter; **breeze** theme + Qt scaling; start keyd after LXQt login |
 
-**SDDM / login:** `cros-keyboard-map` (module 4) enables **keyd** at boot, which can hide SDDM’s user list on Chromebooks. Module **14** fixes that for OEM techs and end users. Run **14** on machines that already completed module 4.
+**SDDM / login:** `cros-keyboard-map` (module 4) enables **keyd** at boot, which can hide SDDM’s user list on Chromebooks. Module **14** masks keyd for the greeter, applies a safe SDDM theme, and starts keyd after login. Safe to re-run: `sudo bash modules/14_keyd_after_login.sh` (even if module 14 is already in `.state`). If the bootstrap menu skips it, run that command or remove `14_keyd_after_login` from `.state` and use menu **14**.
 
 Modules **4**, **5**, **6**, and **14** apply settings to the technician account (`$SUDO_USER`) for QA when run with `sudo`. Module **13** also tries a live `xinput` preview on the technician session. New customer accounts inherit defaults from `/etc/skel`.
 
