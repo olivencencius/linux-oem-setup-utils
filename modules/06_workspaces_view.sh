@@ -8,10 +8,75 @@ MODULE_ID="06_workspaces_view"
 is_done() { [ -f "$STATE_FILE" ] && grep -qxF "$MODULE_ID" "$STATE_FILE"; }
 mark_done() { mkdir -p "$STATE_DIR"; grep -qxF "$MODULE_ID" "$STATE_FILE" || echo "$MODULE_ID" >> "$STATE_FILE"; }
 
+# Idempotent LXQt bindings (also migrates legacy LaunchA -> XF86LaunchA on re-run).
+ensure_skippy_hotkeys() {
+    local keys_file="$1"
+
+    mkdir -p "$(dirname "$keys_file")"
+    if [ ! -f "$keys_file" ]; then
+        if [ -f /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf ]; then
+            cp /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf "$keys_file"
+        elif [ -f /etc/xdg/lxqt/globalkeyshortcuts.conf ]; then
+            cp /etc/xdg/lxqt/globalkeyshortcuts.conf "$keys_file"
+        elif [ -f /usr/share/lxqt/globalkeyshortcuts.conf ]; then
+            cp /usr/share/lxqt/globalkeyshortcuts.conf "$keys_file"
+        else
+            touch "$keys_file"
+        fi
+    fi
+
+    if grep -q 'skippy-xd' "$keys_file" 2>/dev/null; then
+        if grep -q '^\[LaunchA\.' "$keys_file" && ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
+            sed -i 's/^\[LaunchA\./[XF86LaunchA./' "$keys_file"
+            echo "    [+] Migrated LaunchA -> XF86LaunchA in ${keys_file}"
+        elif ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
+            cat >> "$keys_file" <<'EOF'
+
+[XF86LaunchA.1]
+Comment=Workspace Overview (Chromebook Launcher Key)
+Enabled=true
+Exec=skippy-xd --paging
+EOF
+            echo "    [+] Added XF86LaunchA binding to ${keys_file}"
+        else
+            echo "    [i] XF86LaunchA skippy binding already present in ${keys_file}"
+        fi
+        return 0
+    fi
+
+    cat >> "$keys_file" <<'EOF'
+
+[F5.1]
+Comment=Workspace Overview (F5)
+Enabled=true
+Exec=skippy-xd --paging
+
+[XF86LaunchA.2]
+Comment=Workspace Overview (Chromebook Launcher Key)
+Enabled=true
+Exec=skippy-xd --paging
+
+[Super_L.3]
+Comment=Workspace Overview (Super Key)
+Enabled=true
+Exec=skippy-xd --paging
+
+[XF86Scale.4]
+Comment=Workspace Overview (Chromebook Overview Key 1)
+Enabled=true
+Exec=skippy-xd --paging
+
+[XF86Explorer.5]
+Comment=Workspace Overview (Chromebook Overview Key 2)
+Enabled=true
+Exec=skippy-xd --paging
+EOF
+    echo "    [+] Skippy-XD bindings injected into ${keys_file}"
+}
+
 if is_done; then
-    echo "[${MODULE_ID}] Already completed — skipping."
-    exit 0
-fi
+    echo "[${MODULE_ID}] Already completed — refreshing workspace hotkeys only."
+else
 
 echo "--> Installing skippy-xd (Lightweight macOS-style workspace overview)…"
 if command -v skippy-xd &>/dev/null; then
@@ -49,58 +114,12 @@ X-GNOME-Autostart-enabled=true
 EOF
 echo "    [+] /etc/skel/.config/autostart/skippy-xd.desktop"
 
+fi
+
 echo "--> Configuring LXQt global hotkeys for Workspaces..."
 LXQT_SKEL_DIR="/etc/skel/.config/lxqt"
 GLOBAL_KEYS="${LXQT_SKEL_DIR}/globalkeyshortcuts.conf"
-
-mkdir -p "$LXQT_SKEL_DIR"
-
-if [ ! -f "$GLOBAL_KEYS" ]; then
-    # Fallback chain to find the true Lubuntu defaults
-    if [ -f /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf ]; then
-        cp /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
-    elif [ -f /etc/xdg/lxqt/globalkeyshortcuts.conf ]; then
-        cp /etc/xdg/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
-    elif [ -f /usr/share/lxqt/globalkeyshortcuts.conf ]; then
-        cp /usr/share/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
-    else
-        echo "    [!] Warning: Could not find default LXQt shortcuts. Generating a clean file."
-        touch "$GLOBAL_KEYS"
-    fi
-fi
-
-if ! grep -q 'skippy-xd' "$GLOBAL_KEYS" 2>/dev/null; then
-    cat >> "$GLOBAL_KEYS" <<EOF
-
-[F5.1]
-Comment=Workspace Overview (F5)
-Enabled=true
-Exec=skippy-xd --paging
-
-[LaunchA.2]
-Comment=Workspace Overview (Search Key)
-Enabled=true
-Exec=skippy-xd --paging
-
-[Super_L.3]
-Comment=Workspace Overview (Super Key)
-Enabled=true
-Exec=skippy-xd --paging
-
-[XF86Scale.4]
-Comment=Workspace Overview (Chromebook Overview Key 1)
-Enabled=true
-Exec=skippy-xd --paging
-
-[XF86Explorer.5]
-Comment=Workspace Overview (Chromebook Overview Key 2)
-Enabled=true
-Exec=skippy-xd --paging
-EOF
-    echo "    [+] Skippy-XD bindings injected into ${GLOBAL_KEYS}"
-else
-    echo "    [i] Skippy-XD bindings already present in ${GLOBAL_KEYS}"
-fi
+ensure_skippy_hotkeys "$GLOBAL_KEYS"
 
 # --- APPLY TO TECHNICIAN FOR QA ---
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
