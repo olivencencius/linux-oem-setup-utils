@@ -100,3 +100,15 @@ After module **4**, confirm ZRAM is active (`zramctl` / `swapon --show`) — set
 - Log: `/var/log/lubuntu_oem_setup.log`
 - State: `/var/lib/lubuntu-oem-setup/.state`
 - Clear state to force re-run: `sudo rm -f /var/lib/lubuntu-oem-setup/.state`
+
+## Tip — OEM login behaviour
+
+On a **fresh OEM image**, the **first reboot** often auto-logs the OEM user straight to the desktop. The **second reboot** shows the normal **SDDM** login screen. If the session/layout bar appears but the **username/password panel** is missing, that is usually the OEM/SDDM greeter (not fixed by masking `keyd` or by this bootstrap).
+
+**Bench recovery:** switch to a text console with **Ctrl+Alt+F3**, log in with your OEM account, then:
+
+```bash
+sudo systemctl restart sddm
+```
+
+Switch back to the graphical greeter with **Ctrl+Alt+F1** or **F7**. If SDDM is still unusable, stay on TTY3 and start the session manually (e.g. `startlxqt`) while you fix the image or complete handover.
