@@ -34,6 +34,7 @@ MODULES=(
 
 ADDONS=(
     "diagnostics.sh"
+    "oem_handover.sh"
 )
 
 mkdir -p "$WORK_DIR" "$STATE_DIR"
@@ -154,6 +155,7 @@ show_menu() {
     echo ""
     echo "  Add-ons (standalone):"
     echo "  d)  Hardware diagnostics (read-only report)"
+    echo "  h)  Prepare for OEM shipping (disables SDDM, shuts down)"
     echo ""
     echo "  q) Quit"
     echo ""
@@ -166,7 +168,7 @@ main() {
 
     while true; do
         show_menu
-        read -r -p "Select option [0-13, 15, d, q]: " choice </dev/tty || choice="q"
+        read -r -p "Select option [0-13, 15, d, h, q]: " choice </dev/tty || choice="q"
 
         case "$choice" in
             0) run_pipeline ;;
@@ -176,6 +178,7 @@ main() {
                 ;;
             15) run_module "15_lid_close_suspend.sh" ;;
             d|D) run_addon "diagnostics.sh" ;;
+            h|H) run_addon "oem_handover.sh" ;;
             q|Q)
                 log_msg "Bootstrap exited by user."
                 exit 0

@@ -17,6 +17,7 @@ Bootstrap downloads modules into `/tmp/lubuntu-oem-setup`, logs to `/var/log/lub
 - **0** — Full pipeline (modules 1–13 and **15**)
 - **1–13**, **15** — Individual module (no module 14)
 - **d** — Hardware diagnostics (read-only add-on)
+- **h** — Prepare for OEM shipping (disables SDDM, runs `oem-config-prepare`, shuts down)
 - **q** — Quit
 
 Resume after interruption: run bootstrap again; completed steps are skipped automatically.
@@ -58,11 +59,13 @@ Tune scroll: `sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=40 bash modules/13_touchpa
 | Script | Purpose |
 |--------|---------|
 | `addons/diagnostics.sh` | Read-only report: OS, CPU, RAM, ZRAM/swap, storage, battery, network, USB, audio |
+| `addons/oem_handover.sh` | Final shipping prep: `oem-config.target`, stop/disable SDDM, `oem-config-prepare`, shutdown |
 
-Run from the bootstrap menu (**d**) or directly:
+Run from the bootstrap menu (**d** / **h**) or directly:
 
 ```bash
 sudo bash addons/diagnostics.sh
+sudo bash addons/oem_handover.sh   # confirms, then shuts down
 ```
 
 ## OEM install vs this toolkit
@@ -78,21 +81,22 @@ If you need a login UI workaround on the bench, try the **breeze** SDDM theme (`
 
 ## Handover
 
-Lubuntu has no Ubuntu OEM / `oem-config-prepare` flow. Before shipping:
+Before shipping:
 
 1. Run the full pipeline (or all modules you need).
-2. Reboot and verify panel position, Plank dock, overview keys, gestures, web apps, and lid-close suspend (test SDDM login after the OEM auto-login phase has ended).
+2. Reboot and verify panel position, Plank dock, overview keys, gestures, web apps, and lid-close suspend.
 3. Run diagnostics (**d**) and keep the output for your records if useful.
-4. Remove the technician account (or reset the machine to a clean state).
-5. Scrub OEM footprints:
+4. Run **Prepare for OEM shipping** (**h**) or `sudo bash addons/oem_handover.sh`.
+
+   This sets `oem-config.target` as the default boot target, stops and disables SDDM (avoids the blank login screen that races ahead of the first-boot account wizard), runs `oem-config-prepare`, and shuts down. On the customer’s first boot, Calamares walks them through account creation; they inherit `/etc/skel` defaults (panel, Plank, hotkeys, autostart entries).
+
+5. Optionally scrub bootstrap footprints on the bench before handover if you are not using **h**:
 
    ```bash
    sudo rm -rf /var/lib/lubuntu-oem-setup /tmp/lubuntu-oem-setup
    sudo rm -f /var/log/lubuntu_oem_setup.log
    sudo apt-get clean
    ```
-
-6. On first customer boot, they create their account and inherit `/etc/skel` defaults (panel, Plank, hotkeys, autostart entries).
 
 After module **4**, confirm ZRAM is active (`zramctl` / `swapon --show`) — settings may require a reboot if hot-start did not apply on an already-running system.
 
