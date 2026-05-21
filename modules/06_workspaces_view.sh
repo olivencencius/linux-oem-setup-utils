@@ -8,89 +8,74 @@ MODULE_ID="06_workspaces_view"
 is_done() { [ -f "$STATE_FILE" ] && grep -qxF "$MODULE_ID" "$STATE_FILE"; }
 mark_done() { mkdir -p "$STATE_DIR"; grep -qxF "$MODULE_ID" "$STATE_FILE" || echo "$MODULE_ID" >> "$STATE_FILE"; }
 
-SKIPPY_EXEC="/usr/bin/skippy-xd --paging"
+# LXQt Exec is comma-separated (binary, arg1, …) — NOT a shell line. GUI saves:
+#   Exec=/usr/bin/skippy-xd, --paging
+# Shell-style "Exec=/usr/bin/skippy-xd --paging" runs the binary without --paging.
+SKIPPY_EXEC="/usr/bin/skippy-xd, --paging"
 
-# LXQt treats Exec='skippy-xd --paging' as a literal command name (quotes included).
+# Lubuntu ships skippy shortcuts in /etc/xdg/... (often quoted, sometimes "-paging" typo).
+SYSTEM_GLOBALKEYS=(
+    /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf
+    /etc/xdg/lxqt/globalkeyshortcuts.conf
+    /usr/share/lxqt/globalkeyshortcuts.conf
+)
+
 normalize_skippy_exec() {
     local keys_file="$1"
     [ -f "$keys_file" ] || return 0
     if ! grep -q 'skippy-xd' "$keys_file" 2>/dev/null; then
         return 0
     fi
+    sed -i 's/\r$//' "$keys_file" 2>/dev/null || true
     sed -i -E \
-        -e "s/^Exec=['\"](.*skippy-xd[^'\"]*)['\"]\$/Exec=\\1/" \
-        -e "s|^Exec=skippy-xd --paging\$|Exec=${SKIPPY_EXEC}|" \
-        -e "s|^Exec='skippy-xd --paging'\$|Exec=${SKIPPY_EXEC}|" \
-        -e "s|^Exec=\"skippy-xd --paging\"\$|Exec=${SKIPPY_EXEC}|" \
+        -e "s/^Exec=['\"](.*skippy-xd[^'\"]*)['\"]\$/Exec=${SKIPPY_EXEC}/" \
+        -e 's|^Exec=.*skippy-xd -paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
+        -e 's|^Exec=.*skippy-xd -- paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
+        -e 's|^Exec=.*skippy-xd --paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
+        -e 's|^Exec=.*skippy-xd, --paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
+        -e "/^Exec=.*skippy-xd/s/^Exec=.*/Exec=${SKIPPY_EXEC}/" \
         "$keys_file"
-    echo "    [+] Normalized skippy Exec lines (no shell quotes) in ${keys_file}"
+    echo "    [+] Fixed skippy Exec lines in ${keys_file}"
 }
 
-# Idempotent LXQt bindings (also migrates legacy LaunchA -> XF86LaunchA on re-run).
+patch_all_lxqt_globalkeys() {
+    local f
+    for f in "${SYSTEM_GLOBALKEYS[@]}"; do
+        normalize_skippy_exec "$f"
+    done
+}
+
 ensure_skippy_hotkeys() {
     local keys_file="$1"
 
     mkdir -p "$(dirname "$keys_file")"
     if [ ! -f "$keys_file" ]; then
-        if [ -f /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf ]; then
-            cp /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf "$keys_file"
-        elif [ -f /etc/xdg/lxqt/globalkeyshortcuts.conf ]; then
-            cp /etc/xdg/lxqt/globalkeyshortcuts.conf "$keys_file"
-        elif [ -f /usr/share/lxqt/globalkeyshortcuts.conf ]; then
-            cp /usr/share/lxqt/globalkeyshortcuts.conf "$keys_file"
-        else
-            touch "$keys_file"
-        fi
+        for f in "${SYSTEM_GLOBALKEYS[@]}"; do
+            if [ -f "$f" ]; then
+                cp "$f" "$keys_file"
+                echo "    [i] Created ${keys_file} from ${f}"
+                break
+            fi
+        done
+        [ -f "$keys_file" ] || touch "$keys_file"
     fi
 
-    if grep -q 'skippy-xd' "$keys_file" 2>/dev/null; then
-        if grep -q '^\[LaunchA\.' "$keys_file" && ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
-            sed -i 's/^\[LaunchA\./[XF86LaunchA./' "$keys_file"
-            echo "    [+] Migrated LaunchA -> XF86LaunchA in ${keys_file}"
-        elif ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
-            cat >> "$keys_file" <<EOF
+    if grep -q '^\[LaunchA\.' "$keys_file" 2>/dev/null && ! grep -q '^\[XF86LaunchA\.' "$keys_file"; then
+        sed -i 's/^\[LaunchA\./[XF86LaunchA./' "$keys_file"
+        echo "    [+] Migrated LaunchA -> XF86LaunchA in ${keys_file}"
+    fi
+
+    if ! grep -q '^\[XF86LaunchA\.' "$keys_file" 2>/dev/null; then
+        cat >> "$keys_file" <<EOF
 
 [XF86LaunchA.1]
 Comment=Workspace Overview (Chromebook Launcher Key)
 Enabled=true
 Exec=${SKIPPY_EXEC}
 EOF
-            echo "    [+] Added XF86LaunchA binding to ${keys_file}"
-        else
-            echo "    [i] XF86LaunchA skippy binding already present in ${keys_file}"
-        fi
-        normalize_skippy_exec "$keys_file"
-        return 0
+        echo "    [+] Added XF86LaunchA skippy binding to ${keys_file}"
     fi
 
-    cat >> "$keys_file" <<EOF
-
-[F5.1]
-Comment=Workspace Overview (F5)
-Enabled=true
-Exec=${SKIPPY_EXEC}
-
-[XF86LaunchA.2]
-Comment=Workspace Overview (Chromebook Launcher Key)
-Enabled=true
-Exec=${SKIPPY_EXEC}
-
-[Super_L.3]
-Comment=Workspace Overview (Super Key)
-Enabled=true
-Exec=${SKIPPY_EXEC}
-
-[XF86Scale.4]
-Comment=Workspace Overview (Chromebook Overview Key 1)
-Enabled=true
-Exec=${SKIPPY_EXEC}
-
-[XF86Explorer.5]
-Comment=Workspace Overview (Chromebook Overview Key 2)
-Enabled=true
-Exec=${SKIPPY_EXEC}
-EOF
-    echo "    [+] Skippy-XD bindings injected into ${keys_file}"
     normalize_skippy_exec "$keys_file"
 }
 
@@ -136,25 +121,26 @@ echo "    [+] /etc/skel/.config/autostart/skippy-xd.desktop"
 
 fi
 
-echo "--> Configuring LXQt global hotkeys for Workspaces..."
+echo "--> Fixing Lubuntu skippy shortcuts (system defaults + skel + user)…"
+echo "    [i] Reboot does not re-run this script; shortcuts come from /etc/xdg and ~/.config."
+patch_all_lxqt_globalkeys
+
 LXQT_SKEL_DIR="/etc/skel/.config/lxqt"
 GLOBAL_KEYS="${LXQT_SKEL_DIR}/globalkeyshortcuts.conf"
 ensure_skippy_hotkeys "$GLOBAL_KEYS"
 
-# --- APPLY TO TECHNICIAN FOR QA ---
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     TECH_HOME=$(getent passwd "${SUDO_USER}" | cut -d: -f6)
-    echo "--> Applying Workspaces shortcuts to technician user (${SUDO_USER}) for QA preview..."
-    
+    echo "--> Applying to technician (${SUDO_USER})…"
     mkdir -p "${TECH_HOME}/.config/lxqt" "${TECH_HOME}/.config/autostart"
     ensure_skippy_hotkeys "${TECH_HOME}/.config/lxqt/globalkeyshortcuts.conf"
     cp /etc/skel/.config/autostart/skippy-xd.desktop "${TECH_HOME}/.config/autostart/"
     chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/lxqt" "${TECH_HOME}/.config/autostart"
-    
-    echo "    [+] Keyboard shortcuts and skippy-xd autostart applied."
-    echo "    [i] You may need to log out and log back in for LXQt to register the new hotkeys."
+    if command -v lxqt-globalkeysd &>/dev/null && pgrep -u "${SUDO_USER}" -x lxqt-globalkeysd &>/dev/null; then
+        sudo -u "${SUDO_USER}" killall -HUP lxqt-globalkeysd 2>/dev/null || true
+    fi
+    echo "    [+] Done. Log out/in if the launcher key still does nothing."
 fi
-# ----------------------------------
 
 mark_done
 echo "[${MODULE_ID}] Done."

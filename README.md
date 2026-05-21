@@ -32,7 +32,7 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 3 | `03_boot_optimization.sh` | Mask network wait-online services (offline boot hangs) |
 | 4 | `04_chromebook_fixes.sh` | Audio + keyboard (interactive); TLP; ZRAM; swappiness |
 | 5 | `05_touchpad_gestures.sh` | libinput touchpad settings + 3-finger workspace swipes |
-| 6 | `06_workspaces_view.sh` | skippy-xd + daemon autostart + LXQt **`XF86LaunchA`** → `Exec=/usr/bin/skippy-xd --paging` (must not be quoted in `globalkeyshortcuts.conf`) |
+| 6 | `06_workspaces_view.sh` | skippy-xd + daemon; fixes Lubuntu shortcuts → **`Exec=/usr/bin/skippy-xd, --paging`** (LXQt comma syntax, not shell) |
 | 7 | `07_terminal_paste_fix.sh` | Disable bracketed paste in `/etc/inputrc` |
 | 8 | `08_install_chrome.sh` | Google Chrome `.deb` |
 | 9 | `09_install_vlc.sh` | VLC |
