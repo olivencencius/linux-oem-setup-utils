@@ -2,7 +2,7 @@
 
 Modular provisioning toolkit for **refurbished Chromebooks** (AMD/Intel, 4GB RAM) running **Lubuntu**. Scripts are idempotent, system-wide (`/etc/skel`, `/etc/xdg`, `/usr/share/applications`), and safe to re-run.
 
-Target environment: **Lubuntu 24.04+** (LXQt / Openbox).
+Target environment: **Lubuntu 26.04 LTS (Resolute)** and compatible releases (LXQt / Openbox).
 
 ## Quick start
 
@@ -32,7 +32,7 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 3 | `03_boot_optimization.sh` | Mask network wait-online services (offline boot hangs) |
 | 4 | `04_chromebook_fixes.sh` | Audio + keyboard (interactive); TLP; ZRAM via `systemd-zram-generator`; swappiness |
 | 5 | `05_touchpad_gestures.sh` | libinput touchpad settings + 3-finger workspace swipes |
-| 6 | `06_workspaces_view.sh` | skippy-xd + LXQt overview key bindings (F5, Search, Super, Chromebook keys) |
+| 6 | `06_workspaces_view.sh` | skippy-xd (built from upstream; not in apt on 26.04) + daemon autostart + LXQt overview keys (`--paging`) |
 | 7 | `07_terminal_paste_fix.sh` | Disable bracketed paste in `/etc/inputrc` |
 | 8 | `08_install_chrome.sh` | Google Chrome `.deb` |
 | 9 | `09_install_vlc.sh` | VLC |
