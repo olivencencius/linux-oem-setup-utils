@@ -35,6 +35,11 @@ MODULES=(
     "12_install_plank.sh"
 )
 
+ADDONS=(
+    "diagnostics.sh"
+    "prepare_for_shipping.sh"
+)
+
 mkdir -p "$WORK_DIR" "$STATE_DIR"
 touch "$LOG_FILE"
 chmod 644 "$LOG_FILE"
@@ -69,6 +74,19 @@ download_modules() {
     log_msg "All modules downloaded."
 }
 
+download_addons() {
+    log_msg "Downloading add-ons to ${WORK_DIR}/addons…"
+    mkdir -p "${WORK_DIR}/addons"
+    local f
+    for f in "${ADDONS[@]}"; do
+        log_msg "  -> addons/${f}"
+        wget -q --show-progress -O "${WORK_DIR}/addons/${f}" "${GITHUB_RAW}/addons/${f}" \
+            || wget -O "${WORK_DIR}/addons/${f}" "${GITHUB_RAW}/addons/${f}"
+        chmod +x "${WORK_DIR}/addons/${f}"
+    done
+    log_msg "All add-ons downloaded."
+}
+
 run_module() {
     local script="$1"
     local step_id="${script%.sh}"
@@ -85,6 +103,18 @@ run_module() {
         return 0
     else
         log_msg "[${step_id}] FAILED (exit $?). Fix the issue and re-run; completed steps are skipped."
+        return 1
+    fi
+}
+
+run_addon() {
+    local script="$1"
+    log_msg "========== Running add-on ${script} =========="
+    if bash "${WORK_DIR}/addons/${script}"; then
+        log_msg "[addon:${script%.sh}] Completed successfully."
+        return 0
+    else
+        log_msg "[addon:${script%.sh}] FAILED (exit $?)."
         return 1
     fi
 }
@@ -123,6 +153,11 @@ show_menu() {
     echo " 10)  Web apps"
     echo " 11)  Low-spec games"
     echo "  12) Plank dock (system skel)"
+    echo ""
+    echo "  Add-ons (standalone — not part of the pipeline):"
+    echo "  d)  Hardware diagnostics (read-only report)"
+    echo "  p)  Prepare for shipping (oem-config-prepare)"
+    echo ""
     echo "  q) Quit"
     echo ""
 }
@@ -130,10 +165,11 @@ show_menu() {
 main() {
     log_msg "Bootstrap started."
     download_modules
+    download_addons
 
     while true; do
         show_menu
-        read -r -p "Select option [0-12, q]: " choice </dev/tty || choice="q"
+        read -r -p "Select option [0-12, d, p, q]: " choice </dev/tty || choice="q"
 
         case "$choice" in
             0)
@@ -142,6 +178,12 @@ main() {
             1|2|3|4|5|6|7|8|9|10|11|12)
                 idx=$((10#$choice))
                 run_module "${MODULES[$((idx - 1))]}"
+                ;;
+            d|D)
+                run_addon "diagnostics.sh"
+                ;;
+            p|P)
+                run_addon "prepare_for_shipping.sh"
                 ;;
             q|Q)
                 log_msg "Bootstrap exited by user."
