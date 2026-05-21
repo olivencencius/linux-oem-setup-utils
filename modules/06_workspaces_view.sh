@@ -22,19 +22,19 @@ SYSTEM_GLOBALKEYS=(
 
 normalize_skippy_exec() {
     local keys_file="$1"
+    local tmp
     [ -f "$keys_file" ] || return 0
     if ! grep -q 'skippy-xd' "$keys_file" 2>/dev/null; then
         return 0
     fi
-    sed -i 's/\r$//' "$keys_file" 2>/dev/null || true
-    sed -i -E \
-        -e "s/^Exec=['\"](.*skippy-xd[^'\"]*)['\"]\$/Exec=${SKIPPY_EXEC}/" \
-        -e 's|^Exec=.*skippy-xd -paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
-        -e 's|^Exec=.*skippy-xd -- paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
-        -e 's|^Exec=.*skippy-xd --paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
-        -e 's|^Exec=.*skippy-xd, --paging.*$|Exec='"${SKIPPY_EXEC}"'|' \
-        -e "/^Exec=.*skippy-xd/s/^Exec=.*/Exec=${SKIPPY_EXEC}/" \
-        "$keys_file"
+    # Do not use sed here: commas in "Exec=/usr/bin/skippy-xd, --paging" break sed substitutions.
+    tmp="$(mktemp)"
+    awk -v exec="$SKIPPY_EXEC" '
+        { sub(/\r$/, "") }
+        /^Exec=.*skippy-xd/ { print "Exec=" exec; next }
+        { print }
+    ' "$keys_file" > "$tmp"
+    mv "$tmp" "$keys_file"
     echo "    [+] Fixed skippy Exec lines in ${keys_file}"
 }
 
