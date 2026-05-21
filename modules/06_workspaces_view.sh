@@ -44,8 +44,8 @@ try:
         if 'type' in custom_node.attrib and custom_node.attrib['type'] == 'empty':
             del custom_node.attrib['type']
             
-        # Comprehensive map to catch the Overview key across all Chromebook hardware variants
-        keys_to_bind = ["F5", "XF86Scale", "XF86Taskman", "XF86Display", "Super_L"]
+        # Added LaunchA and XF86LaunchA to catch your specific firmware output
+        keys_to_bind = ["F5", "XF86Scale", "XF86Taskman", "XF86Display", "Super_L", "LaunchA", "XF86LaunchA"]
         existing_keys = {p.attrib.get('name') for p in custom_node.findall("./property")}
         
         for key in keys_to_bind:
@@ -53,18 +53,16 @@ try:
                 ET.SubElement(custom_node, "property", name=key, type="string", value="xfdashboard")
                 
         tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
-        print(f"    [+] Successfully injected F5/Overview shortcuts into {xml_path}")
+        print(f"    [+] Successfully injected workspace shortcuts into {xml_path}")
 except Exception as e:
     print(f"    [!] Error parsing {xml_path}: {e}")
 EOF
 }
 
 echo "--> Configuring default shortcuts for all future users..."
-# Ensure the skel directory structure exists
 mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/
 SKEL_XML="/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
 
-# Copy the system default if the skel doesn't have one yet
 if [ ! -f "$SKEL_XML" ] && [ -f "/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" ]; then
     cp "/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" "$SKEL_XML"
 fi
@@ -78,7 +76,6 @@ if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     TECH_HOME=$(getent passwd "${SUDO_USER}" | cut -d: -f6)
     TECH_XML="${TECH_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
     
-    # Ensure the user has their own config file to edit
     mkdir -p "${TECH_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/"
     if [ ! -f "$TECH_XML" ] && [ -f "/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" ]; then
         cp "/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" "$TECH_XML"
@@ -87,7 +84,6 @@ if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     inject_shortcuts "$TECH_XML"
     chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/"
     
-    # Restart the settings daemon so the technician's desktop registers the new key immediately
     sudo -u "${SUDO_USER}" bash -c '
         if pgrep -x xfsettingsd > /dev/null; then
             xfsettingsd --replace &
