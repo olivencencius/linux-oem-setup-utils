@@ -127,7 +127,7 @@ if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     echo "--> Applying Workspaces shortcuts to technician user (${SUDO_USER}) for QA preview..."
     
     mkdir -p "${TECH_HOME}/.config/lxqt" "${TECH_HOME}/.config/autostart"
-    cp "$GLOBAL_KEYS" "${TECH_HOME}/.config/lxqt/globalkeyshortcuts.conf"
+    ensure_skippy_hotkeys "${TECH_HOME}/.config/lxqt/globalkeyshortcuts.conf"
     cp /etc/skel/.config/autostart/skippy-xd.desktop "${TECH_HOME}/.config/autostart/"
     chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/lxqt" "${TECH_HOME}/.config/autostart"
     

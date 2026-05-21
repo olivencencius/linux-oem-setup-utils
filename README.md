@@ -14,8 +14,8 @@ wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/
 
 Bootstrap downloads modules into `/tmp/lubuntu-oem-setup`, logs to `/var/log/lubuntu_oem_setup.log`, tracks progress in `/var/lib/lubuntu-oem-setup/.state`, and offers:
 
-- **0** — Full pipeline (modules 1–14)
-- **1–14** — Individual module
+- **0** — Full pipeline (modules 1–13)
+- **1–13** — Individual module
 - **d** — Hardware diagnostics (read-only add-on)
 - **q** — Quit
 
@@ -30,21 +30,18 @@ Resume after interruption: run bootstrap again; completed steps are skipped auto
 | 1 | `01_update_os.sh` | `apt-get update` + `upgrade`; `ubuntu-restricted-extras` (codecs & fonts) |
 | 2 | `02_install_git.sh` | Install git |
 | 3 | `03_boot_optimization.sh` | Mask network wait-online services (offline boot hangs) |
-| 4 | `04_chromebook_fixes.sh` | Audio + keyboard (interactive); TLP; ZRAM; swappiness; runs module **14** after cros-keyboard-map |
+| 4 | `04_chromebook_fixes.sh` | Audio + keyboard (interactive); TLP; ZRAM; swappiness |
 | 5 | `05_touchpad_gestures.sh` | libinput touchpad settings + 3-finger workspace swipes |
-| 6 | `06_workspaces_view.sh` | skippy-xd (built from upstream; not in apt on 26.04) + daemon autostart + LXQt overview keys (`--paging`; Chromebook launcher: `XF86LaunchA`) |
+| 6 | `06_workspaces_view.sh` | skippy-xd + daemon autostart + LXQt overview (`--paging`; Chromebook launcher: **`XF86LaunchA`**) — re-run updates hotkeys; log out/in after |
 | 7 | `07_terminal_paste_fix.sh` | Disable bracketed paste in `/etc/inputrc` |
 | 8 | `08_install_chrome.sh` | Google Chrome `.deb` |
 | 9 | `09_install_vlc.sh` | VLC |
 | 10 | `10_web_apps.sh` | Chrome `--app` shortcuts with self-hosted SVG icons |
 | 11 | `11_install_games.sh` | supertuxkart, aisleriot, gnome-mines |
 | 12 | `12_install_plank.sh` | Plank dock + move LXQt panel to top (`/etc/skel`) |
-| 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger touchpad scroll via libinput `ScrollFactor` (does not change pointer speed) |
-| 14 | `14_keyd_after_login.sh` | **SDDM fix:** mask/stop **keyd** on greeter; **breeze** theme + Qt scaling; start keyd after LXQt login |
+| 13 | `13_touchpad_scroll_speed.sh` | Slower two-finger scroll via libinput `ScrollPixelDistance` (higher = slower; optional `ScrollFactor` if exposed) |
 
-**SDDM / login:** `cros-keyboard-map` (module 4) enables **keyd** at boot, which can hide SDDM’s user list on Chromebooks. Module **14** masks keyd for the greeter, applies a safe SDDM theme, and starts keyd after login. Safe to re-run: `sudo bash modules/14_keyd_after_login.sh` (even if module 14 is already in `.state`). If the bootstrap menu skips it, run that command or remove `14_keyd_after_login` from `.state` and use menu **14**.
-
-Modules **4**, **5**, **6**, and **14** apply settings to the technician account (`$SUDO_USER`) for QA when run with `sudo`. Module **13** also tries a live `xinput` preview on the technician session. New customer accounts inherit defaults from `/etc/skel`.
+Modules **4**, **5**, and **6** apply settings to the technician account (`$SUDO_USER`) for QA when run with `sudo`. Module **13** also tries a live `xinput` preview on the technician session. New customer accounts inherit defaults from `/etc/skel`.
 
 Run module 13 alone (after push or from a local clone):
 
@@ -53,7 +50,7 @@ sudo STATE_DIR=/var/lib/lubuntu-oem-setup STATE_FILE=/var/lib/lubuntu-oem-setup/
   bash modules/13_touchpad_scroll_speed.sh
 ```
 
-Tune scroll strength without editing the file: `sudo OEM_TOUCHPAD_SCROLL_FACTOR=0.3 bash modules/13_touchpad_scroll_speed.sh` (clear module **13** from `.state` first if it already completed).
+Tune scroll: `sudo OEM_TOUCHPAD_SCROLL_PIXEL_DISTANCE=120 bash modules/13_touchpad_scroll_speed.sh` (safe to re-run; raises distance = slower). Many Chromebooks do not expose `Scroll Factor` in `xinput` — use **Scrolling Pixel Distance** instead.
 
 ## Add-ons
 
@@ -67,12 +64,23 @@ Run from the bootstrap menu (**d**) or directly:
 sudo bash addons/diagnostics.sh
 ```
 
+## OEM install vs this toolkit
+
+On a **fresh OEM image** (even before bootstrap):
+
+- **First reboot** often **auto-logs the OEM user straight to the desktop** (one-time setup flow).
+- **Second reboot** usually shows the normal **SDDM login screen**.
+
+If the session/layout bar appears but the **username/password panel does not**, that can happen **without running this repo** — it is tied to the OEM/SDDM lifecycle, not `keyd` or the bootstrap modules. Do **not** mask/disable `keyd` for that; module 4’s keyboard map should stay as `cros-keyboard-map` installed it.
+
+If you need a login UI workaround on the bench, try the **breeze** SDDM theme (`sddm-theme-breeze` + `Current=breeze` in `/etc/sddm.conf.d/`) — that is an image/greeter issue, not part of the pipeline.
+
 ## Handover
 
 Lubuntu has no Ubuntu OEM / `oem-config-prepare` flow. Before shipping:
 
 1. Run the full pipeline (or all modules you need).
-2. Reboot and verify **SDDM login** (user list + password), panel position, Plank dock, overview keys, gestures, and web apps.
+2. Reboot and verify panel position, Plank dock, overview keys, gestures, and web apps (test SDDM login after the OEM auto-login phase has ended).
 3. Run diagnostics (**d**) and keep the output for your records if useful.
 4. Remove the technician account (or reset the machine to a clean state).
 5. Scrub OEM footprints:

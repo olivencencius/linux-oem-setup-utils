@@ -80,10 +80,5 @@ echo "vm.swappiness=10" > /etc/sysctl.d/99-custom-swappiness.conf
 sysctl -p /etc/sysctl.d/99-custom-swappiness.conf
 echo "    [+] vm.swappiness=10 applied."
 
-_module_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -x "${_module_dir}/14_keyd_after_login.sh" ]; then
-    STATE_DIR="${STATE_DIR}" STATE_FILE="${STATE_FILE}" bash "${_module_dir}/14_keyd_after_login.sh"
-fi
-
 mark_done
 echo "[${MODULE_ID}] Done."
