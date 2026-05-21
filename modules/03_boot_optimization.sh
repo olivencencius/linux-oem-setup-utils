@@ -14,66 +14,49 @@ if is_done; then
 fi
 
 echo "--> Masking network wait-online services (prevents WiFi-less boot hangs)…"
-if systemctl list-unit-files 2>/dev/null | grep -q '^systemd-networkd-wait-online\.service'; then
-    systemctl mask --now systemd-networkd-wait-online.service 2>/dev/null || true
-    echo "    [+] Masked systemd-networkd-wait-online.service"
-fi
-
-if systemctl list-unit-files 2>/dev/null | grep -q '^NetworkManager-wait-online\.service'; then
-    systemctl mask --now NetworkManager-wait-online.service 2>/dev/null || true
-    echo "    [+] Masked NetworkManager-wait-online.service"
-fi
-
-
-# --- AMD EARLY KMS TTY SCREEN FIX ---
-# Detect if the hardware is running an AMD CPU or GPU
-if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"; then
-    echo "--> AMD Hardware Detected! Implementing Early Kernel Mode Setting (KMS) to fix TTY leak..."
-    INITRAMFS_MODS="/etc/initramfs-tools/modules"
-    
-    if [ -f "$INITRAMFS_MODS" ]; then
-        local_initramfs_changed=0
-        for mod in amdgpu radeon; do
-            if ! grep -qxF "$mod" "$INITRAMFS_MODS"; then
-                echo "$mod" >> "$INITRAMFS_MODS"
-                local_initramfs_changed=1
-            fi
-        done
-
-        if [ "$local_initramfs_changed" -eq 1 ]; then
-            echo "    [+] Injected graphics drivers into initramfs. Rebuilding boot images..."
-            update-initramfs -u
-            echo "    [+] Boot image optimization complete."
-        else
-            echo "    [i] AMD early driver loading already configured."
-        fi
+for svc in systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
+    if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}"; then
+        systemctl mask --now "$svc" 2>/dev/null || true
+        echo "    [+] Masked $svc"
     fi
-else
-    echo "--> Intel/Other hardware detected. Skipping early KMS module additions."
-fi
-# ------------------------------------
+done
 
+echo "--> Tuning GRUB and system services based on hardware architecture…"
+
+# Automatic Hardware Detection Branching
+if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"; then
+    echo "    [i] AMD Hardware Detected. Applying Stoney APU specific optimizations..."
+    
+    echo "    [+] Disabling cellular modem scanning (ModemManager) to save 15+ seconds..."
+    systemctl disable --now ModemManager.service 2>/dev/null || true
+    systemctl mask ModemManager.service 2>/dev/null || true
+
+    echo "    [+] Optimizing serial port tracking..."
+    systemctl disable --now serial-getty@ttyS0.service 2>/dev/null || true
+
+    # AMD specific GRUB parameters to bypass the firmware map conflict
+    TARGET_OPTS="quiet splash loglevel=3 amd_iommu=off video=efifb:off"
+else
+    echo "    [i] Intel/Other Hardware Detected. Applying standard fast-boot optimizations..."
+    
+    # Standard fast-boot parameters that work perfectly on Intel ChromeOS hardware
+    TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
+fi
 
 if [ -f /etc/default/grub ]; then
-    echo "--> Tuning GRUB parameters to permanently hide boot console tracking text…"
-    
-    TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0"
-    
-    # Check if GRUB is already configured perfectly
     if ! grep -q "GRUB_CMDLINE_LINUX_DEFAULT=\"$TARGET_OPTS\"" /etc/default/grub; then
-        # Safely overwrite the line cleanly, protecting against duplicate logic strings
-        sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/etc/default/grub 2>/dev/null \
-        || sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/default/grub
+        # Safely overwrite the line cleanly
+        sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/default/grub
         
-        echo "    [+] Updated GRUB configurations with smooth boot switches."
+        echo "    [+] Updated GRUB configuration parameters."
         update-grub
         echo "    [+] update-grub completed successfully."
     else
-        echo "    [i] GRUB options match targets exactly. No modification required."
+        echo "    [i] GRUB options already match targets exactly. No modification required."
     fi
 else
     echo "    [!] /etc/default/grub not found — GRUB tweaks skipped."
 fi
 
 mark_done
-echo "[${MODULE_ID}] Done. Re-run complete to register seamless splash profiles."
+echo "[${MODULE_ID}] Done."
