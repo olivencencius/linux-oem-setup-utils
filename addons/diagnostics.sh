@@ -20,7 +20,7 @@ uname -a | sed 's/^/  /'
 
 print_rule "CPU (lscpu)"
 if command -v lscpu &>/dev/null; then
-    lscpu | sed 's/^/  /'
+    lscpu | grep -E '^Model name|^CPU\(s\)|^Thread|^Core|^Socket|^CPU max MHz' | sed 's/^/  /'
 else
     echo "  lscpu not installed"
 fi
@@ -32,6 +32,23 @@ else
     echo "  free not available"
 fi
 
+print_rule "Swap & ZRAM (zramctl / swapon)"
+if command -v zramctl &>/dev/null; then
+    zramctl | sed 's/^/  /'
+else
+    echo "  zramctl not available"
+fi
+if command -v swapon &>/dev/null; then
+    swapon --show | sed 's/^/  /'
+fi
+
+print_rule "Storage Drives (lsblk)"
+if command -v lsblk &>/dev/null; then
+    lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | sed 's/^/  /'
+else
+    echo "  lsblk not installed"
+fi
+
 print_rule "Battery"
 bat=""
 if command -v upower &>/dev/null; then
@@ -41,6 +58,13 @@ if [ -n "$bat" ]; then
     upower -i "$bat" | grep -E 'state|to[[:space:]]+full|percentage|capacity' | sed 's/^[[:space:]]*/  /'
 else
     echo "  No battery device found via upower"
+fi
+
+print_rule "Network Adapters (Wi-Fi / Ethernet)"
+if command -v ip &>/dev/null; then
+    ip -br link | sed 's/^/  /'
+else
+    echo "  ip utility not installed"
 fi
 
 print_rule "USB devices (lsusb)"

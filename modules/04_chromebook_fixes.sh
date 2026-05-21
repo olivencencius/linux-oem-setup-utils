@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-STATE_DIR="${STATE_DIR:-/var/lib/xubuntu-oem-setup}"
+STATE_DIR="${STATE_DIR:-/var/lib/lubuntu-oem-setup}"
 STATE_FILE="${STATE_FILE:-${STATE_DIR}/.state}"
 MODULE_ID="04_chromebook_fixes"
 
@@ -50,22 +50,35 @@ git clone --depth 1 --progress https://github.com/WeirdTreeThing/cros-keyboard-m
 cd /tmp/cros-keyboard-map
 ./install.sh
 
-echo "--> Installing low-spec packages (zram-tools, tlp)…"
-apt-get install -y zram-tools tlp
+echo "--> Installing low-spec packages (tlp, systemd-zram-generator)…"
+# Purge zram-tools to prevent conflicts with the native systemd-zram-generator
+apt-get purge -y zram-tools || true
+apt-get install -y tlp systemd-zram-generator
 systemctl enable tlp.service 2>/dev/null || true
 
-echo "--> Setting vm.swappiness=20 in /etc/sysctl.conf…"
-if ! grep -q '^vm.swappiness=20' /etc/sysctl.conf 2>/dev/null; then
-    if grep -q '^vm.swappiness=' /etc/sysctl.conf 2>/dev/null; then
-        sed -i 's/^vm.swappiness=.*/vm.swappiness=20/' /etc/sysctl.conf
-    else
-        echo 'vm.swappiness=20' >> /etc/sysctl.conf
-    fi
-    sysctl -w vm.swappiness=20
-    echo "    [+] vm.swappiness=20 applied."
+echo "--> Configuring ZRAM via systemd-zram-generator (50% of RAM, LZ4 compression)..."
+mkdir -p /etc/systemd/zram-generator.conf.d
+cat > /etc/systemd/zram-generator.conf.d/zram.conf <<EOF
+[zram0]
+zram-size = ram / 2
+compression-algorithm = lz4
+EOF
+
+systemctl daemon-reload
+
+# Attempt to initialize ZRAM now. 
+# We remove '|| true' so you get an error if this fails, 
+# ensuring you don't ship a unit with broken memory management.
+if ! systemctl start systemd-zram-setup@zram0.service; then
+    echo "    [!] Warning: Could not hot-start ZRAM. It will initialize cleanly on the next reboot."
 else
-    echo "    [i] vm.swappiness=20 already configured."
+    echo "    [+] ZRAM initialized and active."
 fi
+
+echo "--> Setting vm.swappiness=10 to protect eMMC wear-and-tear…"
+echo "vm.swappiness=10" > /etc/sysctl.d/99-custom-swappiness.conf
+sysctl -p /etc/sysctl.d/99-custom-swappiness.conf
+echo "    [+] vm.swappiness=10 applied."
 
 mark_done
 echo "[${MODULE_ID}] Done."

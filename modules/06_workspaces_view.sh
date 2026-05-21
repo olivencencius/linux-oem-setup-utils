@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-STATE_DIR="${STATE_DIR:-/var/lib/xubuntu-oem-setup}"
+STATE_DIR="${STATE_DIR:-/var/lib/lubuntu-oem-setup}"
 STATE_FILE="${STATE_FILE:-${STATE_DIR}/.state}"
 MODULE_ID="06_workspaces_view"
 
@@ -13,45 +13,73 @@ if is_done; then
     exit 0
 fi
 
-echo "--> Installing xfdashboard (ChromeOS-style workspace overview)…"
-apt-get install -y xfdashboard
+echo "--> Installing skippy-xd (Lightweight macOS-style workspace overview)…"
+apt-get install -y skippy-xd
 
-echo "--> Injecting system-wide XFCE keyboard shortcuts…"
-KEYBIND_XML="/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml"
+echo "--> Configuring LXQt global hotkeys for Workspaces..."
+LXQT_SKEL_DIR="/etc/skel/.config/lxqt"
+GLOBAL_KEYS="${LXQT_SKEL_DIR}/globalkeyshortcuts.conf"
 
-if [ -f "$KEYBIND_XML" ]; then
-    if ! grep -q 'value="xfdashboard"' "$KEYBIND_XML" 2>/dev/null; then
-        # Fixed your sed command to match <property name="custom"> even if type="empty" is missing
-        sed -i '/<property name="custom".*>/a \
-      <property name="LaunchA" type="string" value="xfdashboard"/>\
-      <property name="Super_L" type="string" value="xfdashboard"/>\
-      <property name="F5" type="string" value="xfdashboard"/>\
-      <property name="XF86Scale" type="string" value="xfdashboard"/>\
-      <property name="XF86Explorer" type="string" value="xfdashboard"/>' "$KEYBIND_XML"
-        echo "    [+] Injected xfdashboard bindings into ${KEYBIND_XML}."
+mkdir -p "$LXQT_SKEL_DIR"
+
+if [ ! -f "$GLOBAL_KEYS" ]; then
+    # Fallback chain to find the true Lubuntu defaults
+    if [ -f /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf ]; then
+        cp /etc/xdg/xdg-Lubuntu/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
+    elif [ -f /etc/xdg/lxqt/globalkeyshortcuts.conf ]; then
+        cp /etc/xdg/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
+    elif [ -f /usr/share/lxqt/globalkeyshortcuts.conf ]; then
+        cp /usr/share/lxqt/globalkeyshortcuts.conf "$GLOBAL_KEYS"
     else
-        echo "    [i] xfdashboard shortcuts already present in ${KEYBIND_XML}."
+        echo "    [!] Warning: Could not find default LXQt shortcuts. Generating a clean file."
+        touch "$GLOBAL_KEYS"
     fi
-else
-    echo "    [!] Warning: Default XFCE keyboard shortcuts XML not found. Skipping."
 fi
 
-# --- APPLY TO TECHNICIAN FOR QA USING YOUR ORIGINAL DBUS LOGIC ---
+if ! grep -q 'skippy-xd' "$GLOBAL_KEYS" 2>/dev/null; then
+    cat >> "$GLOBAL_KEYS" <<EOF
+
+[F5.1]
+Comment=Workspace Overview (F5)
+Enabled=true
+Exec=skippy-xd
+
+[LaunchA.2]
+Comment=Workspace Overview (Search Key)
+Enabled=true
+Exec=skippy-xd
+
+[Super_L.3]
+Comment=Workspace Overview (Super Key)
+Enabled=true
+Exec=skippy-xd
+
+[XF86Scale.4]
+Comment=Workspace Overview (Chromebook Overview Key 1)
+Enabled=true
+Exec=skippy-xd
+
+[XF86Explorer.5]
+Comment=Workspace Overview (Chromebook Overview Key 2)
+Enabled=true
+Exec=skippy-xd
+EOF
+    echo "    [+] Skippy-XD bindings injected into ${GLOBAL_KEYS}"
+else
+    echo "    [i] Skippy-XD bindings already present in ${GLOBAL_KEYS}"
+fi
+
+# --- APPLY TO TECHNICIAN FOR QA ---
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    TECH_HOME=$(getent passwd "${SUDO_USER}" | cut -d: -f6)
     echo "--> Applying Workspaces shortcuts to technician user (${SUDO_USER}) for QA preview..."
     
-    sudo -u "${SUDO_USER}" bash -c '
-        export DISPLAY=:0
-        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-        
-        # We talk directly to the daemon via DBUS just like you originally wrote
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/LaunchA" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/Super_L" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/F5" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Scale" -n -t string -s "xfdashboard" 2>/dev/null || true
-        xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/XF86Explorer" -n -t string -s "xfdashboard" 2>/dev/null || true
-    '
-    echo "    [+] Keyboard shortcuts applied to live DBUS session."
+    mkdir -p "${TECH_HOME}/.config/lxqt"
+    cp "$GLOBAL_KEYS" "${TECH_HOME}/.config/lxqt/globalkeyshortcuts.conf"
+    chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/lxqt"
+    
+    echo "    [+] Keyboard shortcuts applied."
+    echo "    [i] You may need to log out and log back in for LXQt to register the new hotkeys."
 fi
 # ----------------------------------
 

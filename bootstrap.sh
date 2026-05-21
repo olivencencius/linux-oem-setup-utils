@@ -1,12 +1,7 @@
 #!/bin/bash
 # ==============================================================================
-#   Xubuntu Chromebook OEM Bootstrap
-#   Downloads modular setup scripts and runs the full pipeline or individual steps.
-#
-#   Usage:
-#     wget -qO- https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main/bootstrap.sh | sudo bash
+#   Lubuntu Chromebook OEM Bootstrap
 # ==============================================================================
-
 set -euo pipefail
 
 if [ "${EUID:-}" -ne 0 ]; then
@@ -15,10 +10,10 @@ if [ "${EUID:-}" -ne 0 ]; then
 fi
 
 readonly GITHUB_RAW="https://raw.githubusercontent.com/olivencencius/linux-oem-setup-utils/main"
-readonly WORK_DIR="/tmp/xubuntu-oem-setup"
-readonly STATE_DIR="/var/lib/xubuntu-oem-setup"
+readonly WORK_DIR="/tmp/lubuntu-oem-setup"
+readonly STATE_DIR="/var/lib/lubuntu-oem-setup"
 readonly STATE_FILE="${STATE_DIR}/.state"
-readonly LOG_FILE="/var/log/xubuntu_oem_setup.log"
+readonly LOG_FILE="/var/log/lubuntu_oem_setup.log"
 
 MODULES=(
     "01_update_os.sh"
@@ -37,7 +32,6 @@ MODULES=(
 
 ADDONS=(
     "diagnostics.sh"
-    "prepare_for_shipping.sh"
 )
 
 mkdir -p "$WORK_DIR" "$STATE_DIR"
@@ -125,9 +119,9 @@ run_pipeline() {
         run_module "$script" || failed=1
     done
     if [ "$failed" -eq 0 ]; then
-        log_msg "Pipeline finished — all 12 modules completed."
+        log_msg "Pipeline finished — all modules completed."
     else
-        log_msg "Pipeline stopped with errors. Re-run bootstrap to resume from the last failed step."
+        log_msg "Pipeline stopped with errors. Re-run bootstrap to resume."
         return 1
     fi
 }
@@ -135,28 +129,27 @@ run_pipeline() {
 show_menu() {
     echo ""
     echo "========================================="
-    echo "   XUBUNTU CHROMEBOOK OEM SETUP"
+    echo "   LUBUNTU CHROMEBOOK OEM SETUP"
     echo "========================================="
     echo "  Log file: ${LOG_FILE}"
     echo "  State:    ${STATE_FILE}"
     echo ""
     echo "  0) Run full pipeline (modules 1–12)"
-    echo "  1)  OS update"
+    echo "  1)  OS update & Codecs"
     echo "  2)  Install git"
     echo "  3)  Boot optimization"
-    echo "  4)  Chromebook fixes (audio, keyboard, low-spec)"
+    echo "  4)  Chromebook fixes (audio, keyboard, ZRAM)"
     echo "  5)  Touchpad + gestures"
-    echo "  6)  Workspaces overview (xfdashboard)"
+    echo "  6)  Workspaces overview (skippy-xd)"
     echo "  7)  Terminal paste fix"
     echo "  8)  Install Google Chrome"
     echo "  9)  Install VLC"
     echo " 10)  Web apps"
     echo " 11)  Low-spec games"
-    echo "  12) Plank dock (system skel)"
+    echo " 12)  Plank dock & Panel move"
     echo ""
-    echo "  Add-ons (standalone — not part of the pipeline):"
+    echo "  Add-ons (standalone):"
     echo "  d)  Hardware diagnostics (read-only report)"
-    echo "  p)  Prepare for shipping (oem-config-prepare)"
     echo ""
     echo "  q) Quit"
     echo ""
@@ -169,29 +162,20 @@ main() {
 
     while true; do
         show_menu
-        read -r -p "Select option [0-12, d, p, q]: " choice </dev/tty || choice="q"
+        read -r -p "Select option [0-12, d, q]: " choice </dev/tty || choice="q"
 
         case "$choice" in
-            0)
-                run_pipeline
-                ;;
+            0) run_pipeline ;;
             1|2|3|4|5|6|7|8|9|10|11|12)
                 idx=$((10#$choice))
                 run_module "${MODULES[$((idx - 1))]}"
                 ;;
-            d|D)
-                run_addon "diagnostics.sh"
-                ;;
-            p|P)
-                run_addon "prepare_for_shipping.sh"
-                ;;
+            d|D) run_addon "diagnostics.sh" ;;
             q|Q)
                 log_msg "Bootstrap exited by user."
                 exit 0
                 ;;
-            *)
-                echo "Invalid option. Try again."
-                ;;
+            *) echo "Invalid option. Try again." ;;
         esac
     done
 }

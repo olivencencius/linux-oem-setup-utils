@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-STATE_DIR="${STATE_DIR:-/var/lib/xubuntu-oem-setup}"
+STATE_DIR="${STATE_DIR:-/var/lib/lubuntu-oem-setup}"
 STATE_FILE="${STATE_FILE:-${STATE_DIR}/.state}"
 MODULE_ID="09_install_vlc"
 

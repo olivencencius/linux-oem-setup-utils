@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-STATE_DIR="${STATE_DIR:-/var/lib/xubuntu-oem-setup}"
+STATE_DIR="${STATE_DIR:-/var/lib/lubuntu-oem-setup}"
 STATE_FILE="${STATE_FILE:-${STATE_DIR}/.state}"
 MODULE_ID="12_install_plank"
 
@@ -11,6 +11,27 @@ mark_done() { mkdir -p "$STATE_DIR"; grep -qxF "$MODULE_ID" "$STATE_FILE" || ech
 if is_done; then
     echo "[${MODULE_ID}] Already completed — skipping."
     exit 0
+fi
+
+echo "--> Moving Lubuntu native panel to the TOP..."
+LXQT_SKEL_DIR="/etc/skel/.config/lxqt"
+mkdir -p "$LXQT_SKEL_DIR"
+
+# Fallback chain to find the true Lubuntu panel config
+PANEL_SRC=""
+for p in /etc/xdg/xdg-Lubuntu/lxqt/panel.conf /etc/xdg/lxqt/panel.conf /usr/share/lxqt/panel.conf; do
+    if [ -f "$p" ]; then 
+        PANEL_SRC="$p"
+        break
+    fi
+done
+
+if [ -n "$PANEL_SRC" ]; then
+    cp "$PANEL_SRC" "${LXQT_SKEL_DIR}/panel.conf"
+    sed -i -E 's/^position\s*=\s*Bottom/position=Top/i' "${LXQT_SKEL_DIR}/panel.conf"
+    echo "    [+] Lubuntu panel position set to Top in skeleton (sourced from $PANEL_SRC)."
+else
+    echo "    [!] panel.conf not found in any standard LXQt directory. Skipping panel move."
 fi
 
 echo "--> Installing Plank dock…"
@@ -34,7 +55,6 @@ PinnedOnly=true
 AutoPinning=false
 EOF
 
-# Resolve .desktop paths (first match wins)
 resolve_desktop() {
     local candidates=("$@")
     local c
@@ -65,8 +85,9 @@ EOF
 rm -f "${LAUNCHERS}"/*.dockitem 2>/dev/null || true
 
 idx=1
-write_dockitem $((idx++)) thunar.desktop Thunar.desktop
-write_dockitem $((idx++)) xfce4-settings-manager.desktop xfce-settings-manager.desktop
+write_dockitem $((idx++)) pcmanfm-qt.desktop
+write_dockitem $((idx++)) lxqt-config.desktop lxqt-config-center.desktop org.lxqt.lxqt-config.desktop
+write_dockitem $((idx++)) org.kde.discover.desktop
 write_dockitem $((idx++)) google-chrome.desktop
 write_dockitem $((idx++)) webapp-googledocs.desktop
 write_dockitem $((idx++)) webapp-googlesheets.desktop
@@ -91,17 +112,26 @@ EOF
 # --- APPLY TO TECHNICIAN FOR QA ---
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     TECH_HOME=$(getent passwd "${SUDO_USER}" | cut -d: -f6)
-    echo "--> Applying Plank configurations to technician user (${SUDO_USER}) for QA preview..."
+    echo "--> Applying Plank & Panel configs to technician user (${SUDO_USER}) for QA preview..."
     
     mkdir -p "${TECH_HOME}/.config/autostart"
+    
+    # Cursor Catch: Explicitly create the LXQt config directory before attempting the copy
+    mkdir -p "${TECH_HOME}/.config/lxqt"
+    
     cp -r /etc/skel/.config/plank "${TECH_HOME}/.config/"
     cp /etc/skel/.config/autostart/plank.desktop "${TECH_HOME}/.config/autostart/"
     
-    # Root copied these files, so we must give ownership back to the technician
+    if [ -f "${LXQT_SKEL_DIR}/panel.conf" ]; then
+        cp "${LXQT_SKEL_DIR}/panel.conf" "${TECH_HOME}/.config/lxqt/panel.conf"
+    fi
+    
     chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/plank"
+    chown -R "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/lxqt"
     chown "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/autostart/plank.desktop"
     
-    echo "    [+] Successfully injected Plank into technician desktop."
+    echo "    [+] Plank injected."
+    echo "    [i] Restart your session to see the Panel move to the top."
 fi
 # ----------------------------------
 
