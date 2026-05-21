@@ -34,6 +34,21 @@ if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"
     echo "    [+] Optimizing serial port tracking..."
     systemctl disable --now serial-getty@ttyS0.service 2>/dev/null || true
 
+    # --- NEW: INTENSE ZRAM BOOT ACCELERATION ---
+    # We alter the systemd service file for zramswap so it doesn't hold up the graphical boot sequence.
+    ZRAM_SERVICE="/lib/systemd/system/zramswap.service"
+    if [ -f "$ZRAM_SERVICE" ]; then
+        echo "    [+] Optimizing zramswap to prevent synchronous boot choking..."
+        # Remove it from blocking the basic system initialization timeline
+        sed -i 's/Before=local-fs.target/Before=/' "$ZRAM_SERVICE" 2>/dev/null || true
+        # Tell systemd to run this in the background asynchronously
+        if ! grep -q "TimeoutStartSec=" "$ZRAM_SERVICE"; then
+            sed -i '/\[Service\]/a TimeoutStartSec=5' "$ZRAM_SERVICE" 2>/dev/null || true
+        fi
+        systemctl daemon-reload
+    fi
+    # ------------------------------------------
+
     # AMD specific GRUB parameters to bypass the firmware map conflict
     TARGET_OPTS="quiet splash loglevel=3 amd_iommu=off video=efifb:off"
 else
