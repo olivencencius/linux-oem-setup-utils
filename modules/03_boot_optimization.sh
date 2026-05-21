@@ -13,7 +13,7 @@ if is_done; then
     exit 0
 fi
 
-echo "--> Masking network wait-online services (prevents WiFi-less boot hangs)…"
+echo "--> Masking network wait-online services (prevents offline boot hangs)…"
 for svc in systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
     if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}"; then
         systemctl mask --now "$svc" 2>/dev/null || true
@@ -21,42 +21,8 @@ for svc in systemd-networkd-wait-online.service NetworkManager-wait-online.servi
     fi
 done
 
-echo "--> Restoring standard Plymouth loading spinner..."
-if [ -f /etc/default/grub ]; then
-    # Standard fast-boot parameters to ensure the Xubuntu spinner appears
-    # Hides the blinking cursor for a cleaner look
-    TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
-    
-    if ! grep -q "GRUB_CMDLINE_LINUX_DEFAULT=\"$TARGET_OPTS\"" /etc/default/grub; then
-        sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/default/grub
-        
-        echo "    [+] Updated GRUB configuration parameters."
-        update-grub
-        echo "    [+] update-grub completed successfully."
-    else
-        echo "    [i] GRUB options already match targets. No modification required."
-    fi
-else
-    echo "    [!] /etc/default/grub not found — GRUB tweaks skipped."
-fi
-
-echo "--> Injecting multilingual 'Please wait' banner into TTY1..."
-# Overwrite the default TTY greeting so the user doesn't see a scary system prompt 
-# if the hardware delays the graphical interface.
-cat > /etc/issue << 'EOF'
-
-
-=============================================
-  Please wait...
-  Proszę czekać...
-  Bitte warten...
-  Veuillez patienter...
-  Vänligen vänta...
-=============================================
-
-
-EOF
-echo "    [+] /etc/issue banner updated."
+echo "--> No graphics or hardware boot optimizations to perform."
+echo "    (AMD hardware delays are firmware-locked; Intel boots optimally by default)."
 
 mark_done
 echo "[${MODULE_ID}] Done."
