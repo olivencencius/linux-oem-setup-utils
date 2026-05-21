@@ -13,61 +13,32 @@ if is_done; then
     exit 0
 fi
 
-echo "--> Masking network wait-online services (prevents WiFi-less boot hangs)…"
-for svc in systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
-    if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}"; then
-        systemctl mask --now "$svc" 2>/dev/null || true
-        echo "    [+] Masked $svc"
-    fi
-done
-
-echo "--> Tuning GRUB and system services based on hardware architecture…"
-
-# Automatic Hardware Detection Branching
-if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"; then
-    echo "    [i] AMD Hardware Detected. Applying Stoney APU specific optimizations..."
-    
-    echo "    [+] Disabling cellular modem scanning (ModemManager) to save 15+ seconds..."
-    systemctl disable --now ModemManager.service 2>/dev/null || true
-    systemctl mask ModemManager.service 2>/dev/null || true
-
-    echo "    [+] Optimizing serial port tracking..."
-    systemctl disable --now serial-getty@ttyS0.service 2>/dev/null || true
-
-    # --- NEW: INTENSE ZRAM BOOT ACCELERATION ---
-    # We alter the systemd service file for zramswap so it doesn't hold up the graphical boot sequence.
-    ZRAM_SERVICE="/lib/systemd/system/zramswap.service"
-    if [ -f "$ZRAM_SERVICE" ]; then
-        echo "    [+] Optimizing zramswap to prevent synchronous boot choking..."
-        # Remove it from blocking the basic system initialization timeline
-        sed -i 's/Before=local-fs.target/Before=/' "$ZRAM_SERVICE" 2>/dev/null || true
-        # Tell systemd to run this in the background asynchronously
-        if ! grep -q "TimeoutStartSec=" "$ZRAM_SERVICE"; then
-            sed -i '/\[Service\]/a TimeoutStartSec=5' "$ZRAM_SERVICE" 2>/dev/null || true
-        fi
-        systemctl daemon-reload
-    fi
-    # ------------------------------------------
-
-    # AMD specific GRUB parameters to bypass the firmware map conflict
-    TARGET_OPTS="quiet splash loglevel=3 amd_iommu=off video=efifb:off"
-else
-    echo "    [i] Intel/Other Hardware Detected. Applying standard fast-boot optimizations..."
-    
-    # Standard fast-boot parameters that work perfectly on Intel ChromeOS hardware
-    TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
-fi
+echo "--> Configuring boot sequence UX..."
 
 if [ -f /etc/default/grub ]; then
+    # Hardware Detection Branching
+    if lspci 2>/dev/null | grep -iq "VGA.*AMD" || lscpu 2>/dev/null | grep -iq "AMD"; then
+        echo "    [i] AMD Hardware Detected (Stoney Ridge CRAT Delay)."
+        echo "    [+] Applying 'Diagnostic Boot' UX to mask the 30-second firmware timeout..."
+        
+        # Remove 'quiet' and 'splash' so the user sees the active systemd boot text
+        # Remove the blinking cursor to keep it looking clean and intentional
+        TARGET_OPTS="loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
+    else
+        echo "    [i] Intel/Other Hardware Detected."
+        echo "    [+] Applying standard silent Plymouth splash screen..."
+        
+        TARGET_OPTS="quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0"
+    fi
+    
     if ! grep -q "GRUB_CMDLINE_LINUX_DEFAULT=\"$TARGET_OPTS\"" /etc/default/grub; then
-        # Safely overwrite the line cleanly
         sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="'"$TARGET_OPTS"'"/' /etc/default/grub
         
-        echo "    [+] Updated GRUB configuration parameters."
+        echo "    [+] Updated GRUB configuration."
         update-grub
         echo "    [+] update-grub completed successfully."
     else
-        echo "    [i] GRUB options already match targets exactly. No modification required."
+        echo "    [i] GRUB options already match targets. No modification required."
     fi
 else
     echo "    [!] /etc/default/grub not found — GRUB tweaks skipped."
