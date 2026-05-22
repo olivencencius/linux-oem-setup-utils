@@ -9,8 +9,7 @@ is_done() { [ -f "$STATE_FILE" ] && grep -qxF "$MODULE_ID" "$STATE_FILE"; }
 mark_done() { mkdir -p "$STATE_DIR"; grep -qxF "$MODULE_ID" "$STATE_FILE" || echo "$MODULE_ID" >> "$STATE_FILE"; }
 
 if is_done; then
-    echo "[${MODULE_ID}] Already completed — skipping."
-    exit 0
+    echo "[${MODULE_ID}] Already completed — refreshing gesture configs only."
 fi
 
 echo "--> Writing system-wide touchpad configuration (click-finger & natural scroll)…"
@@ -28,28 +27,32 @@ EOF
 echo "    [+] /etc/X11/xorg.conf.d/90-touchpad.conf"
 
 echo "--> Installing libinput-gestures dependencies…"
-apt-get install -y libinput-tools xdotool wmctrl python3 make git
+apt-get install -y libinput-tools xdotool python3 make git
 
 echo "--> Modifying /etc/adduser.conf so the final buyer inherits 'input' group permissions..."
-# Enable extra groups for new users if commented out
 sed -i 's/^#ADD_EXTRA_GROUPS=1/ADD_EXTRA_GROUPS=1/' /etc/adduser.conf || true
-# Inject 'input' into the extra groups list if it isn't there already
 if ! grep -q 'input' /etc/adduser.conf; then
     sed -i 's/^EXTRA_GROUPS="/EXTRA_GROUPS="input /' /etc/adduser.conf || true
 fi
 
 echo "--> Compiling and installing libinput-gestures globally…"
-cd /tmp
-rm -rf libinput-gestures
-git clone --depth 1 https://github.com/bulletmark/libinput-gestures.git
-cd libinput-gestures
-make install
+if [ ! -f /usr/local/bin/libinput-gestures ]; then
+    cd /tmp
+    rm -rf libinput-gestures
+    git clone --depth 1 https://github.com/bulletmark/libinput-gestures.git
+    cd libinput-gestures
+    make install
+else
+    echo "    [i] libinput-gestures binary already installed globally."
+fi
 
-echo "--> Creating system-wide gesture mapping (3-finger swipe for workspaces)…"
-# Note: ChromeOS swipes left to move the view right (next workspace)
+echo "--> Creating system-wide ChromeOS gesture mapping…"
+# FIX: Openbox handles Ctrl+Alt+Left/Right flawlessly for desktop switching.
+# We also link "swipe up" directly to our skippy-xd overview client.
 cat > /etc/libinput-gestures.conf <<'EOF'
-gesture swipe left 3 xdotool set_desktop --relative 1
-gesture swipe right 3 xdotool set_desktop --relative -- -1
+gesture swipe left 3 xdotool key Ctrl+Alt+Right
+gesture swipe right 3 xdotool key Ctrl+Alt+Left
+gesture swipe up 3 skippy-xd --paging
 EOF
 echo "    [+] /etc/libinput-gestures.conf"
 
@@ -79,10 +82,14 @@ if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     cp /etc/skel/.config/autostart/libinput-gestures.desktop "${TECH_HOME}/.config/autostart/"
     chown "${SUDO_USER}:${SUDO_USER}" "${TECH_HOME}/.config/autostart/libinput-gestures.desktop"
     
-    echo "    [+] Added ${SUDO_USER} to 'input' group and injected autostart."
+    # 3. Live restart the gesture daemon for the technician if it's already running
+    echo "--> Refreshing live gesture engine for technician QA..."
+    sudo -u "${SUDO_USER}" libinput-gestures-setup restart 2>/dev/null || true
+    
+    echo "    [+] Added ${SUDO_USER} to 'input' group and synchronized configuration."
 fi
 # ----------------------------------
 
 mark_done
 echo "[${MODULE_ID}] Done."
-echo "⚠️  IMPORTANT FOR TECHNICIAN: Because you were just added to the 'input' group, you MUST log out and log back in (or reboot) before 3-finger swipes will work on your account."
+echo "⚠️  CRITICAL FOR QA: If gestures still don't fire on your technician account, you MUST log out and log back in completely. Your user session cannot read trackpad data until the 'input' group membership initializes on a fresh login."
